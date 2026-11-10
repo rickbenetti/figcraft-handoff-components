@@ -1,0 +1,95 @@
+# Handoff Components
+
+A plugin for FigCraft that documents the selected component, or component set, as a handoff report on the same page.
+
+![Report for the Code component](docs/samples/report-code.png)
+
+> Handoff Components is an independent, community-made plugin for FigCraft. It is not affiliated with, endorsed by, or supported by the ArtCraft team. FigCraft and ArtCraft are names and trademarks of their respective owners.
+
+## What it does
+
+Select a component or a set and run one command. The plugin writes a report next to your work, with:
+
+- **Anatomy**: the layers of the component, numbered, with their properties and tokens. Each property is audited:
+  bound to a variable or style, loose ("no token"), missing from the file, or suspect (bound, but to something of
+  another value).
+- **Spacing**: gap and padding, drawn over the component.
+- **Variant differences**: for a component set, what each variant changes from the default one, axis by axis.
+- **Same page, one click**: each report goes to the right of everything on the page, at the same height.
+
+More samples: [Button](docs/samples/report-button.png), [Card](docs/samples/report-card.png),
+[Accordion](docs/samples/report-accordion.png).
+
+## Requirements
+
+- FigCraft, [a design app from the ArtCraft team](https://getartcraft.com/apps/figcraft), and `figcraft-cli` on the PATH.
+- Tested with **figcraft-cli 0.17.0**. The plugin SDK is `figcraft-plugin-sdk` at tag `v0.14.0`.
+- Only to build the plugin: Rust 1.95 (`rust-version = "1.95"` in `Cargo.toml`) with the `wasm32-unknown-unknown` target,
+  for example with rustup:
+
+  ```sh
+  rustup toolchain install 1.95
+  rustup override set 1.95          # run inside this repository
+  rustup target add wasm32-unknown-unknown
+  ```
+
+  The build downloads the SDK from GitHub (a git dependency) and the other crates from crates.io.
+- Python 3, only for the regression net.
+
+## Install and build
+
+```sh
+scripts/build.sh
+```
+
+It writes `dist/` and prints the absolute path of the manifest to import. In FigCraft:
+**Plugins ▸ Development ▸ Import plugin from manifest…** (in the Portuguese app: **Plugins ▸ Desenvolvimento ▸ Importar plugin a partir do manifesto…**), pick `dist/figcraft-plugin.json`.
+
+## Usage
+
+Select a component or a set, then run **Plugins ▸ Handoff Components ▸ Generate report**.
+
+**Plugins ▸ Handoff Components ▸ Settings…** sets, among others, the language (`en` or `pt`), the line colour, the stage
+(`light`, `dark` or `auto`), what a rerun does (`replace` or `new`), the default variant, and the version, date and status
+shown on the report. Leave a field empty to keep its current value; type `-` to clear it and go back to the default.
+The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`;
+default variant the component's own default, else the first variant of the set; version, date and status none (left out of the report).
+
+## Demo
+
+[`demo/`](demo/README.md) holds the **DS Base Demo**: a small neutral design system built from scratch
+(Icon, Button, Card, Accordion, Code), with variables, styles and Light/Dark modes. Open
+`demo/ds-base-demo.figcraft` and generate reports on it.
+
+## Known limitations
+
+- Version 0.9.x, before 1.0: expect rough edges.
+- The report is in English by default. Portuguese (`pt`) translates only part of it; the rest stays in English. A complete pt-BR is planned. The Settings form labels are always in English: the host shows one label per field.
+- The host does not report a layer's text case, so it is missing from the typography lines.
+- A run has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
+  use much of it: the heaviest case in the regression net, a test fixture with a 155-layer component, uses 64.1%; the DS Base
+  Demo's Card uses 23.4%.
+- Swapping an instance between variants shows up as one layer becoming hidden and another visible.
+- Long text changes are shown as a short excerpt (40 characters) around the first difference.
+- Layer rotation is not audited or compared between variants.
+
+## Tests and regression
+
+```sh
+cargo test                      # 84 unit tests
+scripts/regress.sh              # 9 cases (4 fixtures + 5 on the DS Base Demo) against tests/baseline.json
+scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
+```
+
+`scripts/regress.sh --update [text]` rewrites the baseline for the cases whose name contains `text` (all, if omitted).
+The demo components are found by name on every run. The `--private` option only works on a machine that has a local
+`tests/private/` folder; without it, it says so and exits.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The demo bundles Phosphor Icons path data and names the Inter and JetBrains Mono fonts, and the
+plugin is built from Rust crates with their own licences; their notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Credits
+
+Built with Claude Code (Anthropic).

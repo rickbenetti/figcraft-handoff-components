@@ -1,0 +1,187 @@
+{
+ "button32": [
+  {
+   "command": "node.get",
+   "ok": true,
+   "result": {
+    "children": [
+     {
+      "id": 33,
+      "name": "Salvar",
+      "type": "TEXT"
+     }
+    ],
+    "id": 32,
+    "name": "Botão de teste",
+    "type": "COMPONENT"
+   },
+   "step": 0
+  },
+  {
+   "command": "component.properties",
+   "ok": true,
+   "result": {
+    "component": 32,
+    "conflicts": [],
+    "properties": [],
+    "set": null
+   },
+   "step": 1
+  },
+  {
+   "command": "node.get",
+   "ok": true,
+   "result": {
+    "children": [
+     {
+      "id": 35,
+      "name": "Salvar",
+      "type": "TEXT"
+     }
+    ],
+    "id": 34,
+    "name": "Botão de teste",
+    "type": "INSTANCE"
+   },
+   "step": 2
+  },
+  {
+   "command": "component.properties",
+   "ok": true,
+   "result": {
+    "component": 32,
+    "conflicts": [],
+    "properties": [],
+    "set": null
+   },
+   "step": 3
+  }
+ ],
+ "toast": [
+  {
+   "command": "node.get",
+   "ok": true,
+   "result": {
+    "children": [
+     {
+      "childCount": 3,
+      "id": 3,
+      "name": "Tipo=Erro, Faixa=Clara",
+      "type": "COMPONENT"
+     },
+     {
+      "childCount": 3,
+      "id": 10,
+      "name": "Tipo=Sucesso, Faixa=Clara",
+      "type": "COMPONENT"
+     },
+     {
+      "childCount": 3,
+      "id": 17,
+      "name": "Tipo=Erro, Faixa=Escura",
+      "type": "COMPONENT"
+     },
+     {
+      "childCount": 3,
+      "id": 24,
+      "name": "Tipo=Sucesso, Faixa=Escura",
+      "type": "COMPONENT"
+     }
+    ],
+    "id": 2,
+    "name": "Toast",
+    "type": "COMPONENT_SET"
+   },
+   "step": 0
+  },
+  {
+   "command": "component.properties",
+   "ok": true,
+   "result": {
+    "component": 3,
+    "conflicts": [],
+    "properties": [
+     {
+      "default": "Erro",
+      "name": "Tipo",
+      "options": [
+       "Erro",
+       "Sucesso"
+      ],
+      "type": "variant"
+     },
+     {
+      "default": "Clara",
+      "name": "Faixa",
+      "options": [
+       "Clara",
+       "Escura"
+      ],
+      "type": "variant"
+     }
+    ],
+    "set": 2
+   },
+   "step": 1
+  },
+  {
+   "command": "node.get",
+   "ok": true,
+   "result": {
+    "children": [
+     {
+      "childCount": 1,
+      "id": 4,
+      "name": "Icone",
+      "type": "FRAME"
+     },
+     {
+      "childCount": 2,
+      "id": 6,
+      "name": "Texto",
+      "type": "FRAME"
+     },
+     {
+      "id": 9,
+      "name": "Fechar",
+      "type": "TEXT"
+     }
+    ],
+    "id": 3,
+    "name": "Tipo=Erro, Faixa=Clara",
+    "type": "COMPONENT"
+   },
+   "step": 2
+  },
+  {
+   "command": "component.properties",
+   "ok": true,
+   "result": {
+    "component": 3,
+    "conflicts": [],
+    "properties": [
+     {
+      "default": "Erro",
+      "name": "Tipo",
+      "options": [
+       "Erro",
+       "Sucesso"
+      ],
+      "type": "variant"
+     },
+     {
+      "default": "Clara",
+      "name": "Faixa",
+      "options": [
+       "Clara",
+       "Escura"
+      ],
+      "type": "variant"
+     }
+    ],
+    "set": 2
+   },
+   "step": 3
+  }
+ ]
+}

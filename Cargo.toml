@@ -1,0 +1,31 @@
+[package]
+name = "handoff-components"
+version = "0.9.5"
+description = "FigCraft plugin that generates a handoff report for a component: anatomy, properties and tokens, spacing and variant differences."
+license = "MIT"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+figcraft-plugin-sdk = { git = "https://github.com/storytold/figcraft", tag = "v0.14.0" }
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+
+# Small modules: a plugin is loaded on every run.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,0 +1,11 @@
+{
+  "where": "pluginData of the current page (node.get {id: page, fields:[\"pluginData\"]})",
+  "key": "handoff-settings",
+  "value_is_a_JSON_text": "{\"lang\":\"pt\",\"line\":\"#3B82F6\",\"on_rerun\":\"new\"}",
+  "as_object": {
+    "lang": "pt",
+    "line": "#3B82F6",
+    "fill": "(optional, e.g. #3B82F633)",
+    "on_rerun": "replace|new"
+  }
+}

@@ -1,0 +1,1 @@
+{"command":"node.get","ok":true,"result":{"boundVariables":{"cornerRadius":"VariableID:3","fill":"VariableID:4","gap":"VariableID:1","paddingHorizontal":"VariableID:2"},"children":[{"id":33}],"id":32},"step":0}

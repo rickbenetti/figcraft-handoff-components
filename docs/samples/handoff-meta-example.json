@@ -1,0 +1,10 @@
+{
+  "where": "pluginData of the main component; of the component set for a variant",
+  "key": "handoff-meta",
+  "value_is_a_JSON_text": "{\"date\":\"2026-11-01\",\"status\":\"Aprovado\",\"version\":\"1.2.0\"}",
+  "report_mark": {
+    "where": "pluginData of the report frame",
+    "key": "handoff-report",
+    "value": "32 (the id of the component, as text)"
+  }
+}

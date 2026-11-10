@@ -1,0 +1,99 @@
+{
+  "id": "me.benetti.handoff-components",
+  "name": "Handoff Components",
+  "version": "0.9.5",
+  "description": "Generates documentation for the selected component on the same page: numbered anatomy, properties and tokens, spacing and per-variant differences, in one click.",
+  "author": "Rick Benetti",
+  "main": "handoff_components.wasm",
+  "api": 1,
+  "permissions": {
+    "access": "write",
+    "commands": [
+      "node.get",
+      "variable.list",
+      "measure.padding",
+      "instance.place",
+      "text.create",
+      "page.list",
+      "frame.create",
+      "shape.rectangle",
+      "node.set",
+      "node.reparent",
+      "shape.ellipse",
+      "select.set",
+      "shape.line",
+      "node.find",
+      "edit.delete",
+      "text.style",
+      "component.properties",
+      "export.add",
+      "style.list"
+    ]
+  },
+  "commands": [
+    {
+      "id": "generate",
+      "label": "Generate report"
+    },
+    {
+      "id": "settings",
+      "label": "Settings…",
+      "params": [
+        {
+          "name": "lang",
+          "label": "Language (en or pt)",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "cor_linha",
+          "label": "Line colour",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "cor_preenchimento",
+          "label": "Fill colour (default: the line colour at 30%)",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "stage",
+          "label": "Stage (light, dark or auto)",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "on_rerun",
+          "label": "On rerun (replace or new)",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "default_variant",
+          "label": "Default variant",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "versao",
+          "label": "Version",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "data",
+          "label": "Date",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "text",
+          "default": ""
+        }
+      ]
+    }
+  ]
+}
