@@ -205,7 +205,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelReload | Reload | Recarregar |
 | PanelDefaults | Restore defaults | Restaurar padrões |
 | PanelClose | Close | Fechar |
-| PanelPageHeading | This page | Esta página |
+| PanelPageHeading | ── This page ── | ── Esta página ── |
 | PanelLang | Language | Idioma |
 | PanelLangEn | English | English |
 | PanelLangPt | Português (Brasil) | Português (Brasil) |
@@ -221,9 +221,9 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelRerunNew | New | Novo |
 | PanelTz | Time zone (UTC) | Fuso horário (UTC) |
 | PanelTzNote | Offset in hours from UTC (e.g. -3). Fixed: no daylight saving time. | Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão. |
-| PanelTargetComponent | Component: {name} | Componente: {name} |
-| PanelTargetSet | Component set: {name} | Conjunto de componentes: {name} |
-| PanelTargetVariant | Variant of the set: {name} | Variante do conjunto: {name} |
+| PanelTargetComponent | ── Component: {name} ── | ── Componente: {name} ── |
+| PanelTargetSet | ── Component set: {name} ── | ── Conjunto de componentes: {name} ── |
+| PanelTargetVariant | ── Variant of the set: {name} ── | ── Variante do conjunto: {name} ── |
 | PanelNoTarget | Select a component and press Reload | Selecione um componente e aperte Recarregar |
 | PanelVersion | Version | Versão |
 | PanelStatus | Status | Status |

@@ -415,6 +415,9 @@ pub fn spec(lang: Lang, form: &Form, target: Option<&Target>, notes: &Notes) -> 
     }
     c.push(button("save", t(lang, Key::PanelSave)));
     c.push(button("reload", t(lang, Key::PanelReload)));
+    // A section's note looks like a title (its text is decorated in the dictionary) and has an empty
+    // note before it as a spacer: the host has no section, divider or spacing of its own.
+    c.push(note(""));
     c.push(note(t(lang, Key::PanelPageHeading)));
     c.push(json!({"type": "select", "name": "lang", "label": label(Key::PanelLang), "options": [lang_label(Lang::En), lang_label(Lang::Pt)], "value": lang_label(form.lang)}));
     c.push(json!({"type": "color", "name": "line", "label": label(Key::PanelLineColour), "value": form.line}));
@@ -436,6 +439,7 @@ pub fn spec(lang: Lang, form: &Form, target: Option<&Target>, notes: &Notes) -> 
                 TargetKind::Set => Key::PanelTargetSet,
                 TargetKind::Variant => Key::PanelTargetVariant,
             };
+            c.push(note(""));
             c.push(note(&tf(lang, heading, &[("name", &tg.title)])));
             c.push(json!({"type": "text", "name": "version", "label": label(Key::PanelVersion), "value": form.version}));
             c.push(json!({"type": "text", "name": "status", "label": label(Key::PanelStatus), "value": form.status}));
@@ -773,6 +777,52 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    /// A spec as a list: a note by its text, any other control by its name.
+    fn signature(sp: &Value) -> Vec<String> {
+        sp["controls"].as_array().unwrap().iter().map(|c| if c["type"] == "note" { format!("note:{}", c["label"].as_str().unwrap()) } else { c["name"].as_str().unwrap().to_string() }).collect()
+    }
+
+    #[test]
+    fn a_section_note_looks_like_a_title_and_an_empty_note_goes_before_it() {
+        let en = signature(&spec(Lang::En, &Form::defaults(), None, &Notes { loaded_from: "L".into(), ..Notes::default() }));
+        assert_eq!(
+            en,
+            [
+                "note:All changes are saved", "save", "reload", "note:", "note:── This page ──", "lang", "line", "fill_auto", "stage", "on_rerun", "tz",
+                "note:Offset in hours from UTC (e.g. -3). Fixed: no daylight saving time.", "note:Select a component and press Reload", "note:L", "defaults", "close"
+            ]
+        );
+        let pt = signature(&spec(Lang::Pt, &Form::defaults(), Some(&set_target()), &Notes { loaded_from: "L".into(), ..Notes::default() }));
+        assert_eq!(
+            pt,
+            [
+                "note:Todas as alterações estão salvas", "save", "reload", "note:", "note:── Esta página ──", "lang", "line", "fill_auto", "stage", "on_rerun", "tz",
+                "note:Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão.", "note:", "note:── Conjunto de componentes: Button ──", "version", "status", "dv_0", "dv_1", "note:L", "defaults", "close"
+            ]
+        );
+        let comp = signature(&spec(Lang::En, &Form::defaults(), Some(&component_target()), &Notes::default()));
+        assert!(comp.windows(2).any(|w| w[0] == "note:" && w[1] == "note:── Component: Card ──"));
+        let variant = Target { holder: 7, kind: TargetKind::Variant, title: "Button".into(), set: Some(set_info(0)) };
+        let v = signature(&spec(Lang::Pt, &Form::defaults(), Some(&variant), &Notes::default()));
+        assert!(v.windows(2).any(|w| w[0] == "note:" && w[1] == "note:── Variante do conjunto: Button ──"));
+    }
+
+    #[test]
+    fn the_spacers_are_exactly_one_per_section_note_and_nothing_else_is_an_empty_note() {
+        for target in all_targets() {
+            let sp = spec(Lang::En, &Form::defaults(), target.as_ref(), &Notes { loaded_from: "Loaded from: page: defaults".into(), ..Notes::default() });
+            let controls = sp["controls"].as_array().unwrap();
+            let empty: Vec<usize> = controls.iter().enumerate().filter(|(_, c)| c["type"] == "note" && c["label"] == "").map(|(i, _)| i).collect();
+            assert_eq!(empty.len(), if target.is_some() { 2 } else { 1 });
+            for i in empty {
+                let next = controls[i + 1]["label"].as_str().unwrap();
+                assert!(next.starts_with("── ") && next.ends_with(" ──"), "a spacer must come right before a section note, not before {next:?}");
+            }
+            // The decorated notes keep inside the host's limits, with the longest title the tests use.
+            check_spec(&sp);
         }
     }
 
