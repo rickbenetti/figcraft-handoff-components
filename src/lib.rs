@@ -13,6 +13,7 @@ mod i18n;
 mod settings;
 mod store;
 
+use crate::i18n::{Key, Lang, tf};
 use figcraft_plugin_sdk::{Input, Result, Value, entry};
 
 /// The manifest command picked: "generate" makes the component report, "settings" saves the settings.
@@ -20,7 +21,7 @@ fn run(input: Input) -> Result<Value> {
     match input.command.as_str() {
         "generate" => gerar::generate(input),
         "settings" => settings::settings(input),
-        other => Err(format!("unknown command: {other}")),
+        other => Err(tf(Lang::default(), Key::ErrUnknownCommand, &[("cmd", other)])),
     }
 }
 

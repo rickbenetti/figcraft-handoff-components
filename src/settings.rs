@@ -61,6 +61,12 @@ fn colour_field(lang: Lang, current: &Option<String>, field: &str) -> Result<Opt
     }
 }
 
+/// A stored language as the Settings saves it from now on: `pt` (0.9.5 and before) becomes `pt-BR`.
+/// A value that names no language is kept as it is.
+fn canonical_lang(stored: &Option<String>) -> Option<String> {
+    stored.as_ref().map(|s| Lang::strict(s).map_or_else(|| s.clone(), |l| l.code().to_string()))
+}
+
 /// The new value of the time zone field: empty keeps it, "-" goes back to the default, anything else
 /// must be a number of hours from -14 to 14 (and is stored as such, so `+9` becomes `9`).
 fn tz_field(lang: Lang, current: &Option<String>, field: &str) -> Result<Option<String>> {
@@ -85,7 +91,7 @@ pub fn settings(input: Input) -> Result<Value> {
     }
 
     let mut new = stored.clone();
-    new.lang = if asked == "-" { None } else { asked_lang.map(|l| l.code().to_string()).or_else(|| stored.lang.clone()) };
+    new.lang = if asked == "-" { None } else { asked_lang.map(|l| l.code().to_string()).or_else(|| canonical_lang(&stored.lang)) };
     new.line = colour_field(lang, &stored.line, &field("cor_linha"))?;
     new.fill = colour_field(lang, &stored.fill, &field("cor_preenchimento"))?;
     let rerun = field("on_rerun");
@@ -152,6 +158,20 @@ pub fn settings(input: Input) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_language_is_saved_as_pt_br_and_an_old_pt_is_migrated() {
+        assert_eq!(canonical_lang(&Some("pt".into())), Some("pt-BR".to_string()));
+        assert_eq!(canonical_lang(&Some("PT-br".into())), Some("pt-BR".to_string()));
+        assert_eq!(canonical_lang(&Some("pt-BR".into())), Some("pt-BR".to_string()));
+        assert_eq!(canonical_lang(&Some("en".into())), Some("en".to_string()));
+        assert_eq!(canonical_lang(&Some("xx".into())), Some("xx".to_string()));
+        assert_eq!(canonical_lang(&None), None);
+        // What the form types is saved by its code.
+        for typed in ["pt", "pt-BR", "PT_br"] {
+            assert_eq!(Lang::strict(typed).map(Lang::code), Some("pt-BR"), "{typed}");
+        }
+    }
 
     #[test]
     fn the_time_zone_field_keeps_clears_or_replaces() {

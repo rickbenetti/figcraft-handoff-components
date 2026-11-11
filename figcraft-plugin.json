@@ -44,7 +44,7 @@
       "params": [
         {
           "name": "lang",
-          "label": "Language (en or pt)",
+          "label": "Language (en or pt-BR)",
           "type": "text",
           "default": ""
         },

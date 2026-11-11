@@ -49,7 +49,7 @@ It writes `dist/` and prints the absolute path of the manifest to import. In Fig
 
 Select a component or a set, then run **Plugins ▸ Handoff Components ▸ Generate report**.
 
-**Plugins ▸ Handoff Components ▸ Settings…** sets, among others, the language (`en` or `pt`), the line colour, the stage
+**Plugins ▸ Handoff Components ▸ Settings…** sets, among others, the language (`en` or `pt-BR`; a `pt` saved by an earlier version keeps working and means `pt-BR`), the line colour, the stage
 (`light`, `dark` or `auto`), what a rerun does (`replace` or `new`), the time zone of the report's date, the default variant,
 and the version and status shown on the report. Leave a field empty to keep its current value; type `-` to clear it and go back
 to the default. The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`;
@@ -86,7 +86,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Known limitations
 
 - Version 0.9.x, before 1.0: expect rough edges.
-- The report is in English by default. Portuguese (`pt`) translates only part of it; the rest stays in English. A complete pt-BR is planned. The Settings form labels are always in English: the host shows one label per field.
+- The report is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in **Settings…**. The Settings form labels stay in English (the host shows one label per field), and so do the values you type there (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the layer types Frame, Group, Rectangle, Ellipse, Vector, Line, Star, Polygon and Boolean Operation; the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
 - The host does not report a layer's text case, so it is missing from the typography lines.
 - A run has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
   use much of it: the heaviest case in the regression net, a test fixture with a 155-layer component, uses 64.2%; the DS Base
@@ -98,14 +98,21 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Tests and regression
 
 ```sh
-cargo test                      # 103 unit tests
-scripts/regress.sh              # 9 cases (4 fixtures + 5 on the DS Base Demo) against tests/baseline.json
+cargo test                      # 116 unit tests + 4 that keep English text out of the code
+scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
 ```
 
 `scripts/regress.sh --update [text]` rewrites the baseline for the cases whose name contains `text` (all, if omitted).
 The demo components are found by name on every run. The `--private` option only works on a machine that has a local
 `tests/private/` folder; without it, it says so and exits.
+
+## Texts and languages
+
+Every text the plugin shows lives in `locales/en.json` and `locales/pt-BR.json` (a flat `"Key": "text"` object each; `docs/i18n-strings.md`
+lists both side by side). They are embedded in the `.wasm`; a key missing from `pt-BR.json` falls back to English. `cargo test` checks that
+`pt-BR.json` has every key of `en.json`, with the same `{placeholders}`, and `tests/english_literals.rs` fails on English text written
+in the code outside the dictionary (exceptions, each with its reason, are in `tests/literals-allow.txt`).
 
 ## License
 

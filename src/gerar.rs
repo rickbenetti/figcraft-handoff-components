@@ -689,11 +689,30 @@ fn header_name(name: &str, layers: usize, content: Option<&str>) -> String {
     out
 }
 
-/// A layer type in words: "Frame", "Text", "Group"…
+/// A layer type in words: "Frame", "Text", "Group"… A type the dictionary doesn't know is the host's
+/// name in title case.
 fn kind_word(lang: Lang, kind: &str) -> String {
-    if kind == "TEXT" {
-        return t(lang, Key::TypeText).to_string();
-    }
+    let key = match kind {
+        "TEXT" => Key::TypeText,
+        "FRAME" => Key::KindFrame,
+        "GROUP" => Key::KindGroup,
+        "RECTANGLE" => Key::KindRectangle,
+        "ELLIPSE" => Key::KindEllipse,
+        "VECTOR" => Key::KindVector,
+        "LINE" => Key::KindLine,
+        "STAR" => Key::KindStar,
+        "POLYGON" => Key::KindPolygon,
+        "BOOLEAN_OPERATION" => Key::KindBooleanOperation,
+        "COMPONENT" => Key::KindComponent,
+        "COMPONENT_SET" => Key::KindComponentSet,
+        "INSTANCE" => Key::KindInstance,
+        _ => return title_case(kind),
+    };
+    t(lang, key).to_string()
+}
+
+/// `BOOLEAN_OPERATION` as "Boolean Operation".
+fn title_case(kind: &str) -> String {
     kind.split('_').map(|w| w.chars().next().map(|c| c.to_uppercase().collect::<String>() + &w[c.len_utf8()..].to_lowercase()).unwrap_or_default()).collect::<Vec<_>>().join(" ")
 }
 
@@ -914,11 +933,29 @@ fn align_word(lang: Lang, value: &str, vertical: bool) -> String {
     t(lang, key).to_string()
 }
 
-/// "Middle center": the vertical part first, then the horizontal one in lower case. A horizontal
-/// layout's main axis is the horizontal one, a vertical layout's the vertical one.
+/// "Middle center": the vertical part first, then the horizontal one. A horizontal layout's main axis
+/// is the horizontal one, a vertical layout's the vertical one. The nine combinations of top, middle
+/// and bottom with left, center and right each have a text of their own (the order of words and the
+/// small words between them differ from language to language); with a distribution ("space between")
+/// or a value the dictionary doesn't know, the two words are joined by the `AlignCompose` text.
 fn alignment_text(lang: Lang, mode: &str, main: &str, cross: &str) -> String {
-    let (vertical, horizontal) = if mode == "vertical" { (align_word(lang, main, true), align_word(lang, cross, false)) } else { (align_word(lang, cross, true), align_word(lang, main, false)) };
-    format!("{vertical} {}", horizontal.to_lowercase())
+    let (v, h) = if mode == "vertical" { (main, cross) } else { (cross, main) };
+    let key = match (v, h) {
+        ("min", "min") => Some(Key::AlignTopLeft),
+        ("min", "center") => Some(Key::AlignTopCenter),
+        ("min", "max") => Some(Key::AlignTopRight),
+        ("center", "min") => Some(Key::AlignMiddleLeft),
+        ("center", "center") => Some(Key::AlignMiddleCenter),
+        ("center", "max") => Some(Key::AlignMiddleRight),
+        ("max", "min") => Some(Key::AlignBottomLeft),
+        ("max", "center") => Some(Key::AlignBottomCenter),
+        ("max", "max") => Some(Key::AlignBottomRight),
+        _ => None,
+    };
+    match key {
+        Some(key) => t(lang, key).to_string(),
+        None => tf(lang, Key::AlignCompose, &[("vertical", &align_word(lang, v, true)), ("horizontal", &align_word(lang, h, false).to_lowercase())]),
+    }
 }
 
 /// A resizing value in words: Hug, Fixed or Fill.
@@ -1633,7 +1670,7 @@ fn draw_axes(
     let mut drawn = AxesDrawn { rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new() };
     let mut last_section: Option<u64> = None;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
-    let base_snap = delta::snapshot(base_walked, &caches.vars, &caches.styles);
+    let base_snap = delta::snapshot(lang, base_walked, &caches.vars, &caches.styles);
     for axis in axes {
         let mut section: Option<u64> = None;
         let mut missing: Vec<String> = Vec::new();
@@ -1677,7 +1714,7 @@ fn draw_axes(
             } else {
                 let walked = walk_layers(lang, instance)?;
                 caches.load_for(lang, &walked)?;
-                let diff = delta::compare(&base_snap, &delta::snapshot(&walked, &caches.vars, &caches.styles));
+                let diff = delta::compare(&base_snap, &delta::snapshot(lang, &walked, &caches.vars, &caches.styles));
                 let listing = delta::list(lang, &diff);
                 for l in &listing.lines {
                     legend_text(lang, legend, &l.text, theme::TEXT, t(lang, Key::LayerDeltas), l.heading)?;
@@ -1846,7 +1883,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let (vars_loaded, styles_loaded) = (any_bound(&nodes), any_styled(&nodes));
     let mut all_rows: Vec<Row> = Vec::new();
     for (i, (n, depth)) in walked.iter().enumerate() {
-        for mut r in audit::rows_for(n, &vars, &styles) {
+        for mut r in audit::rows_for(lang, n, &vars, &styles) {
             r.node = i;
             r.depth = *depth;
             all_rows.push(r);
@@ -2199,6 +2236,68 @@ mod tests {
         assert_eq!(kind_word(Lang::En, "TEXT"), "Text");
         assert_eq!(kind_word(Lang::En, "BOOLEAN_OPERATION"), "Boolean Operation");
         assert_eq!(tf(Lang::En, Key::InstanceOf, &[("name", "Icon")]), "Instance of Icon");
+    }
+
+    /// The way 0.9.5 composed an alignment (before the nine texts): the oracle for the English one.
+    fn old_alignment_text(mode: &str, main: &str, cross: &str) -> String {
+        let (vertical, horizontal) = if mode == "vertical" { (align_word(Lang::En, main, true), align_word(Lang::En, cross, false)) } else { (align_word(Lang::En, cross, true), align_word(Lang::En, main, false)) };
+        format!("{vertical} {}", horizontal.to_lowercase())
+    }
+
+    #[test]
+    fn the_english_alignment_is_what_it_was_for_every_combination() {
+        let values = ["min", "center", "max", "spaceBetween", "spaceAround", "spaceEvenly", "baseline", "somethingNew"];
+        let mut n = 0;
+        for mode in ["horizontal", "vertical", "grid"] {
+            for main in values {
+                for cross in values {
+                    assert_eq!(alignment_text(Lang::En, mode, main, cross), old_alignment_text(mode, main, cross), "{mode} {main} {cross}");
+                    n += 1;
+                }
+            }
+        }
+        assert_eq!(n, 192);
+    }
+
+    #[test]
+    fn the_nine_alignments_in_portuguese_and_a_distribution_joined_by_a_comma() {
+        let pt = |mode: &str, main: &str, cross: &str| alignment_text(Lang::Pt, mode, main, cross);
+        // A horizontal layout: main is the horizontal axis.
+        assert_eq!(pt("horizontal", "min", "min"), "Topo à esquerda");
+        assert_eq!(pt("horizontal", "center", "min"), "Topo ao centro");
+        assert_eq!(pt("horizontal", "max", "min"), "Topo à direita");
+        assert_eq!(pt("horizontal", "min", "center"), "Meio à esquerda");
+        assert_eq!(pt("horizontal", "center", "center"), "Meio ao centro");
+        assert_eq!(pt("horizontal", "max", "center"), "Meio à direita");
+        assert_eq!(pt("horizontal", "min", "max"), "Base à esquerda");
+        assert_eq!(pt("horizontal", "center", "max"), "Base ao centro");
+        assert_eq!(pt("horizontal", "max", "max"), "Base à direita");
+        // A vertical layout: main is the vertical axis.
+        assert_eq!(pt("vertical", "min", "max"), "Topo à direita");
+        // A distribution has no nine-way text: the words of the app, joined.
+        assert_eq!(pt("horizontal", "spaceBetween", "center"), "Meio, espaço entre");
+        assert_eq!(pt("vertical", "spaceEvenly", "min"), "Espaço uniforme, esquerda");
+        assert_eq!(pt("horizontal", "spaceAround", "max"), "Base, espaço ao redor");
+    }
+
+    #[test]
+    fn layer_kinds_in_portuguese_and_the_ones_kept_in_english() {
+        assert_eq!(kind_word(Lang::Pt, "TEXT"), "Texto");
+        assert_eq!(kind_word(Lang::Pt, "INSTANCE"), "Instância");
+        assert_eq!(kind_word(Lang::Pt, "COMPONENT"), "Componente");
+        assert_eq!(kind_word(Lang::Pt, "COMPONENT_SET"), "Conjunto de componentes");
+        // No decision yet: English.
+        assert_eq!(kind_word(Lang::Pt, "FRAME"), "Frame");
+        assert_eq!(kind_word(Lang::Pt, "BOOLEAN_OPERATION"), "Boolean Operation");
+        // A type the dictionary doesn't know is the host's name, as before.
+        for l in [Lang::En, Lang::Pt] {
+            assert_eq!(kind_word(l, "SLICE"), "Slice");
+            assert_eq!(kind_word(l, "TABLE_CELL"), "Table Cell");
+        }
+        for k in ["FRAME", "GROUP", "RECTANGLE", "ELLIPSE", "VECTOR", "LINE", "STAR", "POLYGON", "BOOLEAN_OPERATION", "COMPONENT", "COMPONENT_SET", "INSTANCE", "TEXT"] {
+            let old: String = k.split('_').map(|w| w[..1].to_string() + &w[1..].to_lowercase()).collect::<Vec<_>>().join(" ");
+            assert_eq!(kind_word(Lang::En, k), if k == "TEXT" { "Text".to_string() } else { old }, "{k}");
+        }
     }
 
     #[test]
