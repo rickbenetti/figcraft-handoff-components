@@ -219,8 +219,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelRerun | On rerun | Ao rodar de novo |
 | PanelRerunReplace | Replace | Substituir |
 | PanelRerunNew | New | Novo |
-| PanelTz | Time zone (hours from UTC) | Fuso (horas em relação ao UTC) |
-| PanelTzNote | Fixed offset: no daylight saving time | Fuso fixo: sem horário de verão |
+| PanelTz | Time zone (UTC) | Fuso horário (UTC) |
+| PanelTzNote | Offset in hours from UTC (e.g. -3). Fixed: no daylight saving time. | Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão. |
 | PanelTargetComponent | Component: {name} | Componente: {name} |
 | PanelTargetSet | Component set: {name} | Conjunto de componentes: {name} |
 | PanelTargetVariant | Variant of the set: {name} | Variante do conjunto: {name} |

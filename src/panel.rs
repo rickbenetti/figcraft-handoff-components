@@ -792,7 +792,7 @@ mod tests {
         assert_eq!(names, ["save", "reload", "lang", "line", "fill_auto", "stage", "on_rerun", "tz", "defaults", "close"]);
         let notes: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter(|c| c["type"] == "note").map(|c| c["label"].as_str().unwrap()).collect();
         assert!(notes.contains(&"Selecione um componente e aperte Recarregar"));
-        assert!(notes.contains(&"Fuso fixo: sem horário de verão"));
+        assert!(notes.contains(&"Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão."));
         assert_eq!(sp["title"], "Handoff Components: Configurações");
     }
 

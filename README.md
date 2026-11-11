@@ -76,7 +76,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
   `comment.add`, `comment.list` and `comment.delete`; the app doesn't ask for permission when you import a manifest that has
   them. The plugin doesn't count comments before and after, so a comment someone else makes in a live session can't cause a
   false alarm.
-- **Time zone.** Set in **Settings…** (field *Time zone*, per page): hours from UTC, from `-14` to `14`, fractions allowed
+- **Time zone.** Set in **Settings…** (field *Time zone (UTC)*, per page): hours from UTC, from `-14` to `14`, fractions allowed
   (`-3`, `0`, `9`, `5.5`). The default is `-3` (São Paulo). The zone is fixed: there is no daylight saving time, so change it
   by hand if your zone changes. An invalid value is refused with a message and nothing is saved.
 - **When it fails.** If the comment can't be added or read, the report is still made, says `Generated on: unavailable`
