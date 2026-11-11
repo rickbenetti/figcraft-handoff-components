@@ -1,0 +1,17 @@
+# Literals that look like English but are not text a person reads in the report.
+# Format: file | literal | reason   (the guard in english_literals.rs fails on any other English-looking literal,
+# and on a line here whose literal is no longer in the code).
+audit.rs | underline | the host's `textDecoration` value, matched here and worded through DecoUnderline
+audit.rs | strikethrough | the host's `textDecoration` value, matched here and worded through DecoStrikethrough
+audit.rs | none | the host's `textDecoration` value for "no decoration" (nothing is shown)
+delta.rs | none | internal value of a fill, stroke or effects that a layer lacks; worded by show_side through ValueNone
+delta.rs | spread | the host's field name of an effect (`spread`)
+delta.rs | effect | the host's field name `styles.effect`
+gerar.rs | Bold | the font style passed to the host to draw the report's own texts
+gerar.rs | selection: Input.selection (the `selection` field of the run's input; not a FigCraft command) | only in the JSON a run returns (`id_source`), never drawn
+store.rs | auto | the stage mode typed in Settings and saved (light, dark and auto stay in English, decision P11)
+theme.rs | Inter | the report's font family
+clock.rs | tmp (handoff-components date) | the text of the temporary comment: fixed, so it can be recognised in the file for an instant
+clock.rs | comment.add: no id in the reply | the technical reason inside the date warning (a host diagnostic, like the {reason} of ErrCall): not translated
+clock.rs | comment.list: the new comment (or its `created`) isn't in the list | the technical reason inside the date warning (a host diagnostic): not translated
+audit.rs | Auto | the host's `lineHeight` text, matched here and worded through LineHeightAutoHost

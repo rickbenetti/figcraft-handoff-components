@@ -7,7 +7,7 @@
 //! and a text layer's content. Numbers that differ by less than half a pixel are the same.
 
 use crate::audit::{self, Prop, State, Styles, Vars, number};
-use crate::i18n::{Key, Lang, t, tf};
+use crate::i18n::{Key, Lang, plural, t, tf};
 use figcraft_plugin_sdk::Value;
 use std::collections::HashMap;
 
@@ -120,14 +120,14 @@ fn float(v: &Value, key: &str) -> Option<f64> {
     v.get(key).and_then(Value::as_f64).filter(|f| f.is_finite())
 }
 
-fn describe_effect(e: &Value) -> String {
-    let kind = e.get("type").and_then(Value::as_str).unwrap_or("effect");
+fn describe_effect(lang: Lang, e: &Value) -> String {
+    let kind = e.get("type").and_then(Value::as_str).unwrap_or_else(|| t(lang, Key::EffectDefault));
     let n = |k: &str| float(e, k).map(number);
     let name = match kind {
-        "dropShadow" => "Drop shadow",
-        "innerShadow" => "Inner shadow",
-        "layerBlur" => "Layer blur",
-        "backgroundBlur" => "Background blur",
+        "dropShadow" => t(lang, Key::EffectDropShadow),
+        "innerShadow" => t(lang, Key::EffectInnerShadow),
+        "layerBlur" => t(lang, Key::EffectLayerBlur),
+        "backgroundBlur" => t(lang, Key::EffectBackgroundBlur),
         other => other,
     };
     let mut out = name.to_string();
@@ -135,18 +135,25 @@ fn describe_effect(e: &Value) -> String {
         out.push_str(&format!(" {} {}", number(*x), number(*y)));
     }
     if let Some(r) = n("radius") {
-        out.push_str(&format!(" blur {r}"));
+        out.push(' ');
+        // A layer or background blur is named "…blur" already: only its radius follows. A shadow, or
+        // a type the dictionary doesn't know, has the blur as a parameter of its own.
+        if matches!(kind, "layerBlur" | "backgroundBlur") {
+            out.push_str(&r);
+        } else {
+            out.push_str(&tf(lang, Key::EffectBlur, &[("r", &r)]));
+        }
     }
     if let Some(s) = float(e, "spread").filter(|s| s.abs() > 0.005) {
-        out.push_str(&format!(" spread {}", number(s)));
+        out.push(' ');
+        out.push_str(&tf(lang, Key::EffectSpread, &[("n", &number(s))]));
     }
     if let Some(c) = e.get("color").filter(|c| c.is_object()) {
         let ch = |k: &str| float(c, k).unwrap_or(0.0);
         let alpha = float(c, "a").unwrap_or(1.0);
-        out.push_str(&format!(" {}", audit::hex(ch("r"), ch("g"), ch("b"), 1.0)));
-        if alpha < 0.998 {
-            out.push_str(&format!(" at {}%", number((alpha * 100.0).round())));
-        }
+        let hex = audit::hex(ch("r"), ch("g"), ch("b"), 1.0);
+        out.push(' ');
+        out.push_str(&if alpha < 0.998 { tf(lang, Key::AtPercent, &[("value", &hex), ("n", &number((alpha * 100.0).round()))]) } else { hex });
     }
     out
 }
@@ -156,15 +163,15 @@ fn percent(opacity: f64) -> f64 {
 }
 
 /// The entries of one layer, as `node.get` gives it (with the audit's fields and `effects`, `strokeWeight`).
-pub fn entries(node: &Value, root: bool, vars: &Vars, styles: &Styles) -> Vec<Entry> {
+pub fn entries(lang: Lang, node: &Value, root: bool, vars: &Vars, styles: &Styles) -> Vec<Entry> {
     let mut out = Vec::new();
-    for r in audit::rows_for(node, vars, styles) {
+    for r in audit::rows_for(lang, node, vars, styles) {
         let token = matches!(r.state, State::Token | State::Check | State::Style).then(|| r.token.clone());
         let mut value = r.value.clone();
         if matches!(r.property, Prop::Fill | Prop::Stroke) {
             let opacity = audit::first_paint_opacity(node, if r.property == Prop::Fill { "fills" } else { "strokes" });
             if opacity < 0.995 {
-                value = format!("{value} at {}%", number(percent(opacity)));
+                value = tf(lang, Key::AtPercent, &[("value", &value), ("n", &number(percent(opacity)))]);
             }
         }
         let nums: Vec<f64> = if r.property.numeric() { r.value.split(" / ").filter_map(|p| p.parse().ok()).collect() } else { Vec::new() };
@@ -193,7 +200,7 @@ pub fn entries(node: &Value, root: bool, vars: &Vars, styles: &Styles) -> Vec<En
     let effect_style = node.get("styles").and_then(|s| s.get("effect")).and_then(Value::as_str);
     let token = effect_style.and_then(|id| styles.by_id.get(id)).map(|d| d.name.clone());
     if !shown.is_empty() || token.is_some() {
-        let value = if shown.is_empty() { "none".to_string() } else { shown.iter().map(|e| describe_effect(e)).collect::<Vec<_>>().join("; ") };
+        let value = if shown.is_empty() { "none".to_string() } else { shown.iter().map(|e| describe_effect(lang, e)).collect::<Vec<_>>().join("; ") };
         out.push(Entry::new(Label::Effects, token, value, vec![]));
     }
     for (label, key) in [(Label::HSizing, "horizontal"), (Label::VSizing, "vertical")] {
@@ -210,7 +217,7 @@ pub fn entries(node: &Value, root: bool, vars: &Vars, styles: &Styles) -> Vec<En
 }
 
 /// The layers of a walk (depth first, each with its depth), ready to compare.
-pub fn snapshot(walked: &[(Value, usize)], vars: &Vars, styles: &Styles) -> Vec<Snap> {
+pub fn snapshot(lang: Lang, walked: &[(Value, usize)], vars: &Vars, styles: &Styles) -> Vec<Snap> {
     let name_of = |i: usize| walked.get(i).and_then(|(n, _)| n.get("name")).and_then(Value::as_str).unwrap_or_default();
     let mut parents: Vec<Option<usize>> = Vec::with_capacity(walked.len());
     let mut stack: Vec<usize> = Vec::new();
@@ -243,7 +250,7 @@ pub fn snapshot(walked: &[(Value, usize)], vars: &Vars, styles: &Styles) -> Vec<
             path: paths.get(i).cloned().unwrap_or_default(),
             parent: parents.get(i).copied().flatten(),
             visible: n.get("visible").and_then(Value::as_bool).unwrap_or(true),
-            entries: entries(n, i == 0, vars, styles),
+            entries: entries(lang, n, i == 0, vars, styles),
             effects_raw: n.get("effects").map(ToString::to_string).unwrap_or_default(),
         })
         .collect()
@@ -382,7 +389,7 @@ impl Listing {
     pub fn texts(&self, lang: Lang) -> Vec<String> {
         let mut out: Vec<String> = self.lines.iter().map(|l| l.text.clone()).collect();
         if self.more > 0 {
-            out.push(tf(lang, Key::DeltaMore, &[("n", &self.more.to_string())]));
+            out.push(tf(lang, plural(self.more, Key::DeltaMoreOne, Key::DeltaMore), &[("n", &self.more.to_string())]));
         }
         out.extend(self.none.clone());
         out
@@ -395,6 +402,8 @@ fn show_side(s: &Side, label: Label, lang: Lang) -> String {
     }
     match label {
         Label::HSizing | Label::VSizing => sizing_word(lang, &s.value),
+        // "none" stands inside for a fill, stroke or effects that a layer lacks; it is worded here.
+        Label::Prop(Prop::Fill | Prop::Stroke) | Label::Effects if s.value == "none" => t(lang, Key::ValueNone).to_string(),
         _ => s.value.clone(),
     }
 }
@@ -530,7 +539,7 @@ mod tests {
 
     fn diff_of(a: &[(Value, usize)], b: &[(Value, usize)]) -> Diff {
         let (vars, styles) = (Vars::default(), Styles::default());
-        compare(&snapshot(a, &vars, &styles), &snapshot(b, &vars, &styles))
+        compare(&snapshot(Lang::En, a, &vars, &styles), &snapshot(Lang::En, b, &vars, &styles))
     }
 
     fn texts(d: &Diff) -> Vec<String> {
@@ -565,7 +574,7 @@ mod tests {
         let mut b = button(8.0, 16.0, "#2F4AB5", 14.0);
         a[0].0["boundVariables"] = json!({"fill": "V1"});
         b[0].0["boundVariables"] = json!({"fill": "V2"});
-        let d = compare(&snapshot(&a, &vars, &styles), &snapshot(&b, &vars, &styles));
+        let d = compare(&snapshot(Lang::En, &a, &vars, &styles), &snapshot(Lang::En, &b, &vars, &styles));
         assert_eq!(texts(&d), vec!["Fill : color/primary/500 → color/primary/700 (#3B5BDB → #2F4AB5)"]);
     }
 
@@ -610,6 +619,40 @@ mod tests {
     }
 
     #[test]
+    fn effects_and_opacity_are_worded_in_portuguese_with_the_english_ones_unchanged() {
+        let a = button(8.0, 16.0, "#3B5BDB", 14.0);
+        let mut b = a.clone();
+        b[0].0["effects"] = json!([
+            {"type": "dropShadow", "offset": [0.0, 8.0], "radius": 8.0, "spread": 2.0, "visible": true, "color": {"r": 0.231, "g": 0.357, "b": 0.859, "a": 0.3}},
+            {"type": "innerShadow", "offset": [1.0, 1.0], "radius": 4.0, "spread": 0.0, "visible": true, "color": {"r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0}},
+            {"type": "layerBlur", "radius": 6.0, "visible": true},
+            {"type": "backgroundBlur", "radius": 12.0, "visible": true}
+        ]);
+        let say = |lang: Lang| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &b, &Vars::default(), &Styles::default()))).texts(lang);
+        assert_eq!(say(Lang::En), vec!["Effects : none → Drop shadow 0 8 blur 8 spread 2 #3B5BDB at 30%; Inner shadow 1 1 blur 4 #000000; Layer blur 6; Background blur 12"]);
+        assert_eq!(say(Lang::Pt), vec!["Efeitos : nenhum → Sombra projetada 0 8 desfoque 8 expansão 2 #3B5BDB a 30%; Sombra interna 1 1 desfoque 4 #000000; Desfoque de camada 6; Desfoque de fundo 12"]);
+        // Opacity of a fill: "… at 50%" / "… a 50%".
+        let mut c = a.clone();
+        c[0].0["fills"] = json!([{"type": "solid", "color": "#3B5BDB", "opacity": 0.5}]);
+        let fill = |lang: Lang| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &c, &Vars::default(), &Styles::default()))).texts(lang);
+        assert_eq!(fill(Lang::En), vec!["Fill : #3B5BDB → #3B5BDB at 50%"]);
+        assert_eq!(fill(Lang::Pt), vec!["Preenchimento : #3B5BDB → #3B5BDB a 50%"]);
+    }
+
+    #[test]
+    fn an_effect_the_dictionary_does_not_know_is_shown_as_the_host_names_it() {
+        let a = button(8.0, 16.0, "#3B5BDB", 14.0);
+        for kind in ["noise", "texture", "glass"] {
+            let mut b = a.clone();
+            b[0].0["effects"] = json!([{"type": kind, "visible": true}]);
+            for lang in [Lang::En, Lang::Pt] {
+                let said = list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &b, &Vars::default(), &Styles::default()))).texts(lang);
+                assert_eq!(said, vec![format!("{} : {} → {kind}", t(lang, Key::DeltaEffects), t(lang, Key::ValueNone))], "{kind} {lang:?}");
+            }
+        }
+    }
+
+    #[test]
     fn a_list_stops_at_twelve_lines_and_counts_the_rest() {
         let a = button(8.0, 16.0, "#3B5BDB", 14.0);
         // Twenty layers whose text changes: a heading and a line each.
@@ -637,7 +680,7 @@ mod tests {
         let root = (json!({"name": "R", "type": "COMPONENT"}), 0);
         let a = vec![root.clone(), node("Cell", 14.0), node("Cell", 14.0)];
         let b = vec![root, node("Cell", 14.0), node("Cell", 16.0)];
-        let snaps = snapshot(&a, &Vars::default(), &Styles::default());
+        let snaps = snapshot(Lang::En, &a, &Vars::default(), &Styles::default());
         assert_eq!(snaps[1].path, "/Cell[0]");
         assert_eq!(snaps[2].path, "/Cell[1]");
         assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Cell[1]", "Typography : W 14/150% R → W 16/150% R"]);

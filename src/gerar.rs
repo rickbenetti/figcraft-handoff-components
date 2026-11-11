@@ -3,9 +3,10 @@
 //! and a table of the numbered properties) and a token audit. Every text it shows comes from
 //! `crate::i18n`.
 
+use crate::clock;
 use crate::audit::{self, Group, Info, Line, Prop, Row, State, Styles, Vars};
 use crate::glyphs;
-use crate::i18n::{Key, Lang, override_name, t, tf};
+use crate::i18n::{Key, Lang, override_name, plural, t, tf};
 use crate::contrast::{self, Rgba};
 use crate::delta;
 use crate::store::{Meta, REPORT_KEY, Rerun, Settings, StageMode};
@@ -688,11 +689,47 @@ fn header_name(name: &str, layers: usize, content: Option<&str>) -> String {
     out
 }
 
-/// A layer type in words: "Frame", "Text", "Group"…
+/// A layer type in words: "Frame", "Text", "Group"… A type the dictionary doesn't know is the host's
+/// name in title case.
 fn kind_word(lang: Lang, kind: &str) -> String {
-    if kind == "TEXT" {
-        return t(lang, Key::TypeText).to_string();
+    kind_key(kind).map_or_else(|| title_case(kind), |key| t(lang, key).to_string())
+}
+
+/// The dictionary key of a host layer type, when it has one.
+fn kind_key(kind: &str) -> Option<Key> {
+    let key = match kind {
+        "TEXT" => Key::TypeText,
+        "FRAME" => Key::KindFrame,
+        "GROUP" => Key::KindGroup,
+        "RECTANGLE" => Key::KindRectangle,
+        "ELLIPSE" => Key::KindEllipse,
+        "VECTOR" => Key::KindVector,
+        "LINE" => Key::KindLine,
+        "STAR" => Key::KindStar,
+        "POLYGON" => Key::KindPolygon,
+        "BOOLEAN_OPERATION" => Key::KindBooleanOperation,
+        "COMPONENT" => Key::KindComponent,
+        "COMPONENT_SET" => Key::KindComponentSet,
+        "INSTANCE" => Key::KindInstance,
+        "SECTION" => Key::KindSection,
+        "SLICE" => Key::KindSlice,
+        _ => return None,
+    };
+    Some(key)
+}
+
+/// The layer type inside the "not a component" error. English keeps the host's own name (`FRAME`,
+/// as it always has); another language words the types the dictionary knows and keeps the host's
+/// name for the rest.
+fn kind_in_error(lang: Lang, kind: &str) -> String {
+    match (lang, kind_key(kind)) {
+        (Lang::En, _) | (_, None) => kind.to_string(),
+        (_, Some(key)) => t(lang, key).to_string(),
     }
+}
+
+/// `BOOLEAN_OPERATION` as "Boolean Operation".
+fn title_case(kind: &str) -> String {
     kind.split('_').map(|w| w.chars().next().map(|c| c.to_uppercase().collect::<String>() + &w[c.len_utf8()..].to_lowercase()).unwrap_or_default()).collect::<Vec<_>>().join(" ")
 }
 
@@ -913,11 +950,29 @@ fn align_word(lang: Lang, value: &str, vertical: bool) -> String {
     t(lang, key).to_string()
 }
 
-/// "Middle center": the vertical part first, then the horizontal one in lower case. A horizontal
-/// layout's main axis is the horizontal one, a vertical layout's the vertical one.
+/// "Middle center": the vertical part first, then the horizontal one. A horizontal layout's main axis
+/// is the horizontal one, a vertical layout's the vertical one. The nine combinations of top, middle
+/// and bottom with left, center and right each have a text of their own (the order of words and the
+/// small words between them differ from language to language); with a distribution ("space between")
+/// or a value the dictionary doesn't know, the two words are joined by the `AlignCompose` text.
 fn alignment_text(lang: Lang, mode: &str, main: &str, cross: &str) -> String {
-    let (vertical, horizontal) = if mode == "vertical" { (align_word(lang, main, true), align_word(lang, cross, false)) } else { (align_word(lang, cross, true), align_word(lang, main, false)) };
-    format!("{vertical} {}", horizontal.to_lowercase())
+    let (v, h) = if mode == "vertical" { (main, cross) } else { (cross, main) };
+    let key = match (v, h) {
+        ("min", "min") => Some(Key::AlignTopLeft),
+        ("min", "center") => Some(Key::AlignTopCenter),
+        ("min", "max") => Some(Key::AlignTopRight),
+        ("center", "min") => Some(Key::AlignMiddleLeft),
+        ("center", "center") => Some(Key::AlignMiddleCenter),
+        ("center", "max") => Some(Key::AlignMiddleRight),
+        ("max", "min") => Some(Key::AlignBottomLeft),
+        ("max", "center") => Some(Key::AlignBottomCenter),
+        ("max", "max") => Some(Key::AlignBottomRight),
+        _ => None,
+    };
+    match key {
+        Some(key) => t(lang, key).to_string(),
+        None => tf(lang, Key::AlignCompose, &[("vertical", &align_word(lang, v, true)), ("horizontal", &align_word(lang, h, false).to_lowercase())]),
+    }
 }
 
 /// A resizing value in words: Hug, Fixed or Fill.
@@ -974,7 +1029,7 @@ fn value_label(lang: Lang, stage: u64, origin: (f64, f64), label: &str, x: f64, 
 
 /// The note under the audit that says how many lines were left out, if any.
 fn hidden_note(lang: Lang, hidden: usize) -> Option<String> {
-    (hidden > 0).then(|| tf(lang, Key::MoreLines, &[("n", &hidden.to_string())]))
+    (hidden > 0).then(|| tf(lang, plural(hidden, Key::MoreLinesOne, Key::MoreLines), &[("n", &hidden.to_string())]))
 }
 
 /// The layers of the instance as `node.get` gives them for the audit, depth first, each with its
@@ -1174,7 +1229,7 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
             main
         }
         "COMPONENT" => id,
-        other => return Err(tf(lang, Key::ErrNotComponent, &[("id", &id.to_string()), ("kind", other)])),
+        other => return Err(tf(lang, Key::ErrNotComponent, &[("id", &id.to_string()), ("kind", &kind_in_error(lang, other))])),
     };
     // The component's own name and box: the layer itself when it is the component.
     let comp = if component == id { node.clone() } else { host(lang, "node.get", &json!({"id": component, "fields": ["name", "type", "absoluteBounds"]}))? };
@@ -1632,7 +1687,7 @@ fn draw_axes(
     let mut drawn = AxesDrawn { rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new() };
     let mut last_section: Option<u64> = None;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
-    let base_snap = delta::snapshot(base_walked, &caches.vars, &caches.styles);
+    let base_snap = delta::snapshot(lang, base_walked, &caches.vars, &caches.styles);
     for axis in axes {
         let mut section: Option<u64> = None;
         let mut missing: Vec<String> = Vec::new();
@@ -1676,13 +1731,13 @@ fn draw_axes(
             } else {
                 let walked = walk_layers(lang, instance)?;
                 caches.load_for(lang, &walked)?;
-                let diff = delta::compare(&base_snap, &delta::snapshot(&walked, &caches.vars, &caches.styles));
+                let diff = delta::compare(&base_snap, &delta::snapshot(lang, &walked, &caches.vars, &caches.styles));
                 let listing = delta::list(lang, &diff);
                 for l in &listing.lines {
                     legend_text(lang, legend, &l.text, theme::TEXT, t(lang, Key::LayerDeltas), l.heading)?;
                 }
                 if listing.more > 0 {
-                    legend_text(lang, legend, &tf(lang, Key::DeltaMore, &[("n", &listing.more.to_string())]), theme::MUTED, t(lang, Key::LayerMore), false)?;
+                    legend_text(lang, legend, &tf(lang, plural(listing.more, Key::DeltaMoreOne, Key::DeltaMore), &[("n", &listing.more.to_string())]), theme::MUTED, t(lang, Key::LayerMore), false)?;
                 }
                 if let Some(none) = &listing.none {
                     legend_text(lang, legend, none, theme::MUTED, t(lang, Key::LayerDeltas), false)?;
@@ -1711,9 +1766,60 @@ fn draw_axes(
         drawn.undefined.extend(missing);
     }
     if let (Some(sec), true) = (last_section, drawn.skipped > 0) {
-        text(lang, sec, &tf(lang, Key::MoreVariants, &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
+        text(lang, sec, &tf(lang, plural(drawn.skipped, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
     }
     Ok(drawn)
+}
+
+/// The counts of the header's summary line.
+struct SummaryCounts {
+    bound: usize,
+    check: usize,
+    unbound: usize,
+    missing: usize,
+    suspect: usize,
+    total: usize,
+    vars: usize,
+    styles: usize,
+}
+
+/// The summary line. Its text depends on whether some bindings are "to check" and whether some are
+/// styles; its nouns (variables, styles, properties) are said in the singular when their count is
+/// exactly 1, each noun with a text of its own. With any other count the line is what it always was.
+fn summary_text(lang: Lang, c: &SummaryCounts) -> String {
+    let key = match (c.check > 0, c.styles > 0) {
+        (false, false) => Key::Summary,
+        (true, false) => Key::SummaryChecks,
+        (false, true) => Key::SummaryStyles,
+        (true, true) => Key::SummaryStylesChecks,
+    };
+    let noun = |n: usize, one: Key, many: Key| t(lang, plural(n, one, many));
+    let values: Vec<(&str, String)> = vec![
+        ("bound", c.bound.to_string()),
+        ("check", c.check.to_string()),
+        ("unbound", c.unbound.to_string()),
+        ("missing", c.missing.to_string()),
+        ("suspect", c.suspect.to_string()),
+        ("total", c.total.to_string()),
+        ("vars", c.vars.to_string()),
+        ("styles", c.styles.to_string()),
+        ("vars_word", noun(c.vars, Key::NounVariable, Key::NounVariables).to_string()),
+        ("styles_word", noun(c.styles, Key::NounStyle, Key::NounStyles).to_string()),
+        ("total_word", noun(c.total, Key::NounProperty, Key::NounProperties).to_string()),
+    ];
+    let pairs: Vec<(&str, &str)> = values.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    tf(lang, key, &pairs)
+}
+
+/// A band with a warning, in the line colour: inside `parent`, `inner` wide.
+fn warning_band(lang: Lang, parent: u64, inner: f64, message: &str, line: &str) -> Result<()> {
+    let mut band = FlowSpec::new(t(lang, Key::LayerWarning), inner, "horizontal");
+    band.padding = json!([10, 12, 10, 12]);
+    band.fill = Some(theme::WARN_BG);
+    band.extra = json!({"stroke": line, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 8});
+    let band = flow_frame(lang, parent, band)?;
+    text(lang, band, message, 0.0, 0.0, FONT, theme::TEXT, Some(inner - 24.0), t(lang, Key::LayerWarning))?;
+    Ok(())
 }
 
 pub fn generate(input: Input) -> Result<Value> {
@@ -1732,7 +1838,6 @@ pub fn generate(input: Input) -> Result<Value> {
     let sheet = host(lang, "node.get", &json!({"id": target.holder, "fields": ["pluginData"]}))?;
     let meta = Meta::from_plugin_data(sheet.get("pluginData").unwrap_or(&Value::Null));
     let versao = meta.version.as_deref().unwrap_or_default();
-    let data = meta.date.as_deref().unwrap_or_default();
     let status = meta.status.as_deref().unwrap_or_default();
     let cor_linha = line_colour(page.settings.line.as_deref());
     let cor_fill = fill_colour(page.settings.fill.as_deref(), &cor_linha);
@@ -1740,6 +1845,11 @@ pub fn generate(input: Input) -> Result<Value> {
     let name = target.title.clone();
     let size = bounds(comp).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
     let variant = target.holder != component;
+
+    // 2b. The date: read from the app's clock, afresh on every run (never from a saved date). It can't
+    // fail the run: without it the report says so.
+    let stamp = clock::read(page.id, &mut |cmd, params| call(cmd, params));
+    let generated = stamp.created.map(|created| clock::date_text(created, page.settings.tz_hours(), lang));
 
     // 3. Where: in place of the report of this component that is on the page (when replacing), else
     // to the right of everything. The old report goes first.
@@ -1791,9 +1901,17 @@ pub fn generate(input: Input) -> Result<Value> {
     hd.gap = 8.0;
     let head = flow_frame(lang, frame, hd)?;
     text(lang, head, &name, 0.0, 0.0, theme::TITLE_SIZE, theme::TEXT, Some(inner), t(lang, Key::LayerTitle))?;
-    let sub: Vec<&str> = [versao, data, status].into_iter().filter(|s| !s.is_empty()).collect();
+    let sub: Vec<&str> = [versao, status].into_iter().filter(|s| !s.is_empty()).collect();
     if !sub.is_empty() {
         text(lang, head, &sub.join(" · "), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
+    }
+    text(lang, head, &clock::generated_line(stamp.created, page.settings.tz_hours(), lang), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerGenerated))?;
+    // What went wrong with the date shows at the top of the report.
+    if let Some(reason) = &stamp.failure {
+        warning_band(lang, head, inner, &tf(lang, Key::WarnNoDate, &[("reason", reason)]), &cor_linha)?;
+    }
+    if let Some(id) = stamp.leftover {
+        warning_band(lang, head, inner, &tf(lang, Key::WarnTmpComment, &[("id", &id.to_string())]), &cor_linha)?;
     }
     // A set says which of its variants the report is about.
     if let Some(sp) = &target.set {
@@ -1822,7 +1940,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let (vars_loaded, styles_loaded) = (any_bound(&nodes), any_styled(&nodes));
     let mut all_rows: Vec<Row> = Vec::new();
     for (i, (n, depth)) in walked.iter().enumerate() {
-        for mut r in audit::rows_for(n, &vars, &styles) {
+        for mut r in audit::rows_for(lang, n, &vars, &styles) {
             r.node = i;
             r.depth = *depth;
             all_rows.push(r);
@@ -1838,25 +1956,11 @@ pub fn generate(input: Input) -> Result<Value> {
     let (bound, unbound, missing, suspect_all) = audit::counts(&rows);
     let (vars_bound, styles_bound) = audit::bound_split(&rows);
     let to_check = rows.iter().filter(|r| r.state == State::Check).count();
-    let numbers: Vec<(&str, String)> = vec![
-        ("bound", bound.to_string()),
-        ("check", to_check.to_string()),
-        ("unbound", unbound.to_string()),
-        ("missing", missing.to_string()),
-        ("suspect", suspect_all.to_string()),
-        ("total", rows.len().to_string()),
-        ("vars", vars_bound.to_string()),
-        ("styles", styles_bound.to_string()),
-    ];
-    let pairs: Vec<(&str, &str)> = numbers.iter().map(|(k, v)| (*k, v.as_str())).collect();
-    let key = match (to_check > 0, styles_bound > 0) {
-        (false, false) => Key::Summary,
-        (true, false) => Key::SummaryChecks,
-        (false, true) => Key::SummaryStyles,
-        (true, true) => Key::SummaryStylesChecks,
-    };
-    let summary = tf(lang, key, &pairs);
-    let warning = (suspect > 0).then(|| tf(lang, Key::Collision, &[("n", &suspect.to_string())]));
+    let summary = summary_text(
+        lang,
+        &SummaryCounts { bound, check: to_check, unbound, missing, suspect: suspect_all, total: rows.len(), vars: vars_bound, styles: styles_bound },
+    );
+    let warning = (suspect > 0).then(|| tf(lang, plural(suspect, Key::CollisionOne, Key::Collision), &[("n", &suspect.to_string())]));
     let infos = layer_infos(lang, &walked, &drawn)?;
     let grouped = audit::group_layers(&rows, &infos);
     let line_total: usize = grouped.iter().map(|g| g.lines.len()).sum();
@@ -1868,12 +1972,7 @@ pub fn generate(input: Input) -> Result<Value> {
         text(lang, head, n, 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerNote))?;
     }
     if let Some(w) = &warning {
-        let mut band = FlowSpec::new(t(lang, Key::LayerWarning), inner, "horizontal");
-        band.padding = json!([10, 12, 10, 12]);
-        band.fill = Some(theme::WARN_BG);
-        band.extra = json!({"stroke": cor_linha, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 8});
-        let band = flow_frame(lang, head, band)?;
-        text(lang, band, w, 0.0, 0.0, FONT, theme::TEXT, Some(inner - 24.0), t(lang, Key::LayerWarning))?;
+        warning_band(lang, head, inner, w, &cor_linha)?;
     }
 
     // 6. The anatomy section: a block for each layer, and the stage to its right.
@@ -1889,7 +1988,7 @@ pub fn generate(input: Input) -> Result<Value> {
         text(lang, legend, &note, 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
     }
     if unnumbered > 0 {
-        text(lang, legend, &tf(lang, Key::Unnumbered, &[("n", &unnumbered.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
+        text(lang, legend, &tf(lang, plural(unnumbered, Key::UnnumberedOne, Key::Unnumbered), &[("n", &unnumbered.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
     }
     let legend_h = height_of(lang, legend)?;
 
@@ -1992,7 +2091,8 @@ pub fn generate(input: Input) -> Result<Value> {
     Ok(json!({
         "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
         "x": x, "y": y, "replaced": replaced, "rerun": rerun.name(), "top_level_layers": top_level, "id_source": id_source,
-        "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill}, "meta": {"version": versao, "date": data, "status": status},
+        "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill}, "meta": {"version": versao, "status": status},
+        "generated": {"date": generated, "created": stamp.created, "tz": page.settings.tz_hours(), "failure": stamp.failure, "leftover_comment": stamp.leftover},
         "notes": notes, "lang": lang.code(), "selected": selected,
         "instance_size": {"w": ib.w, "h": ib.h}, "stage_size": {"w": stage_w, "h": h1}, "frame_size": {"w": frame_w}, "legend_height": legend_h,
         "audited_layers": audited,
@@ -2179,6 +2279,161 @@ mod tests {
         assert_eq!(kind_word(Lang::En, "TEXT"), "Text");
         assert_eq!(kind_word(Lang::En, "BOOLEAN_OPERATION"), "Boolean Operation");
         assert_eq!(tf(Lang::En, Key::InstanceOf, &[("name", "Icon")]), "Instance of Icon");
+    }
+
+    /// The way 0.9.5 composed an alignment (before the nine texts): the oracle for the English one.
+    fn old_alignment_text(mode: &str, main: &str, cross: &str) -> String {
+        let (vertical, horizontal) = if mode == "vertical" { (align_word(Lang::En, main, true), align_word(Lang::En, cross, false)) } else { (align_word(Lang::En, cross, true), align_word(Lang::En, main, false)) };
+        format!("{vertical} {}", horizontal.to_lowercase())
+    }
+
+    #[test]
+    fn the_english_alignment_is_what_it_was_for_every_combination() {
+        let values = ["min", "center", "max", "spaceBetween", "spaceAround", "spaceEvenly", "baseline", "somethingNew"];
+        let mut n = 0;
+        for mode in ["horizontal", "vertical", "grid"] {
+            for main in values {
+                for cross in values {
+                    assert_eq!(alignment_text(Lang::En, mode, main, cross), old_alignment_text(mode, main, cross), "{mode} {main} {cross}");
+                    n += 1;
+                }
+            }
+        }
+        assert_eq!(n, 192);
+    }
+
+    fn counts(check: usize, vars: usize, styles: usize, total: usize) -> SummaryCounts {
+        SummaryCounts { bound: 8, check, unbound: 3, missing: 0, suspect: 2, total, vars, styles }
+    }
+
+    /// The four summary texts as they were before the singular (0.9.6 up to 02613e0): the oracle for any
+    /// count other than 1.
+    fn old_summary(lang: Lang, c: &SummaryCounts) -> String {
+        let (plain, checks, styles, both) = match lang {
+            Lang::En => (
+                "{bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+                "{bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+                "{bound} bound ({vars} variables, {styles} styles) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+                "{bound} bound ({vars} variables, {styles} styles; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+            ),
+            Lang::Pt => (
+                "{bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+                "{bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+                "{bound} vinculadas ({vars} variáveis, {styles} estilos) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+                "{bound} vinculadas ({vars} variáveis, {styles} estilos; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+            ),
+        };
+        let template = match (c.check > 0, c.styles > 0) {
+            (false, false) => plain,
+            (true, false) => checks,
+            (false, true) => styles,
+            (true, true) => both,
+        };
+        [("bound", c.bound), ("check", c.check), ("unbound", c.unbound), ("missing", c.missing), ("suspect", c.suspect), ("total", c.total), ("vars", c.vars), ("styles", c.styles)]
+            .iter()
+            .fold(template.to_string(), |acc, (k, v)| acc.replace(&format!("{{{k}}}"), &v.to_string()))
+    }
+
+    #[test]
+    fn the_summary_is_what_it_was_for_every_count_but_one() {
+        let mut n = 0;
+        for lang in [Lang::En, Lang::Pt] {
+            for check in [0, 2] {
+                for vars in [0, 2, 7, 35] {
+                    for styles in [0, 2, 8] {
+                        for total in [0, 2, 45] {
+                            let c = counts(check, vars, styles, total);
+                            assert_eq!(summary_text(lang, &c), old_summary(lang, &c), "{lang:?} check {check} vars {vars} styles {styles} total {total}");
+                            n += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(n, 2 * 2 * 4 * 3 * 3);
+    }
+
+    #[test]
+    fn the_summary_says_variable_style_and_property_in_the_singular_for_exactly_one() {
+        // Each noun on its own, with the others in the plural.
+        assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect · of 45 properties");
+        assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 45 properties");
+        assert_eq!(summary_text(Lang::En, &counts(0, 7, 2, 1)), "8 bound (7 variables, 2 styles) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "8 vinculadas (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "8 vinculadas (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 2, 1)), "8 vinculadas (7 variáveis, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        // The three at once, with and without "to check".
+        assert_eq!(summary_text(Lang::En, &counts(0, 1, 1, 1)), "8 bound (1 variable, 1 style) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 1)), "8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        // Only the total (no styles, so no parentheses): the Icon of the demo.
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 1)), "8 bound · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 1)), "8 vinculadas · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 1)), "8 bound (2 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        // 0 is the plural.
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 0 properties");
+    }
+
+    #[test]
+    fn the_nine_alignments_in_portuguese_and_a_distribution_joined_by_a_comma() {
+        let pt = |mode: &str, main: &str, cross: &str| alignment_text(Lang::Pt, mode, main, cross);
+        // A horizontal layout: main is the horizontal axis.
+        assert_eq!(pt("horizontal", "min", "min"), "Topo à esquerda");
+        assert_eq!(pt("horizontal", "center", "min"), "Topo ao centro");
+        assert_eq!(pt("horizontal", "max", "min"), "Topo à direita");
+        assert_eq!(pt("horizontal", "min", "center"), "Meio à esquerda");
+        assert_eq!(pt("horizontal", "center", "center"), "Meio ao centro");
+        assert_eq!(pt("horizontal", "max", "center"), "Meio à direita");
+        assert_eq!(pt("horizontal", "min", "max"), "Base à esquerda");
+        assert_eq!(pt("horizontal", "center", "max"), "Base ao centro");
+        assert_eq!(pt("horizontal", "max", "max"), "Base à direita");
+        // A vertical layout: main is the vertical axis.
+        assert_eq!(pt("vertical", "min", "max"), "Topo à direita");
+        // A distribution has no nine-way text: the words of the app, joined.
+        assert_eq!(pt("horizontal", "spaceBetween", "center"), "Meio, espaço entre");
+        assert_eq!(pt("vertical", "spaceEvenly", "min"), "Espaço uniforme, esquerda");
+        assert_eq!(pt("horizontal", "spaceAround", "max"), "Base, espaço ao redor");
+    }
+
+    #[test]
+    fn layer_kinds_in_portuguese_and_the_ones_kept_in_english() {
+        assert_eq!(kind_word(Lang::Pt, "TEXT"), "Texto");
+        assert_eq!(kind_word(Lang::Pt, "INSTANCE"), "Instância");
+        assert_eq!(kind_word(Lang::Pt, "COMPONENT"), "Componente");
+        assert_eq!(kind_word(Lang::Pt, "COMPONENT_SET"), "Conjunto de componentes");
+        let nine = [("FRAME", "Quadro"), ("GROUP", "Grupo"), ("RECTANGLE", "Retângulo"), ("ELLIPSE", "Elipse"), ("VECTOR", "Vetor"), ("LINE", "Linha"), ("STAR", "Estrela"), ("POLYGON", "Polígono"), ("BOOLEAN_OPERATION", "Operação booleana")];
+        for (host, pt) in nine {
+            assert_eq!(kind_word(Lang::Pt, host), pt, "{host}");
+        }
+        // Section and Slice: English as it always was, Portuguese from the dictionary.
+        assert_eq!(kind_word(Lang::En, "SLICE"), "Slice");
+        assert_eq!(kind_word(Lang::En, "SECTION"), "Section");
+        assert_eq!(kind_word(Lang::Pt, "SLICE"), "Fatia");
+        assert_eq!(kind_word(Lang::Pt, "SECTION"), "Seção");
+        // A type the dictionary doesn't know is the host's name, as before.
+        for l in [Lang::En, Lang::Pt] {
+            assert_eq!(kind_word(l, "TABLE_CELL"), "Table Cell");
+        }
+        for k in ["FRAME", "GROUP", "RECTANGLE", "ELLIPSE", "VECTOR", "LINE", "STAR", "POLYGON", "BOOLEAN_OPERATION", "COMPONENT", "COMPONENT_SET", "INSTANCE", "TEXT"] {
+            let old: String = k.split('_').map(|w| w[..1].to_string() + &w[1..].to_lowercase()).collect::<Vec<_>>().join(" ");
+            assert_eq!(kind_word(Lang::En, k), if k == "TEXT" { "Text".to_string() } else { old }, "{k}");
+        }
+    }
+
+    #[test]
+    fn the_not_a_component_error_names_the_type_in_portuguese_and_keeps_english_as_it_was() {
+        let say = |lang: Lang, kind: &str| tf(lang, Key::ErrNotComponent, &[("id", "50"), ("kind", &kind_in_error(lang, kind))]);
+        assert_eq!(say(Lang::En, "FRAME"), "layer 50 is a FRAME, not a component or an instance");
+        assert_eq!(say(Lang::En, "SECTION"), "layer 50 is a SECTION, not a component or an instance");
+        assert_eq!(say(Lang::Pt, "FRAME"), "a camada 50 é Quadro, não um componente nem uma instância");
+        assert_eq!(say(Lang::Pt, "TEXT"), "a camada 50 é Texto, não um componente nem uma instância");
+        // Section and Slice: raw in English, worded in Portuguese.
+        assert_eq!(say(Lang::En, "SLICE"), "layer 50 is a SLICE, not a component or an instance");
+        assert_eq!(say(Lang::Pt, "SECTION"), "a camada 50 é Seção, não um componente nem uma instância");
+        assert_eq!(say(Lang::Pt, "SLICE"), "a camada 50 é Fatia, não um componente nem uma instância");
+        // A type the dictionary doesn't know stays as the host names it.
+        assert_eq!(say(Lang::Pt, "TABLE_CELL"), "a camada 50 é TABLE_CELL, não um componente nem uma instância");
     }
 
     #[test]

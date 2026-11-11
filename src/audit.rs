@@ -8,6 +8,7 @@
 //! - `Missing`: no variable has that ID in the file;
 //! - `Unbound`: no binding at all (the raw value).
 
+use crate::i18n::{Key, Lang, t, tf};
 use figcraft_plugin_sdk::Value;
 use std::collections::HashMap;
 
@@ -279,11 +280,11 @@ fn same(real: &Real, resolved: &Resolved) -> bool {
 }
 
 /// Classify one property: its state and what to show in the token column.
-fn classify(real: &Real, want: Want, bound: Option<&str>, vars: &Vars) -> (State, String) {
+fn classify(lang: Lang, real: &Real, want: Want, bound: Option<&str>, vars: &Vars) -> (State, String) {
     let Some(id) = bound else { return (State::Unbound, "—".into()) };
     let Some(var) = vars.by_id.get(id) else { return (State::Missing, id.to_string()) };
     let Some((chain, resolved)) = vars.resolve(id) else {
-        return (State::Suspect, format!("{} (alias loop or broken)", var.path()));
+        return (State::Suspect, tf(lang, Key::AliasBroken, &[("path", &var.path())]));
     };
     if var.kind == want.name() && same(real, &resolved) {
         (State::Token, chain.join(" → "))
@@ -324,12 +325,12 @@ pub fn first_paint_opacity(node: &Value, key: &str) -> f64 {
 
 /// A colour style on a property: found with the layer's colour (`Style`), found with another one
 /// (`Suspect`), or not in the file (`Missing`, the token is the style's id).
-fn classify_style(real: &Real, opacity: f64, id: &str, styles: &Styles) -> (State, String) {
+fn classify_style(lang: Lang, real: &Real, opacity: f64, id: &str, styles: &Styles) -> (State, String) {
     let Some(def) = styles.by_id.get(id) else { return (State::Missing, id.to_string()) };
     match (&def.paint, real) {
         (Some((color, alpha)), Real::Color(c)) if normal_hex(c) != *color || (opacity - alpha).abs() > 0.01 => {
-            let shown = if (alpha - 1.0).abs() > 0.01 { format!("{color} at {}%", number((alpha * 100.0).round())) } else { color.clone() };
-            (State::Suspect, format!("{} (style: {shown})", def.name))
+            let shown = if (alpha - 1.0).abs() > 0.01 { tf(lang, Key::AtPercent, &[("value", color), ("n", &number((alpha * 100.0).round()))]) } else { color.clone() };
+            (State::Suspect, tf(lang, Key::StyleSuspect, &[("name", &def.name), ("shown", &shown)]))
         }
         _ => (State::Style, def.name.clone()),
     }
@@ -359,48 +360,59 @@ fn spacing_value(v: &Value) -> Option<(f64, String)> {
     }
 }
 
+/// A text decoration in words: the host's `UNDERLINE` or `STRIKETHROUGH` in `lang`; anything else as the host gives it, in lower case.
+fn decoration_word(lang: Lang, host: &str) -> String {
+    match host.to_lowercase().as_str() {
+        "underline" => t(lang, Key::DecoUnderline).to_string(),
+        "strikethrough" => t(lang, Key::DecoStrikethrough).to_string(),
+        other => other.to_string(),
+    }
+}
+
 /// "Work Sans 14/150% Medium", then ", letter spacing 2%" and ", underline" when they are set (the host's `node.get` does not report a layer's text case).
-fn typography_value(node: &Value) -> Option<String> {
+fn typography_value(lang: Lang, node: &Value) -> Option<String> {
     let family = node.get("fontFamily").and_then(Value::as_str)?;
     let size = node.get("fontSize").and_then(Value::as_f64).map(number)?;
     let line = match node.get("lineHeight") {
-        Some(Value::String(t)) => t.clone(),
+        Some(Value::String(text)) if text == "Auto" => t(lang, Key::LineHeightAutoHost).to_string(),
+        Some(Value::String(text)) => text.clone(),
         Some(Value::Number(n)) => n.as_f64().map(number).unwrap_or_default(),
-        _ => "auto".to_string(),
+        _ => t(lang, Key::LineHeightAuto).to_string(),
     };
     let weight = node.get("fontStyle").and_then(Value::as_str).unwrap_or_default();
     let mut out = format!("{family} {size}/{line} {weight}").trim_end().to_string();
     if let Some((n, text)) = node.get("letterSpacing").and_then(spacing_value)
         && n.abs() > 0.005
     {
-        out.push_str(&format!(", letter spacing {text}"));
+        out.push_str(&tf(lang, Key::TypoLetterSpacing, &[("text", &text)]));
     }
     if let Some(d) = node.get("textDecoration").and_then(Value::as_str).filter(|d| !matches!(*d, "none" | "")) {
-        out.push_str(&format!(", {}", d.to_lowercase()));
+        out.push_str(", ");
+        out.push_str(&decoration_word(lang, d));
     }
     Some(out)
 }
 
 /// The audit rows of one layer (`node` as `node.get` gives it with `boundVariables`,
 /// `cornerRadius`, `layout`, `fills` and `strokes`).
-pub fn rows_for(node: &Value, vars: &Vars, styles: &Styles) -> Vec<Row> {
+pub fn rows_for(lang: Lang, node: &Value, vars: &Vars, styles: &Styles) -> Vec<Row> {
     let bound = node.get("boundVariables");
     let bound_id = |key: &str| bound.and_then(|b| b.get(key)).and_then(Value::as_str);
     let mut rows = Vec::new();
     let style_id = |key: &str| node.get("styles").and_then(|s| s.get(key)).and_then(Value::as_str);
     let mut add = |property: Prop, key: &str, real: Real, want: Want| {
-        let (mut state, mut token) = classify(&real, want, bound_id(key), vars);
+        let (mut state, mut token) = classify(lang, &real, want, bound_id(key), vars);
         let mut from_style = false;
         // A colour style on a fill or a stroke: with no variable it is the token; with a variable, a note.
         if let (Some(sid), Want::Color) = (style_id(key), want) {
             let opacity = first_paint_opacity(node, if key == "fill" { "fills" } else { "strokes" });
-            let (st, name) = classify_style(&real, opacity, sid, styles);
+            let (st, name) = classify_style(lang, &real, opacity, sid, styles);
             if state == State::Unbound {
                 (state, token, from_style) = (st, name, true);
             } else if st != State::Missing {
                 // A variable and a style at once: the variable is the token, the style a note.
                 let style_name = styles.by_id.get(sid).map_or(name, |d| d.name.clone());
-                token = format!("{token} · style {style_name}");
+                token = tf(lang, Key::TokenAndStyle, &[("token", &token), ("style", &style_name)]);
             }
         }
         let zero = match &real {
@@ -457,7 +469,7 @@ pub fn rows_for(node: &Value, vars: &Vars, styles: &Styles) -> Vec<Row> {
 
     // A text layer: its typography, and the text style when there is one.
     if node.get("type").and_then(Value::as_str) == Some("TEXT")
-        && let Some(value) = typography_value(node)
+        && let Some(value) = typography_value(lang, node)
     {
         let (state, token, style) = match text_style_id(node) {
             Some(id) => match styles.by_id.get(&id) {
@@ -613,7 +625,7 @@ mod tests {
 
     #[test]
     fn token_alias_chain_and_rounded_hex() {
-        let (state, text) = classify(&Real::Color("#3B5BDB".into()), Want::Color, Some("V3"), &vars());
+        let (state, text) = classify(Lang::En, &Real::Color("#3B5BDB".into()), Want::Color, Some("V3"), &vars());
         assert_eq!(state, State::Token);
         assert_eq!(text, "Semantico/color/action/bg → Tokens/color/fill/primary");
     }
@@ -621,16 +633,30 @@ mod tests {
     #[test]
     fn suspect_on_type_or_value() {
         let v = vars();
-        assert_eq!(classify(&Real::Color("#FFFFFF".into()), Want::Color, Some("V1"), &v).0, State::Suspect);
-        assert_eq!(classify(&Real::Num(12.0), Want::Number, Some("V1"), &v).0, State::Suspect);
-        assert_eq!(classify(&Real::Num(8.0), Want::Number, Some("V1"), &v).0, State::Token);
+        assert_eq!(classify(Lang::En, &Real::Color("#FFFFFF".into()), Want::Color, Some("V1"), &v).0, State::Suspect);
+        assert_eq!(classify(Lang::En, &Real::Num(12.0), Want::Number, Some("V1"), &v).0, State::Suspect);
+        assert_eq!(classify(Lang::En, &Real::Num(8.0), Want::Number, Some("V1"), &v).0, State::Token);
+    }
+
+    #[test]
+    fn a_broken_alias_and_a_suspect_style_follow_the_language() {
+        let v = Vars::parse(&json!({"collections": [{"id": "C", "name": "T", "modes": [{"id": "C/m", "name": "A"}]}],
+            "variables": [{"id": "L1", "collection": "C", "name": "loop", "resolvedType": "color", "values": {"C/m": {"type": "alias", "value": "L1"}}}]}));
+        let text = |l: Lang| classify(l, &Real::Color("#FFFFFF".into()), Want::Color, Some("L1"), &v).1;
+        assert_eq!(text(Lang::En), "T/loop (alias loop or broken)");
+        // No decision yet on this text: English in pt-BR too.
+        assert_eq!(text(Lang::Pt), "T/loop (alias loop or broken)");
+        let styles = Styles::parse(&json!([{"id": "1:1", "name": "brand/primary", "type": "paint", "paints": [{"type": "solid", "color": {"r": 0.23137255, "g": 0.35686275, "b": 0.85882354, "a": 0.5}, "opacity": 1.0, "visible": true}]}]));
+        let other = |l: Lang| classify_style(l, &Real::Color("#FF0000".into()), 1.0, "1:1", &styles).1;
+        assert_eq!(other(Lang::En), "brand/primary (style: #3B5BDB at 50%)");
+        assert_eq!(other(Lang::Pt), "brand/primary (estilo: #3B5BDB a 50%)");
     }
 
     #[test]
     fn missing_and_unbound() {
         let v = vars();
-        assert_eq!(classify(&Real::Num(8.0), Want::Number, Some("V99"), &v).0, State::Missing);
-        assert_eq!(classify(&Real::Num(8.0), Want::Number, None, &v).0, State::Unbound);
+        assert_eq!(classify(Lang::En, &Real::Num(8.0), Want::Number, Some("V99"), &v).0, State::Missing);
+        assert_eq!(classify(Lang::En, &Real::Num(8.0), Want::Number, None, &v).0, State::Unbound);
     }
 
     #[test]
@@ -638,7 +664,7 @@ mod tests {
         let node = json!({"name": "Botão", "cornerRadius": 0.0, "fills": [], "strokes": [{"type": "solid", "color": "#111111"}],
             "layout": {"mode": "horizontal", "gap": 4.0, "padding": [8.0, 16.0, 8.0, 16.0]},
             "boundVariables": {"gap": "V1"}});
-        let rows = rows_for(&node, &vars(), &Styles::default());
+        let rows = rows_for(Lang::En, &node, &vars(), &Styles::default());
         let props: Vec<Prop> = rows.iter().map(|r| r.property).collect();
         assert_eq!(props, [Prop::Gap, Prop::PadH, Prop::PadV, Prop::Stroke]);
         assert_eq!(rows[0].state, State::Suspect);
@@ -649,7 +675,7 @@ mod tests {
     fn zero_unbound_rows_are_left_out() {
         let node = json!({"name": "Ícone", "cornerRadius": 0.0, "layout": {"mode": "horizontal", "gap": 0.0, "padding": [0.0, 0.0, 0.0, 0.0]},
             "boundVariables": {"paddingVertical": "V1"}});
-        let rows = drop_zero_unbound(rows_for(&node, &vars(), &Styles::default()));
+        let rows = drop_zero_unbound(rows_for(Lang::En, &node, &vars(), &Styles::default()));
         let props: Vec<Prop> = rows.iter().map(|r| r.property).collect();
         assert_eq!(props, [Prop::PadV]);
     }
@@ -660,7 +686,7 @@ mod tests {
             "fills": [{"type": "solid", "color": "#FFFFFF"}], "boundVariables": {"gap": "V1", "fill": "V1"}});
         let mut rows = Vec::new();
         for (i, n) in ["A", "A", "A"].into_iter().enumerate() {
-            rows.extend(rows_for(&node(n), &vars(), &Styles::default()).into_iter().map(|r| Row { node: i, ..r }));
+            rows.extend(rows_for(Lang::En, &node(n), &vars(), &Styles::default()).into_iter().map(|r| Row { node: i, ..r }));
         }
         mark_checks(&mut rows);
         // The fill is bound to a number variable: suspect; the gap's number matches: a check.
@@ -681,7 +707,7 @@ mod tests {
 
     fn fill_row(name: &str, kind: &str, node: usize, value: &str) -> Row {
         let n = json!({"name": name, "type": kind, "fills": [{"type": "solid", "color": value}]});
-        let mut r = rows_for(&n, &vars(), &Styles::default()).remove(0);
+        let mut r = rows_for(Lang::En, &n, &vars(), &Styles::default()).remove(0);
         r.node = node;
         r
     }
@@ -755,7 +781,7 @@ mod tests {
 
     #[test]
     fn a_colour_style_with_the_layers_value_is_a_token() {
-        let rows = rows_for(&fill_node("#3B5BDB", Some("1:1")), &vars(), &styles());
+        let rows = rows_for(Lang::En, &fill_node("#3B5BDB", Some("1:1")), &vars(), &styles());
         assert_eq!((rows[0].state, rows[0].token.as_str(), rows[0].style), (State::Style, "brand/primary", true));
         assert_eq!(counts(&rows).0, 1);
         assert_eq!(bound_split(&rows), (0, 1));
@@ -763,13 +789,13 @@ mod tests {
 
     #[test]
     fn a_colour_style_with_another_value_is_suspect_and_a_gone_style_is_missing() {
-        let rows = rows_for(&fill_node("#FF0000", Some("1:1")), &vars(), &styles());
+        let rows = rows_for(Lang::En, &fill_node("#FF0000", Some("1:1")), &vars(), &styles());
         assert_eq!(rows[0].state, State::Suspect);
         assert!(rows[0].token.contains("#3B5BDB"));
         // A style's suspicion is not a variable collision: no warning, no "check".
         assert_eq!(suspects(&rows), 0);
         assert_eq!(counts(&rows).3, 1);
-        let rows = rows_for(&fill_node("#3B5BDB", Some("9:9")), &vars(), &styles());
+        let rows = rows_for(Lang::En, &fill_node("#3B5BDB", Some("9:9")), &vars(), &styles());
         assert_eq!((rows[0].state, rows[0].token.as_str()), (State::Missing, "9:9"));
     }
 
@@ -779,7 +805,7 @@ mod tests {
         node["boundVariables"] = json!({"fill": "v:1"});
         let mut vs = vars();
         vs.by_id.insert("v:1".into(), Var { name: "accent".into(), collection: "C".into(), kind: "color".into(), value: json!({"type": "color", "value": {"r": 0.23137255, "g": 0.35686275, "b": 0.85882354, "a": 1.0}}) });
-        let rows = rows_for(&node, &vs, &styles());
+        let rows = rows_for(Lang::En, &node, &vs, &styles());
         assert_eq!((rows[0].state, rows[0].style), (State::Token, false));
         assert_eq!(rows[0].token, "C/accent · style brand/primary");
         assert_eq!(bound_split(&rows), (1, 0));
@@ -790,8 +816,34 @@ mod tests {
             "styles": {"fill": null, "stroke": null, "text": style}})
     }
 
+    #[test]
+    fn the_hosts_auto_line_height_and_the_missing_one_are_worded_by_language() {
+        let mut node = text_node(None);
+        node["textDecoration"] = json!("none");
+        node["lineHeight"] = json!("Auto");
+        assert_eq!(typography_value(Lang::En, &node).as_deref(), Some("Work Sans 14/Auto Medium"));
+        assert_eq!(typography_value(Lang::Pt, &node).as_deref(), Some("Work Sans 14/Automático Medium"));
+        node.as_object_mut().map(|o| o.remove("lineHeight"));
+        assert_eq!(typography_value(Lang::En, &node).as_deref(), Some("Work Sans 14/auto Medium"));
+        assert_eq!(typography_value(Lang::Pt, &node).as_deref(), Some("Work Sans 14/automático Medium"));
+    }
+
+    #[test]
+    fn letter_spacing_decoration_and_the_alias_loop_follow_the_language() {
+        let mut node = text_node(None);
+        node["letterSpacing"] = json!("2%");
+        let en = typography_value(Lang::En, &node).unwrap_or_default();
+        let pt = typography_value(Lang::Pt, &node).unwrap_or_default();
+        assert_eq!(en, "Work Sans 14/150% Medium, letter spacing 2%, underline");
+        assert_eq!(pt, "Work Sans 14/150% Medium, espaçamento entre letras 2%, sublinhado");
+        node["textDecoration"] = json!("STRIKETHROUGH");
+        assert!(typography_value(Lang::Pt, &node).unwrap_or_default().ends_with(", tachado"));
+        node["textDecoration"] = json!("somethingNew");
+        assert!(typography_value(Lang::Pt, &node).unwrap_or_default().ends_with(", somethingnew"));
+    }
+
     fn typography(node: &Value) -> Row {
-        let mut rows = rows_for(node, &vars(), &styles());
+        let mut rows = rows_for(Lang::En, node, &vars(), &styles());
         rows.retain(|r| r.property == Prop::Typography);
         assert_eq!(rows.len(), 1, "one typography row");
         rows.remove(0)
@@ -819,10 +871,10 @@ mod tests {
         let a = text_node(None);
         let mut b = text_node(None);
         b["fontSize"] = json!(12.0);
-        let rows: Vec<Row> = [&a, &b].iter().enumerate().flat_map(|(i, n)| rows_for(n, &vars(), &styles()).into_iter().map(move |r| Row { node: i, ..r })).collect();
+        let rows: Vec<Row> = [&a, &b].iter().enumerate().flat_map(|(i, n)| rows_for(Lang::En, n, &vars(), &styles()).into_iter().map(move |r| Row { node: i, ..r })).collect();
         let infos = [info("Lorem", "TEXT"), info("Lorem", "TEXT")];
         assert_eq!(group_layers(&rows, &infos).len(), 2);
-        let rows: Vec<Row> = [&a, &a].iter().enumerate().flat_map(|(i, n)| rows_for(n, &vars(), &styles()).into_iter().map(move |r| Row { node: i, ..r })).collect();
+        let rows: Vec<Row> = [&a, &a].iter().enumerate().flat_map(|(i, n)| rows_for(Lang::En, n, &vars(), &styles()).into_iter().map(move |r| Row { node: i, ..r })).collect();
         assert_eq!(group_layers(&rows, &infos).len(), 1);
     }
 
@@ -831,10 +883,10 @@ mod tests {
         let node = json!({"name": "Cube", "type": "FRAME",
             "fills": [{"type": "solid", "color": "#FFFFFF", "visible": false}],
             "strokes": [{"type": "solid", "color": "#111111", "opacity": 0.0}]});
-        assert!(rows_for(&node, &vars(), &Styles::default()).is_empty());
+        assert!(rows_for(Lang::En, &node, &vars(), &Styles::default()).is_empty());
         assert_eq!(hidden_paints(&node), 2);
         // The first paint that is drawn stands for the layer.
         let two = json!({"name": "Cube", "type": "FRAME", "fills": [{"type": "solid", "color": "#FFFFFF", "visible": false}, {"type": "solid", "color": "#000000"}]});
-        assert_eq!(rows_for(&two, &vars(), &Styles::default())[0].value, "#000000");
+        assert_eq!(rows_for(Lang::En, &two, &vars(), &Styles::default())[0].value, "#000000");
     }
 }

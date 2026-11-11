@@ -566,11 +566,11 @@
     }
   },
   "ds-base-demo / Button": {
-    "summary": "8 bound (7 variables, 1 styles) · 0 no token · 0 missing · 0 suspect · of 8 properties",
+    "summary": "8 bound (7 variables, 1 style) · 0 no token · 0 missing · 0 suspect · of 8 properties",
     "lines": 8,
     "sections": 7,
     "instances": 14,
-    "fuel": 151165826,
+    "fuel": 153929713,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
@@ -875,11 +875,11 @@
     }
   },
   "ds-base-demo / Icon": {
-    "summary": "1 bound · 0 no token · 0 missing · 0 suspect · of 1 properties",
+    "summary": "1 bound · 0 no token · 0 missing · 0 suspect · of 1 property",
     "lines": 1,
     "sections": 5,
     "instances": 14,
-    "fuel": 63188034,
+    "fuel": 65847683,
     "deltas": {
       "Name=caret-down, Size=16": [],
       "Name=caret-up, Size=16": [
@@ -941,6 +941,362 @@
       "badges": [
         1,
         2
+      ],
+      "multiples": {},
+      "unnumbered": 0
+    }
+  },
+  "pt-BR / copia-2 / id 32": {
+    "summary": "6 vinculadas · 2 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades",
+    "lines": 8,
+    "sections": 0,
+    "instances": 2,
+    "fuel": 32463977,
+    "deltas": {},
+    "anatomy": {
+      "blocks": [
+        [
+          "Botão de teste",
+          1
+        ],
+        [
+          "Salvar",
+          2
+        ]
+      ],
+      "badges": [
+        1,
+        2
+      ],
+      "multiples": {},
+      "unnumbered": 0
+    }
+  },
+  "pt-BR / carga-v2 / id 3 (Toast variant)": {
+    "summary": "4 vinculadas (4 a verificar) · 6 sem token · 0 ausentes · 7 suspeitas · de 17 propriedades",
+    "lines": 17,
+    "sections": 0,
+    "instances": 2,
+    "fuel": 168157124,
+    "deltas": {},
+    "anatomy": {
+      "blocks": [
+        [
+          "Toast",
+          1
+        ],
+        [
+          "Icone",
+          2
+        ],
+        [
+          "Glifo \"!\"",
+          3
+        ],
+        [
+          "Texto",
+          4
+        ],
+        [
+          "Titulo \"Mensagem não enviada\"",
+          5
+        ],
+        [
+          "Mensagem \"Erro de conexão. Tente d…\"",
+          6
+        ],
+        [
+          "Fechar \"×\"",
+          7
+        ]
+      ],
+      "badges": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "multiples": {},
+      "unnumbered": 0
+    }
+  },
+  "pt-BR / ds-base-demo / Button": {
+    "summary": "8 vinculadas (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades",
+    "lines": 8,
+    "sections": 0,
+    "instances": 14,
+    "fuel": 155924783,
+    "deltas": {
+      "Type=Primary, Size=Medium, State=Enabled": [],
+      "Type=Secondary, Size=Medium, State=Enabled": [
+        "Preenchimento : Colors/color/primary → Colors/color/secondary (#C6005C → #F4F4F5)",
+        "↳ Leading icon / plus",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/secondary-foreground (#FDF2F8 → #18181B)",
+        "↳ Label / Text",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/secondary-foreground (#FDF2F8 → #18181B)"
+      ],
+      "Type=Outline, Size=Medium, State=Enabled": [
+        "Preenchimento : Colors/color/primary → nenhum (#C6005C → nenhum)",
+        "Largura : 100 → 102",
+        "Altura : 36 → 38",
+        "Traço : nenhum → Colors/color/border (nenhum → #E3E7E8)",
+        "Espessura do traço : 0 → 1",
+        "↳ Leading icon / plus",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/foreground (#FDF2F8 → #090B0C)",
+        "↳ Label / Text",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/foreground (#FDF2F8 → #090B0C)"
+      ],
+      "Type=Destructive, Size=Medium, State=Enabled": [
+        "Preenchimento : Colors/color/primary → Colors/color/destructive (#C6005C → #E7000B)",
+        "↳ Leading icon / plus",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/background (#FDF2F8 → #FFFFFF)",
+        "↳ Label / Text",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/background (#FDF2F8 → #FFFFFF)"
+      ],
+      "Type=Primary, Size=Small, State=Enabled": [
+        "Raio : Radius/radius/default → 8 (10 → 8)",
+        "Espaço entre itens : Spacing/space/8 → 6 (8 → 6)",
+        "Espaçamento interno horizontal : Spacing/space/16 → Spacing/space/12 (16 → 12)",
+        "Espaçamento interno vertical : Spacing/space/8 → 4 (8 → 4)",
+        "Largura : 100 → 84",
+        "Altura : 36 → 24",
+        "↳ Label / Text",
+        "Tipografia : text/label-m → Inter 12/16 Medium (Inter 14/20 Medium → Inter 12/16 Medium)"
+      ],
+      "Type=Primary, Size=Large, State=Enabled": [
+        "Espaçamento interno horizontal : Spacing/space/16 → Spacing/space/24 (16 → 24)",
+        "Espaçamento interno vertical : Spacing/space/8 → Spacing/space/12 (8 → 12)",
+        "Largura : 100 → 123",
+        "Altura : 36 → 48",
+        "↳ Leading icon / plus",
+        "Preenchimento : Colors/color/primary-foreground → Colors/color/foreground (#FDF2F8 → #090B0C)",
+        "↳ Label / Text",
+        "Tipografia : text/label-m → text/label-l (Inter 14/20 Medium → Inter 16/24 Medium)"
+      ],
+      "Type=Primary, Size=Medium, State=Hover": [
+        "Preenchimento : Colors/color/primary → Colors/color/primary-hover (#C6005C → #B10652)",
+        "Efeitos : nenhum → shadow/sm (nenhum → Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
+      ],
+      "Type=Primary, Size=Medium, State=Pressed": [
+        "Preenchimento : Colors/color/primary → Colors/color/primary-pressed (#C6005C → #9E0749)"
+      ],
+      "Type=Primary, Size=Medium, State=Disabled": [
+        "Opacidade : 100% → 50%"
+      ],
+      "Type=Primary, Size=Medium, State=Focus": [
+        "Traço : nenhum → Colors/color/ring (nenhum → #9CA8AB)",
+        "Espessura do traço : 0 → 2"
+      ]
+    },
+    "anatomy": {
+      "blocks": [
+        [
+          "Button",
+          1
+        ],
+        [
+          "Leading icon",
+          2
+        ],
+        [
+          "plus",
+          3
+        ],
+        [
+          "Label",
+          4
+        ],
+        [
+          "Text \"Button\"",
+          5
+        ]
+      ],
+      "badges": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "multiples": {},
+      "unnumbered": 0
+    }
+  },
+  "pt-BR / ds-base-demo / Card": {
+    "summary": "43 vinculadas (35 variáveis, 8 estilos) · 2 sem token · 0 ausentes · 0 suspeitas · de 45 propriedades",
+    "lines": 45,
+    "sections": 0,
+    "instances": 5,
+    "fuel": 239194490,
+    "deltas": {
+      "Size=Compact": [
+        "Espaçamento interno horizontal : Spacing/space/24 → Spacing/space/16 (24 → 16)",
+        "Espaçamento interno vertical : Spacing/space/24 → Spacing/space/16 (24 → 16)",
+        "Largura : 384 → 320",
+        "Altura : 422 → 238",
+        "↳ Header / Title row / Title",
+        "Tipografia : text/h3 → Inter 24/32 SemiBold, espaçamento entre letras -1% (Inter 24/32 SemiBold, espaçamento entre letras -1% → Inter 24/32 SemiBold, espaçamento entre letras -1%)",
+        "↳ Content / Paragraph",
+        "Texto : \"…ads, how much room it keeps around its c…\" → \"…ads, how m…\"",
+        "↳ Content / Features : oculto"
+      ],
+      "Size=Default": [],
+      "Size=Wide": [
+        "Largura : 384 → 448",
+        "Altura : 422 → 382"
+      ]
+    },
+    "anatomy": {
+      "blocks": [
+        [
+          "Card",
+          1
+        ],
+        [
+          "Header",
+          2
+        ],
+        [
+          "Title \"Project overview\"",
+          3
+        ],
+        [
+          "info",
+          4
+        ],
+        [
+          "Description \"A short line that says w…\"",
+          5
+        ],
+        [
+          "Content",
+          6
+        ],
+        [
+          "Paragraph \"Design systems earn thei…\"",
+          7
+        ],
+        [
+          "check ×3",
+          8
+        ],
+        [
+          "Text ×3 \"Reads every colour from …\"",
+          9
+        ],
+        [
+          "Footer actions",
+          10
+        ],
+        [
+          "Button",
+          11
+        ],
+        [
+          "plus",
+          12
+        ],
+        [
+          "Text \"Button\"",
+          null
+        ],
+        [
+          "Button",
+          null
+        ],
+        [
+          "plus",
+          null
+        ],
+        [
+          "Text \"Button\"",
+          null
+        ]
+      ],
+      "badges": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        8,
+        8,
+        9,
+        9,
+        9,
+        10,
+        11,
+        12
+      ],
+      "multiples": {
+        "check ×3": 3,
+        "Text ×3 \"Reads every colour from …\"": 3
+      },
+      "unnumbered": 4
+    }
+  },
+  "pt-BR / ds-base-demo / Accordion": {
+    "summary": "10 vinculadas (8 variáveis, 2 estilos) · 1 sem token · 0 ausentes · 0 suspeitas · de 11 propriedades",
+    "lines": 11,
+    "sections": 0,
+    "instances": 4,
+    "fuel": 71748779,
+    "deltas": {
+      "State=Collapsed": [
+        "Altura : 130 → 54",
+        "↳ Trigger / Chevron / caret-down : visível",
+        "↳ Answer : oculto",
+        "↳ Trigger / Chevron / caret-up : oculto"
+      ],
+      "State=Expanded": [],
+      "State=Locked": [
+        "Altura : 130 → 54",
+        "Opacidade : 100% → 50%",
+        "↳ Trigger / Chevron / caret-down : visível",
+        "↳ Answer : oculto",
+        "↳ Trigger / Chevron / caret-up : oculto"
+      ]
+    },
+    "anatomy": {
+      "blocks": [
+        [
+          "Accordion",
+          1
+        ],
+        [
+          "Trigger",
+          2
+        ],
+        [
+          "Question \"Is it built with tokens?\"",
+          3
+        ],
+        [
+          "caret-up",
+          4
+        ],
+        [
+          "Answer",
+          5
+        ],
+        [
+          "Text \"A short answer that open…\"",
+          6
+        ]
+      ],
+      "badges": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
       ],
       "multiples": {},
       "unnumbered": 0

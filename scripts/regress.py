@@ -6,6 +6,10 @@ contains `text`, when given; the other entries are kept). `--dump FILE` writes t
 `--private` runs only the cases in tests/private/ (a folder git ignores) and compares them with
 tests/private/baseline-private.json; without the folder it says so and exits 0.
 
+The cases named "pt-BR / ..." run the same way after a `settings` run that sets the language to pt-BR (their summary,
+deltas and block titles are in Portuguese). The cases without that prefix run in English (the default) and are the
+net that the English report does not change.
+
 The DS Base Demo cases run on demo/ds-base-demo.figcraft and find each component BY NAME every time (never by a fixed id).
 Everything is written to a temporary folder (never over a fixture)."""
 import json, os, subprocess, sys, tempfile, time
@@ -31,6 +35,16 @@ CASES = {
 # DS Base Demo: the name of the top-level component or set; the id is looked up by name on every run.
 for _n in ["Button", "Card", "Accordion", "Code", "Icon"]:
     CASES[f"ds-base-demo / {_n}"] = (DEMO, _n)
+
+# The same layers with the report in Brazilian Portuguese (added in 0.9.6; the English cases above are untouched).
+# name: (file, id or name, language the Settings are set to before the run)
+PT_CASES = {
+    "pt-BR / copia-2 / id 32": (f"{FIX}/fixture-copia-2.figcraft", 32, "pt-BR"),
+    "pt-BR / carga-v2 / id 3 (Toast variant)": (f"{FIX}/fixture-carga-v2.figcraft", 3, "pt-BR"),
+    "pt-BR / ds-base-demo / Button": (DEMO, "Button", "pt-BR"),
+    "pt-BR / ds-base-demo / Card": (DEMO, "Card", "pt-BR"),
+    "pt-BR / ds-base-demo / Accordion": (DEMO, "Accordion", "pt-BR"),
+}
 
 # Private cases: files that cannot be published, kept in tests/private/ (ignored by git).
 PRIVATE_CASES = {
@@ -70,7 +84,7 @@ def find_by_name(src, name, tmp, n):
     return None
 
 
-def run_case(src, layer, tmp, n):
+def run_case(src, layer, tmp, n, lang=None):
     if isinstance(layer, str):
         found = find_by_name(src, layer, tmp, n)
         if found is None:
@@ -78,8 +92,10 @@ def run_case(src, layer, tmp, n):
         layer = found
     script = os.path.join(tmp, f"case{n}.json")
     out = os.path.join(tmp, f"case{n}.figcraft")
-    steps = [
-        {"command": "plugin.import", "params": {"path": DIST}},
+    steps = [{"command": "plugin.import", "params": {"path": DIST}}]
+    if lang:
+        steps.append({"command": "plugin.run", "params": {"id": PID, "command": "settings", "params": {"lang": lang}}})
+    steps += [
         {"command": "select.set", "params": {"ids": [layer]}},
         {"command": "plugin.run", "params": {"id": PID, "command": "generate"}},
     ]
@@ -130,21 +146,21 @@ def main():
         if k + 1 < len(args) and not args[k + 1].startswith("--"):
             only = args[k + 1]
     dump = args[args.index("--dump") + 1] if "--dump" in args else None
-    cases, baseline = CASES, BASELINE
+    cases, baseline = {**{k: (*v, None) for k, v in CASES.items()}, **PT_CASES}, BASELINE
     if private:
         if not os.path.isdir(PRIVATE):
             print("tests/private/ does not exist: nothing to run (that folder is not part of the repository).")
             return 0
-        cases, baseline = PRIVATE_CASES, BASELINE_PRIVATE
+        cases, baseline = {k: (*v, None) for k, v in PRIVATE_CASES.items()}, BASELINE_PRIVATE
     if not os.path.isdir(DIST):
         sys.exit(f"build the plugin first: {DIST} is missing")
     started = time.time()
     results = {}
     with tempfile.TemporaryDirectory(prefix="handoff-regress-") as tmp:
-        for n, (name, (src, layer)) in enumerate(cases.items()):
+        for n, (name, (src, layer, lang)) in enumerate(cases.items()):
             if update and only and only not in name:
                 continue
-            results[name] = run_case(src, layer, tmp, n)
+            results[name] = run_case(src, layer, tmp, n, lang)
     secs = time.time() - started
     if dump:
         json.dump(results, open(dump, "w"), indent=2, ensure_ascii=False)

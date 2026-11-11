@@ -1,14 +1,18 @@
 //! What the plugin remembers, and where.
 //!
-//! - **Settings** (language, colours, what to do on a rerun) are one JSON object in the
+//! - **Settings** (language, colours, what to do on a rerun, time zone) are one JSON object in the
 //!   `pluginData` of the current page, under [`SETTINGS_KEY`].
-//! - **The component's sheet** (version, date, status and, for a set, the default variant) is one JSON object in the `pluginData` of
+//! - **The component's sheet** (version, status and, for a set, the default variant) is one JSON object in the `pluginData` of
 //!   the main component, under [`META_KEY`]; for a variant, of its component set, so that every
 //!   variant shares it.
 //!
 //! `pluginData` values are strings, so each object is stored as JSON text. A field that was never
 //! set is left out of the object, and an object with nothing in it is removed.
+//!
+//! Sheets saved by 0.9.5 and before may hold a `date`. It is not read (the report's date comes from
+//! the app's clock) but it is not deleted either: a key the plugin doesn't know is written back as it was.
 
+use crate::clock;
 use figcraft_plugin_sdk::Value;
 
 /// The `pluginData` key of the settings, on the page.
@@ -55,6 +59,8 @@ pub struct Settings {
     pub on_rerun: Option<String>,
     /// `light`, `dark` or `auto`.
     pub stage: Option<String>,
+    /// The time zone of the report's date, in hours from UTC (`-3`, `5.5`).
+    pub tz: Option<String>,
 }
 
 /// The stage behind the instances: light (the default), dark, or chosen row by row from contrast.
@@ -89,10 +95,12 @@ impl StageMode {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Meta {
     pub version: Option<String>,
-    pub date: Option<String>,
     pub status: Option<String>,
     /// The default variant of a component set ("Size=Small, State=Enabled"; may be partial).
     pub default: Option<String>,
+    /// The keys of the stored object that this version doesn't know (a `date` from 0.9.5 and
+    /// before): ignored when reading, written back when the sheet is saved.
+    pub other: serde_json::Map<String, Value>,
 }
 
 fn text_of(obj: &Value, key: &str) -> Option<String> {
@@ -104,9 +112,10 @@ fn stored(plugin_data: &Value, key: &str) -> Value {
     plugin_data.get(key).and_then(Value::as_str).and_then(|s| serde_json::from_str::<Value>(s).ok()).filter(Value::is_object).unwrap_or(Value::Null)
 }
 
-/// The JSON text of an object made of the fields that are set; `None` when none is.
-fn to_text(fields: &[(&str, &Option<String>)]) -> Option<String> {
-    let mut map = serde_json::Map::new();
+/// The JSON text of an object made of the fields that are set (and the `other` keys kept as they
+/// were); `None` when there is none.
+fn to_text(fields: &[(&str, &Option<String>)], other: &serde_json::Map<String, Value>) -> Option<String> {
+    let mut map = other.clone();
     for (k, v) in fields {
         if let Some(v) = v {
             map.insert((*k).to_string(), Value::String(v.clone()));
@@ -119,11 +128,16 @@ impl Settings {
     /// The settings in a node's `pluginData` (the `pluginData` object of `node.get`).
     pub fn from_plugin_data(plugin_data: &Value) -> Settings {
         let o = stored(plugin_data, SETTINGS_KEY);
-        Settings { lang: text_of(&o, "lang"), line: text_of(&o, "line"), fill: text_of(&o, "fill"), on_rerun: text_of(&o, "on_rerun"), stage: text_of(&o, "stage") }
+        Settings { lang: text_of(&o, "lang"), line: text_of(&o, "line"), fill: text_of(&o, "fill"), on_rerun: text_of(&o, "on_rerun"), stage: text_of(&o, "stage"), tz: text_of(&o, "tz") }
     }
 
     pub fn to_text(&self) -> Option<String> {
-        to_text(&[("lang", &self.lang), ("line", &self.line), ("fill", &self.fill), ("on_rerun", &self.on_rerun), ("stage", &self.stage)])
+        to_text(&[("lang", &self.lang), ("line", &self.line), ("fill", &self.fill), ("on_rerun", &self.on_rerun), ("stage", &self.stage), ("tz", &self.tz)], &serde_json::Map::new())
+    }
+
+    /// The time zone of the report's date: the stored one, or São Paulo's.
+    pub fn tz_hours(&self) -> f64 {
+        self.tz.as_deref().and_then(clock::parse_tz).unwrap_or(clock::DEFAULT_TZ)
     }
 
     /// The stage mode: the stored one, or light.
@@ -140,11 +154,12 @@ impl Settings {
 impl Meta {
     pub fn from_plugin_data(plugin_data: &Value) -> Meta {
         let o = stored(plugin_data, META_KEY);
-        Meta { version: text_of(&o, "version"), date: text_of(&o, "date"), status: text_of(&o, "status"), default: text_of(&o, "default") }
+        let other = o.as_object().map(|m| m.iter().filter(|(k, _)| !matches!(k.as_str(), "version" | "status" | "default")).map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default();
+        Meta { version: text_of(&o, "version"), status: text_of(&o, "status"), default: text_of(&o, "default"), other }
     }
 
     pub fn to_text(&self) -> Option<String> {
-        to_text(&[("default", &self.default), ("version", &self.version), ("date", &self.date), ("status", &self.status)])
+        to_text(&[("default", &self.default), ("version", &self.version), ("status", &self.status)], &self.other)
     }
 }
 
@@ -170,12 +185,23 @@ mod tests {
 
     #[test]
     fn settings_round_trip_through_plugin_data() {
-        let s = Settings { lang: Some("pt".into()), line: Some("#3B82F6".into()), fill: None, on_rerun: Some("new".into()), stage: None };
+        let s = Settings { lang: Some("pt".into()), line: Some("#3B82F6".into()), fill: None, on_rerun: Some("new".into()), stage: None, tz: Some("5.5".into()) };
         let text = s.to_text().unwrap();
-        assert_eq!(text, r##"{"lang":"pt","line":"#3B82F6","on_rerun":"new"}"##);
+        assert_eq!(text, r##"{"lang":"pt","line":"#3B82F6","on_rerun":"new","tz":"5.5"}"##);
         let back = Settings::from_plugin_data(&json!({SETTINGS_KEY: text}));
         assert_eq!(back, s);
         assert_eq!(back.rerun(), Rerun::New);
+        assert_eq!(back.tz_hours(), 5.5);
+    }
+
+    #[test]
+    fn the_time_zone_defaults_to_sao_paulo_and_ignores_a_broken_stored_one() {
+        assert_eq!(Settings::default().tz_hours(), -3.0);
+        for bad in ["abc", "99", ""] {
+            let s = Settings { tz: Some(bad.into()), ..Settings::default() };
+            assert_eq!(s.tz_hours(), -3.0, "{bad}");
+        }
+        assert_eq!(Settings { tz: Some("9".into()), ..Settings::default() }.tz_hours(), 9.0);
     }
 
     #[test]
@@ -201,8 +227,24 @@ mod tests {
 
     #[test]
     fn meta_round_trip() {
-        let m = Meta { version: Some("1.2.0".into()), date: Some("2026-11-01".into()), status: Some("Aprovado".into()), default: Some("Size=Small".into()) };
+        let m = Meta { version: Some("1.2.0".into()), status: Some("Aprovado".into()), default: Some("Size=Small".into()), other: serde_json::Map::new() };
         assert_eq!(Meta::from_plugin_data(&json!({META_KEY: m.to_text().unwrap()})), m);
+    }
+
+    #[test]
+    fn a_date_saved_by_an_older_version_is_not_read_but_is_kept() {
+        let old = r#"{"date":"2026-11-01","default":"Size=Small","status":"Aprovado","version":"1.2.0"}"#;
+        let m = Meta::from_plugin_data(&json!({META_KEY: old}));
+        assert_eq!((m.version.as_deref(), m.status.as_deref(), m.default.as_deref()), (Some("1.2.0"), Some("Aprovado"), Some("Size=Small")));
+        // Changing the status writes the old date back untouched.
+        let next = Meta { status: Some("Rascunho".into()), ..m };
+        assert_eq!(next.to_text().as_deref(), Some(r#"{"date":"2026-11-01","default":"Size=Small","status":"Rascunho","version":"1.2.0"}"#));
+        // A sheet that holds only the old date is not emptied.
+        let only = Meta::from_plugin_data(&json!({META_KEY: r#"{"date":"2026-11-01"}"#}));
+        assert_eq!(only.to_text().as_deref(), Some(r#"{"date":"2026-11-01"}"#));
+        // Clearing every field the plugin knows leaves just that.
+        let cleared = Meta { version: None, status: None, default: None, ..only };
+        assert_eq!(cleared.to_text().as_deref(), Some(r#"{"date":"2026-11-01"}"#));
     }
 
     #[test]
