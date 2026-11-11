@@ -114,45 +114,54 @@ macro_rules! keys {
 keys! {
     AlignBottom, AlignCenter, AlignLeft, AlignMiddle, AlignRight,
     AlignSpaceAround, AlignSpaceBetween, AlignSpaceEvenly, AlignTop, Anatomy,
-    Collision, DateUnavailable, DefaultLine, DeltaContent, DeltaEffectOnly,
-    DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore, DeltaNone,
-    DeltaOpacity, DeltaStrokeWeight, DeltaVisible, DeltaWidth, DirGrid,
-    DirHorizontal, DirVertical, Done, ErrBadColour, ErrBadLang,
-    ErrBadRerun, ErrBadStage, ErrBadTz, ErrCall, ErrDefaultMalformed,
-    ErrDefaultNoVariant, ErrDefaultOption, ErrDefaultProp, ErrEmptySet, ErrMetaSelection,
-    ErrNoId, ErrNoMain, ErrNoPage, ErrNoSelection, ErrNoVariants,
-    ErrNotComponent, ErrNotList, ErrParent, FrameName, GeneratedOn,
-    InstanceOf, LayerAnatomyRow, LayerAnatomySection, LayerAxis, LayerAxisNote,
-    LayerAxisRow, LayerBadge, LayerBlockHeader, LayerBody, LayerChip,
-    LayerDeltas, LayerDivider, LayerGenerated, LayerGroup, LayerHeaderBlock,
-    LayerKind, LayerLeader, LayerLegend, LayerMarker, LayerMeasure,
-    LayerMore, LayerNote, LayerProperties, LayerPropertyRow, LayerSpacingSection,
-    LayerStage, LayerSubtitle, LayerSummary, LayerTitle, LayerValue,
-    LayerWarning, LegendCheck, LegendDefault, LegendMissing, LegendNoStyle,
-    LegendNone, LegendStyle, LegendSuspect, LegendToken, MoreLines,
-    MoreVariants, NotDefined, NoteExport1x, NoteLineNoCoords, NoteLineOblique,
-    OvCorners, OvEffects, OvFills, OvPadding, OvPosition,
-    OvSize, OvStrokes, OvTextStyle, OverrideNote, PropFill,
-    PropGap, PropPadH, PropPadV, PropRadius, PropStroke,
-    PropTypography, PropertiesTitle, ResizeFill, ResizeFixed, ResizeHug,
-    SettingsKept, SettingsSaved, SourceComponent, SourceFirst, SourceSaved,
-    SpAlignment, SpDirection, SpHResizing, SpVResizing, SpacingTitle,
-    Summary, SummaryChecks, SummaryStyles, SummaryStylesChecks, SummaryOneStyle, SummaryOneStyleChecks, TypeBoolean,
-    TypeInstance, TypeText, TypeVariant, Unnumbered, ValueFalse,
-    ValueTrue, Variants, WarnNoDate, WarnTmpComment, KindFrame,
-    KindGroup, KindRectangle, KindEllipse, KindVector, KindLine,
-    KindStar, KindPolygon, KindBooleanOperation, KindComponent, KindComponentSet,
-    KindInstance, KindSection, KindSlice, EffectDropShadow, EffectInnerShadow, EffectLayerBlur, EffectBackgroundBlur,
-    EffectDefault, EffectBlur, EffectSpread, AtPercent, StyleSuspect,
-    TokenAndStyle, LineHeightAuto, LineHeightAutoHost, TypoLetterSpacing, DecoUnderline, DecoStrikethrough,
-    ValueNone, AliasBroken, ErrUnknownCommand, AlignTopLeft, AlignTopCenter,
-    AlignTopRight, AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft,
-    AlignBottomCenter, AlignBottomRight, AlignCompose,
+    Collision, CollisionOne, DateUnavailable, DefaultLine, DeltaContent,
+    DeltaEffectOnly, DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore,
+    DeltaMoreOne, DeltaNone, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
+    DeltaWidth, DirGrid, DirHorizontal, DirVertical, Done,
+    ErrBadColour, ErrBadLang, ErrBadRerun, ErrBadStage, ErrBadTz,
+    ErrCall, ErrDefaultMalformed, ErrDefaultNoVariant, ErrDefaultOption, ErrDefaultProp,
+    ErrEmptySet, ErrMetaSelection, ErrNoId, ErrNoMain, ErrNoPage,
+    ErrNoSelection, ErrNoVariants, ErrNotComponent, ErrNotList, ErrParent,
+    FrameName, GeneratedOn, InstanceOf, LayerAnatomyRow, LayerAnatomySection,
+    LayerAxis, LayerAxisNote, LayerAxisRow, LayerBadge, LayerBlockHeader,
+    LayerBody, LayerChip, LayerDeltas, LayerDivider, LayerGenerated,
+    LayerGroup, LayerHeaderBlock, LayerKind, LayerLeader, LayerLegend,
+    LayerMarker, LayerMeasure, LayerMore, LayerNote, LayerProperties,
+    LayerPropertyRow, LayerSpacingSection, LayerStage, LayerSubtitle, LayerSummary,
+    LayerTitle, LayerValue, LayerWarning, LegendCheck, LegendDefault,
+    LegendMissing, LegendNoStyle, LegendNone, LegendStyle, LegendSuspect,
+    LegendToken, MoreLines, MoreLinesOne, MoreVariants, MoreVariantsOne,
+    NotDefined, NoteExport1x, NoteLineNoCoords, NoteLineOblique, OvCorners,
+    OvEffects, OvFills, OvPadding, OvPosition, OvSize,
+    OvStrokes, OvTextStyle, OverrideNote, PropFill, PropGap,
+    PropPadH, PropPadV, PropRadius, PropStroke, PropTypography,
+    PropertiesTitle, ResizeFill, ResizeFixed, ResizeHug, SettingsKept,
+    SettingsSaved, SourceComponent, SourceFirst, SourceSaved, SpAlignment,
+    SpDirection, SpHResizing, SpVResizing, SpacingTitle, Summary,
+    SummaryChecks, SummaryStyles, SummaryStylesChecks, NounVariable, NounVariables,
+    NounStyle, NounStyles, NounProperty, NounProperties, TypeBoolean,
+    TypeInstance, TypeText, TypeVariant, Unnumbered, UnnumberedOne,
+    ValueFalse, ValueTrue, Variants, WarnNoDate, WarnTmpComment,
+    KindFrame, KindGroup, KindRectangle, KindEllipse, KindVector,
+    KindLine, KindStar, KindPolygon, KindBooleanOperation, KindComponent,
+    KindComponentSet, KindInstance, KindSection, KindSlice, EffectDropShadow,
+    EffectInnerShadow, EffectLayerBlur, EffectBackgroundBlur, EffectDefault, EffectBlur,
+    EffectSpread, AtPercent, StyleSuspect, TokenAndStyle, LineHeightAuto,
+    LineHeightAutoHost, TypoLetterSpacing, DecoUnderline, DecoStrikethrough, ValueNone,
+    AliasBroken, ErrUnknownCommand, AlignTopLeft, AlignTopCenter, AlignTopRight,
+    AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft, AlignBottomCenter,
+    AlignBottomRight, AlignCompose,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
 pub fn t(lang: Lang, key: Key) -> &'static str {
     pick(table(lang), || table(Lang::En), key.name())
+}
+
+/// The key for a count: `one` when it is exactly 1, `many` for 0 and for 2 or more (the plural has its own
+/// text, so a language is not asked to derive it from a suffix).
+pub fn plural(n: usize, one: Key, many: Key) -> Key {
+    if n == 1 { one } else { many }
 }
 
 /// The text of `key` with each `{name}` replaced by its value.
@@ -314,6 +323,58 @@ mod tests {
         let asked = std::cell::Cell::new(false);
         assert_eq!(pick(&pt, || { asked.set(true); &en }, "A"), "um");
         assert!(!asked.get());
+    }
+
+    #[test]
+    fn plural_picks_the_singular_for_exactly_one() {
+        assert_eq!(plural(1, Key::NounStyle, Key::NounStyles), Key::NounStyle);
+        for n in [0, 2, 3, 100] {
+            assert_eq!(plural(n, Key::NounStyle, Key::NounStyles), Key::NounStyles, "{n}");
+        }
+    }
+
+    #[test]
+    fn each_counted_text_has_its_singular_for_1_and_keeps_the_plural_for_0_and_2() {
+        // (singular key, plural key, [en for 0, 1, 2], [pt-BR for 0, 1, 2])
+        let rows: [(Key, Key, [&str; 3], [&str; 3]); 5] = [
+            (
+                Key::CollisionOne,
+                Key::Collision,
+                [
+                    "Warning: 0 bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
+                    "Warning: 1 binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
+                    "Warning: 2 bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
+                ],
+                [
+                    "Atenção: 0 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Atenção: 1 vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Atenção: 2 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                ],
+            ),
+            (Key::UnnumberedOne, Key::Unnumbered, ["+0 layers without a number", "+1 layer without a number", "+2 layers without a number"], ["+0 camadas sem número", "+1 camada sem número", "+2 camadas sem número"]),
+            (Key::MoreLinesOne, Key::MoreLines, ["+0 lines not shown", "+1 line not shown", "+2 lines not shown"], ["+0 linhas não exibidas", "+1 linha não exibida", "+2 linhas não exibidas"]),
+            (Key::MoreVariantsOne, Key::MoreVariants, ["+0 variants not shown", "+1 variant not shown", "+2 variants not shown"], ["+0 variantes não exibidas", "+1 variante não exibida", "+2 variantes não exibidas"]),
+            (Key::DeltaMoreOne, Key::DeltaMore, ["+0 more differences", "+1 more difference", "+2 more differences"], ["+0 outras diferenças", "+1 outra diferença", "+2 outras diferenças"]),
+        ];
+        for (one, many, en, pt) in rows {
+            for (i, n) in [0usize, 1, 2].into_iter().enumerate() {
+                let key = plural(n, one, many);
+                assert_eq!(tf(Lang::En, key, &[("n", &n.to_string())]), en[i], "{} en {n}", one.name());
+                assert_eq!(tf(Lang::Pt, key, &[("n", &n.to_string())]), pt[i], "{} pt-BR {n}", one.name());
+            }
+        }
+    }
+
+    #[test]
+    fn the_nouns_of_the_summary_in_both_languages() {
+        for (one, many, en, pt) in [
+            (Key::NounVariable, Key::NounVariables, ("variable", "variables"), ("variável", "variáveis")),
+            (Key::NounStyle, Key::NounStyles, ("style", "styles"), ("estilo", "estilos")),
+            (Key::NounProperty, Key::NounProperties, ("property", "properties"), ("propriedade", "propriedades")),
+        ] {
+            assert_eq!((t(Lang::En, one), t(Lang::En, many)), en);
+            assert_eq!((t(Lang::Pt, one), t(Lang::Pt, many)), pt);
+        }
     }
 
     #[test]

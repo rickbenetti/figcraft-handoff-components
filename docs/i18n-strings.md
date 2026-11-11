@@ -17,6 +17,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | AlignTop | Top | Topo |
 | Anatomy | Anatomy | Anatomia |
 | Collision | Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
+| CollisionOne | Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
 | DateUnavailable | unavailable | indisponível |
 | DefaultLine | Default: {pairs} ({source}) | Variante padrão: {pairs} ({source}) |
 | DeltaContent | Text | Texto |
@@ -25,6 +26,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | DeltaHeight | Height | Altura |
 | DeltaHidden | hidden | oculto |
 | DeltaMore | +{n} more differences | +{n} outras diferenças |
+| DeltaMoreOne | +{n} more difference | +{n} outra diferença |
 | DeltaNone | No differences from default | Sem diferenças em relação ao padrão |
 | DeltaOpacity | Opacity | Opacidade |
 | DeltaStrokeWeight | Stroke weight | Espessura do traço |
@@ -96,7 +98,9 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | LegendSuspect | suspect | suspeito |
 | LegendToken | token | token |
 | MoreLines | +{n} lines not shown | +{n} linhas não exibidas |
+| MoreLinesOne | +{n} line not shown | +{n} linha não exibida |
 | MoreVariants | +{n} variants not shown | +{n} variantes não exibidas |
+| MoreVariantsOne | +{n} variant not shown | +{n} variante não exibida |
 | NotDefined | Not defined: {list} | Não definido: {list} |
 | NoteExport1x | This report is taller than 8,000 px, so its PNG export is set to 1x (at 2x it would pass 16,384 px). | Este relatório tem mais de 8.000 px de altura, então a exportação em PNG está em 1x (em 2x passaria de 16.384 px). |
 | NoteLineNoCoords | measure.padding line {i} has no coordinates | a linha {i} do measure.padding não tem coordenadas |
@@ -131,17 +135,22 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | SpHResizing | Horizontal resizing | Redimensionamento horizontal |
 | SpVResizing | Vertical resizing | Redimensionamento vertical |
 | SpacingTitle | Spacing | Espaçamento |
-| Summary | {bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
-| SummaryChecks | {bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
-| SummaryStyles | {bound} bound ({vars} variables, {styles} styles) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilos) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
-| SummaryStylesChecks | {bound} bound ({vars} variables, {styles} styles; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilos; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
-| SummaryOneStyle | {bound} bound ({vars} variables, {styles} style) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilo) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
-| SummaryOneStyleChecks | {bound} bound ({vars} variables, {styles} style; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilo; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
+| Summary | {bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
+| SummaryChecks | {bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
+| SummaryStyles | {bound} bound ({vars} {vars_word}, {styles} {styles_word}) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas ({vars} {vars_word}, {styles} {styles_word}) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
+| SummaryStylesChecks | {bound} bound ({vars} {vars_word}, {styles} {styles_word}; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas ({vars} {vars_word}, {styles} {styles_word}; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
+| NounVariable | variable | variável |
+| NounVariables | variables | variáveis |
+| NounStyle | style | estilo |
+| NounStyles | styles | estilos |
+| NounProperty | property | propriedade |
+| NounProperties | properties | propriedades |
 | TypeBoolean | Boolean | Booleano |
 | TypeInstance | Instance | Instância |
 | TypeText | Text | Texto |
 | TypeVariant | Variant | Variante |
 | Unnumbered | +{n} layers without a number | +{n} camadas sem número |
+| UnnumberedOne | +{n} layer without a number | +{n} camada sem número |
 | ValueFalse | False | Falso |
 | ValueTrue | True | Verdadeiro |
 | Variants | {n} variants; first one shown | {n} variantes; mostrada a primeira |

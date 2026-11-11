@@ -99,7 +99,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Tests and regression
 
 ```sh
-cargo test                      # 118 unit tests + 4 that keep English text out of the code
+cargo test                      # 122 unit tests + 4 that keep English text out of the code
 scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
 ```

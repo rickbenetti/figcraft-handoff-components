@@ -875,11 +875,11 @@
     }
   },
   "ds-base-demo / Icon": {
-    "summary": "1 bound · 0 no token · 0 missing · 0 suspect · of 1 properties",
+    "summary": "1 bound · 0 no token · 0 missing · 0 suspect · of 1 property",
     "lines": 1,
     "sections": 5,
     "instances": 14,
-    "fuel": 63188034,
+    "fuel": 65847683,
     "deltas": {
       "Name=caret-down, Size=16": [],
       "Name=caret-up, Size=16": [

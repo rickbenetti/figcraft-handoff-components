@@ -9,7 +9,7 @@ measures are its own. Licence: MIT (see `LICENSE`).
   `mcpc.py` is its tiny MCP client; `phosphor_regular.json` holds the ten icon paths.
 - `THIRD_PARTY_NOTICES.md`: licences of the icons and fonts.
 - `contrast_check.py` and `CONTRAST.md`: WCAG contrast of every text and icon pair in Light and Dark (the tool reads the file, the table is its output).
-- `FROZEN.md`: the frozen state (SHA-256, sets, axes, plugin version).
+- `FROZEN.md`: the frozen state (SHA-256, sets, axes).
 - `preview/`: PNG previews exported from the file (Button, Card, Accordion, Icon, Code, Dark preview, and the `-dark` artboards).
 
 Fonts: Inter and JetBrains Mono (SIL OFL); Icons: Phosphor Icons (MIT), see THIRD_PARTY_NOTICES.md.

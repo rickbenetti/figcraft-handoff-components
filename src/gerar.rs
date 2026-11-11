@@ -6,7 +6,7 @@
 use crate::clock;
 use crate::audit::{self, Group, Info, Line, Prop, Row, State, Styles, Vars};
 use crate::glyphs;
-use crate::i18n::{Key, Lang, override_name, t, tf};
+use crate::i18n::{Key, Lang, override_name, plural, t, tf};
 use crate::contrast::{self, Rgba};
 use crate::delta;
 use crate::store::{Meta, REPORT_KEY, Rerun, Settings, StageMode};
@@ -1029,7 +1029,7 @@ fn value_label(lang: Lang, stage: u64, origin: (f64, f64), label: &str, x: f64, 
 
 /// The note under the audit that says how many lines were left out, if any.
 fn hidden_note(lang: Lang, hidden: usize) -> Option<String> {
-    (hidden > 0).then(|| tf(lang, Key::MoreLines, &[("n", &hidden.to_string())]))
+    (hidden > 0).then(|| tf(lang, plural(hidden, Key::MoreLinesOne, Key::MoreLines), &[("n", &hidden.to_string())]))
 }
 
 /// The layers of the instance as `node.get` gives them for the audit, depth first, each with its
@@ -1737,7 +1737,7 @@ fn draw_axes(
                     legend_text(lang, legend, &l.text, theme::TEXT, t(lang, Key::LayerDeltas), l.heading)?;
                 }
                 if listing.more > 0 {
-                    legend_text(lang, legend, &tf(lang, Key::DeltaMore, &[("n", &listing.more.to_string())]), theme::MUTED, t(lang, Key::LayerMore), false)?;
+                    legend_text(lang, legend, &tf(lang, plural(listing.more, Key::DeltaMoreOne, Key::DeltaMore), &[("n", &listing.more.to_string())]), theme::MUTED, t(lang, Key::LayerMore), false)?;
                 }
                 if let Some(none) = &listing.none {
                     legend_text(lang, legend, none, theme::MUTED, t(lang, Key::LayerDeltas), false)?;
@@ -1766,22 +1766,49 @@ fn draw_axes(
         drawn.undefined.extend(missing);
     }
     if let (Some(sec), true) = (last_section, drawn.skipped > 0) {
-        text(lang, sec, &tf(lang, Key::MoreVariants, &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
+        text(lang, sec, &tf(lang, plural(drawn.skipped, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
     }
     Ok(drawn)
 }
 
-/// The summary's text: with or without "to check", and with the count of styles said in the singular
-/// ("1 style") or the plural, each with its own text.
-fn summary_key(checks: bool, styles: usize) -> Key {
-    match (checks, styles) {
-        (false, 0) => Key::Summary,
-        (true, 0) => Key::SummaryChecks,
-        (false, 1) => Key::SummaryOneStyle,
-        (true, 1) => Key::SummaryOneStyleChecks,
-        (false, _) => Key::SummaryStyles,
-        (true, _) => Key::SummaryStylesChecks,
-    }
+/// The counts of the header's summary line.
+struct SummaryCounts {
+    bound: usize,
+    check: usize,
+    unbound: usize,
+    missing: usize,
+    suspect: usize,
+    total: usize,
+    vars: usize,
+    styles: usize,
+}
+
+/// The summary line. Its text depends on whether some bindings are "to check" and whether some are
+/// styles; its nouns (variables, styles, properties) are said in the singular when their count is
+/// exactly 1, each noun with a text of its own. With any other count the line is what it always was.
+fn summary_text(lang: Lang, c: &SummaryCounts) -> String {
+    let key = match (c.check > 0, c.styles > 0) {
+        (false, false) => Key::Summary,
+        (true, false) => Key::SummaryChecks,
+        (false, true) => Key::SummaryStyles,
+        (true, true) => Key::SummaryStylesChecks,
+    };
+    let noun = |n: usize, one: Key, many: Key| t(lang, plural(n, one, many));
+    let values: Vec<(&str, String)> = vec![
+        ("bound", c.bound.to_string()),
+        ("check", c.check.to_string()),
+        ("unbound", c.unbound.to_string()),
+        ("missing", c.missing.to_string()),
+        ("suspect", c.suspect.to_string()),
+        ("total", c.total.to_string()),
+        ("vars", c.vars.to_string()),
+        ("styles", c.styles.to_string()),
+        ("vars_word", noun(c.vars, Key::NounVariable, Key::NounVariables).to_string()),
+        ("styles_word", noun(c.styles, Key::NounStyle, Key::NounStyles).to_string()),
+        ("total_word", noun(c.total, Key::NounProperty, Key::NounProperties).to_string()),
+    ];
+    let pairs: Vec<(&str, &str)> = values.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    tf(lang, key, &pairs)
 }
 
 /// A band with a warning, in the line colour: inside `parent`, `inner` wide.
@@ -1929,20 +1956,11 @@ pub fn generate(input: Input) -> Result<Value> {
     let (bound, unbound, missing, suspect_all) = audit::counts(&rows);
     let (vars_bound, styles_bound) = audit::bound_split(&rows);
     let to_check = rows.iter().filter(|r| r.state == State::Check).count();
-    let numbers: Vec<(&str, String)> = vec![
-        ("bound", bound.to_string()),
-        ("check", to_check.to_string()),
-        ("unbound", unbound.to_string()),
-        ("missing", missing.to_string()),
-        ("suspect", suspect_all.to_string()),
-        ("total", rows.len().to_string()),
-        ("vars", vars_bound.to_string()),
-        ("styles", styles_bound.to_string()),
-    ];
-    let pairs: Vec<(&str, &str)> = numbers.iter().map(|(k, v)| (*k, v.as_str())).collect();
-    let key = summary_key(to_check > 0, styles_bound);
-    let summary = tf(lang, key, &pairs);
-    let warning = (suspect > 0).then(|| tf(lang, Key::Collision, &[("n", &suspect.to_string())]));
+    let summary = summary_text(
+        lang,
+        &SummaryCounts { bound, check: to_check, unbound, missing, suspect: suspect_all, total: rows.len(), vars: vars_bound, styles: styles_bound },
+    );
+    let warning = (suspect > 0).then(|| tf(lang, plural(suspect, Key::CollisionOne, Key::Collision), &[("n", &suspect.to_string())]));
     let infos = layer_infos(lang, &walked, &drawn)?;
     let grouped = audit::group_layers(&rows, &infos);
     let line_total: usize = grouped.iter().map(|g| g.lines.len()).sum();
@@ -1970,7 +1988,7 @@ pub fn generate(input: Input) -> Result<Value> {
         text(lang, legend, &note, 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
     }
     if unnumbered > 0 {
-        text(lang, legend, &tf(lang, Key::Unnumbered, &[("n", &unnumbered.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
+        text(lang, legend, &tf(lang, plural(unnumbered, Key::UnnumberedOne, Key::Unnumbered), &[("n", &unnumbered.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
     }
     let legend_h = height_of(lang, legend)?;
 
@@ -2284,25 +2302,77 @@ mod tests {
         assert_eq!(n, 192);
     }
 
-    #[test]
-    fn one_style_is_said_in_the_singular_and_the_other_counts_in_the_plural() {
-        let say = |lang: Lang, checks: bool, styles: usize| {
-            let n = [("bound", "8"), ("check", "2"), ("unbound", "0"), ("missing", "0"), ("suspect", "0"), ("total", "8"), ("vars", "7")];
-            let mut v: Vec<(&str, &str)> = n.to_vec();
-            let s = styles.to_string();
-            v.push(("styles", &s));
-            tf(lang, summary_key(checks, styles), &v)
+    fn counts(check: usize, vars: usize, styles: usize, total: usize) -> SummaryCounts {
+        SummaryCounts { bound: 8, check, unbound: 3, missing: 0, suspect: 2, total, vars, styles }
+    }
+
+    /// The four summary texts as they were before the singular (0.9.6 up to 02613e0): the oracle for any
+    /// count other than 1.
+    fn old_summary(lang: Lang, c: &SummaryCounts) -> String {
+        let (plain, checks, styles, both) = match lang {
+            Lang::En => (
+                "{bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+                "{bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+                "{bound} bound ({vars} variables, {styles} styles) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+                "{bound} bound ({vars} variables, {styles} styles; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
+            ),
+            Lang::Pt => (
+                "{bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+                "{bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+                "{bound} vinculadas ({vars} variáveis, {styles} estilos) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+                "{bound} vinculadas ({vars} variáveis, {styles} estilos; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
+            ),
         };
-        assert_eq!(say(Lang::En, false, 1), "8 bound (7 variables, 1 style) · 0 no token · 0 missing · 0 suspect · of 8 properties");
-        assert_eq!(say(Lang::En, true, 1), "8 bound (7 variables, 1 style; 2 to check) · 0 no token · 0 missing · 0 suspect · of 8 properties");
-        assert_eq!(say(Lang::En, false, 2), "8 bound (7 variables, 2 styles) · 0 no token · 0 missing · 0 suspect · of 8 properties");
-        assert_eq!(say(Lang::En, true, 8), "8 bound (7 variables, 8 styles; 2 to check) · 0 no token · 0 missing · 0 suspect · of 8 properties");
-        assert_eq!(say(Lang::Pt, false, 1), "8 vinculadas (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades");
-        assert_eq!(say(Lang::Pt, true, 1), "8 vinculadas (7 variáveis, 1 estilo; 2 a verificar) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades");
-        assert_eq!(say(Lang::Pt, false, 3), "8 vinculadas (7 variáveis, 3 estilos) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades");
-        // No styles at all: the summary without the parentheses, as before.
-        assert_eq!(summary_key(false, 0), Key::Summary);
-        assert_eq!(summary_key(true, 0), Key::SummaryChecks);
+        let template = match (c.check > 0, c.styles > 0) {
+            (false, false) => plain,
+            (true, false) => checks,
+            (false, true) => styles,
+            (true, true) => both,
+        };
+        [("bound", c.bound), ("check", c.check), ("unbound", c.unbound), ("missing", c.missing), ("suspect", c.suspect), ("total", c.total), ("vars", c.vars), ("styles", c.styles)]
+            .iter()
+            .fold(template.to_string(), |acc, (k, v)| acc.replace(&format!("{{{k}}}"), &v.to_string()))
+    }
+
+    #[test]
+    fn the_summary_is_what_it_was_for_every_count_but_one() {
+        let mut n = 0;
+        for lang in [Lang::En, Lang::Pt] {
+            for check in [0, 2] {
+                for vars in [0, 2, 7, 35] {
+                    for styles in [0, 2, 8] {
+                        for total in [0, 2, 45] {
+                            let c = counts(check, vars, styles, total);
+                            assert_eq!(summary_text(lang, &c), old_summary(lang, &c), "{lang:?} check {check} vars {vars} styles {styles} total {total}");
+                            n += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(n, 2 * 2 * 4 * 3 * 3);
+    }
+
+    #[test]
+    fn the_summary_says_variable_style_and_property_in_the_singular_for_exactly_one() {
+        // Each noun on its own, with the others in the plural.
+        assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect · of 45 properties");
+        assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 45 properties");
+        assert_eq!(summary_text(Lang::En, &counts(0, 7, 2, 1)), "8 bound (7 variables, 2 styles) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "8 vinculadas (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "8 vinculadas (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 2, 1)), "8 vinculadas (7 variáveis, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        // The three at once, with and without "to check".
+        assert_eq!(summary_text(Lang::En, &counts(0, 1, 1, 1)), "8 bound (1 variable, 1 style) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 1)), "8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        // Only the total (no styles, so no parentheses): the Icon of the demo.
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 1)), "8 bound · 3 no token · 0 missing · 2 suspect · of 1 property");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 1)), "8 vinculadas · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
+        assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 1)), "8 bound (2 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
+        // 0 is the plural.
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 0 properties");
     }
 
     #[test]

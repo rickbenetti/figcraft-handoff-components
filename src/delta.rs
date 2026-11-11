@@ -7,7 +7,7 @@
 //! and a text layer's content. Numbers that differ by less than half a pixel are the same.
 
 use crate::audit::{self, Prop, State, Styles, Vars, number};
-use crate::i18n::{Key, Lang, t, tf};
+use crate::i18n::{Key, Lang, plural, t, tf};
 use figcraft_plugin_sdk::Value;
 use std::collections::HashMap;
 
@@ -389,7 +389,7 @@ impl Listing {
     pub fn texts(&self, lang: Lang) -> Vec<String> {
         let mut out: Vec<String> = self.lines.iter().map(|l| l.text.clone()).collect();
         if self.more > 0 {
-            out.push(tf(lang, Key::DeltaMore, &[("n", &self.more.to_string())]));
+            out.push(tf(lang, plural(self.more, Key::DeltaMoreOne, Key::DeltaMore), &[("n", &self.more.to_string())]));
         }
         out.extend(self.none.clone());
         out
