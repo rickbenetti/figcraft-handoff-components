@@ -219,9 +219,11 @@ mod tests {
 
     /// The keys pt-BR keeps in English on purpose, for lack of a decision on their translation. Each
     /// has pt-BR text equal to the English one; the test below keeps this list and the files in step.
-    const KEPT_IN_ENGLISH: &[&str] = &[
-        "KindFrame", "KindGroup", "KindRectangle", "KindEllipse", "KindVector", "KindLine", "KindStar", "KindPolygon", "KindBooleanOperation", "AliasBroken", "ErrUnknownCommand", "EffectDefault",
-    ];
+    const KEPT_IN_ENGLISH: &[&str] = &["AliasBroken", "ErrUnknownCommand", "EffectDefault"];
+
+    /// The keys whose text is the same in both languages by nature (a word that is the same, or a
+    /// technical form): not a gap.
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken", "OvPadding"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();
@@ -292,12 +294,12 @@ mod tests {
 
     #[test]
     fn pt_br_in_english_only_where_it_was_decided() {
+        // The keys whose pt-BR text equals the English one must be exactly these two lists: the ones left
+        // in English for lack of a decision, and the ones that are the same by nature. A translated key
+        // that was reverted to English, or a new key left untranslated, breaks this.
         let same: BTreeSet<&str> = Key::ALL.iter().filter(|k| t(Lang::Pt, **k) == t(Lang::En, **k)).map(|k| k.name()).collect();
-        // Words that are the same in both languages (or kept on purpose, like padding) are fine; these are the
-        // ones that are English for lack of a decision, and they must be exactly the list above.
-        for k in KEPT_IN_ENGLISH {
-            assert!(same.contains(k), "{k} should be in English in pt-BR");
-        }
+        let expected: BTreeSet<&str> = KEPT_IN_ENGLISH.iter().chain(SAME_BY_NATURE).copied().collect();
+        assert_eq!(same, expected);
     }
 
     #[test]

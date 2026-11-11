@@ -86,7 +86,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Known limitations
 
 - Version 0.9.x, before 1.0: expect rough edges.
-- The report is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in **Settings…**. The Settings form labels stay in English (the host shows one label per field), and so do the values you type there (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the layer types Frame, Group, Rectangle, Ellipse, Vector, Line, Star, Polygon and Boolean Operation; the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
+- The report is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in **Settings…**. The Settings form labels stay in English (the host shows one label per field), and so do the values you type there (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the layer types Section and Slice; the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
 - The host does not report a layer's text case, so it is missing from the typography lines.
 - A run has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
   use much of it: the heaviest case in the regression net, a test fixture with a 155-layer component, uses 64.2%; the DS Base
@@ -98,7 +98,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Tests and regression
 
 ```sh
-cargo test                      # 116 unit tests + 4 that keep English text out of the code
+cargo test                      # 117 unit tests + 4 that keep English text out of the code
 scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
 ```

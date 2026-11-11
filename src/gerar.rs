@@ -692,6 +692,11 @@ fn header_name(name: &str, layers: usize, content: Option<&str>) -> String {
 /// A layer type in words: "Frame", "Text", "Group"… A type the dictionary doesn't know is the host's
 /// name in title case.
 fn kind_word(lang: Lang, kind: &str) -> String {
+    kind_key(kind).map_or_else(|| title_case(kind), |key| t(lang, key).to_string())
+}
+
+/// The dictionary key of a host layer type, when it has one.
+fn kind_key(kind: &str) -> Option<Key> {
     let key = match kind {
         "TEXT" => Key::TypeText,
         "FRAME" => Key::KindFrame,
@@ -706,9 +711,19 @@ fn kind_word(lang: Lang, kind: &str) -> String {
         "COMPONENT" => Key::KindComponent,
         "COMPONENT_SET" => Key::KindComponentSet,
         "INSTANCE" => Key::KindInstance,
-        _ => return title_case(kind),
+        _ => return None,
     };
-    t(lang, key).to_string()
+    Some(key)
+}
+
+/// The layer type inside the "not a component" error. English keeps the host's own name (`FRAME`,
+/// as it always has); another language words the types the dictionary knows and keeps the host's
+/// name for the rest.
+fn kind_in_error(lang: Lang, kind: &str) -> String {
+    match (lang, kind_key(kind)) {
+        (Lang::En, _) | (_, None) => kind.to_string(),
+        (_, Some(key)) => t(lang, key).to_string(),
+    }
 }
 
 /// `BOOLEAN_OPERATION` as "Boolean Operation".
@@ -1212,7 +1227,7 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
             main
         }
         "COMPONENT" => id,
-        other => return Err(tf(lang, Key::ErrNotComponent, &[("id", &id.to_string()), ("kind", other)])),
+        other => return Err(tf(lang, Key::ErrNotComponent, &[("id", &id.to_string()), ("kind", &kind_in_error(lang, other))])),
     };
     // The component's own name and box: the layer itself when it is the component.
     let comp = if component == id { node.clone() } else { host(lang, "node.get", &json!({"id": component, "fields": ["name", "type", "absoluteBounds"]}))? };
@@ -2286,9 +2301,10 @@ mod tests {
         assert_eq!(kind_word(Lang::Pt, "INSTANCE"), "Instância");
         assert_eq!(kind_word(Lang::Pt, "COMPONENT"), "Componente");
         assert_eq!(kind_word(Lang::Pt, "COMPONENT_SET"), "Conjunto de componentes");
-        // No decision yet: English.
-        assert_eq!(kind_word(Lang::Pt, "FRAME"), "Frame");
-        assert_eq!(kind_word(Lang::Pt, "BOOLEAN_OPERATION"), "Boolean Operation");
+        let nine = [("FRAME", "Quadro"), ("GROUP", "Grupo"), ("RECTANGLE", "Retângulo"), ("ELLIPSE", "Elipse"), ("VECTOR", "Vetor"), ("LINE", "Linha"), ("STAR", "Estrela"), ("POLYGON", "Polígono"), ("BOOLEAN_OPERATION", "Operação booleana")];
+        for (host, pt) in nine {
+            assert_eq!(kind_word(Lang::Pt, host), pt, "{host}");
+        }
         // A type the dictionary doesn't know is the host's name, as before.
         for l in [Lang::En, Lang::Pt] {
             assert_eq!(kind_word(l, "SLICE"), "Slice");
@@ -2298,6 +2314,17 @@ mod tests {
             let old: String = k.split('_').map(|w| w[..1].to_string() + &w[1..].to_lowercase()).collect::<Vec<_>>().join(" ");
             assert_eq!(kind_word(Lang::En, k), if k == "TEXT" { "Text".to_string() } else { old }, "{k}");
         }
+    }
+
+    #[test]
+    fn the_not_a_component_error_names_the_type_in_portuguese_and_keeps_english_as_it_was() {
+        let say = |lang: Lang, kind: &str| tf(lang, Key::ErrNotComponent, &[("id", "50"), ("kind", &kind_in_error(lang, kind))]);
+        assert_eq!(say(Lang::En, "FRAME"), "layer 50 is a FRAME, not a component or an instance");
+        assert_eq!(say(Lang::En, "SECTION"), "layer 50 is a SECTION, not a component or an instance");
+        assert_eq!(say(Lang::Pt, "FRAME"), "a camada 50 é Quadro, não um componente nem uma instância");
+        assert_eq!(say(Lang::Pt, "TEXT"), "a camada 50 é Texto, não um componente nem uma instância");
+        // A type the dictionary doesn't know stays as the host names it.
+        assert_eq!(say(Lang::Pt, "SECTION"), "a camada 50 é SECTION, não um componente nem uma instância");
     }
 
     #[test]

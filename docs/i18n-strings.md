@@ -112,8 +112,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | OverrideNote | Instance with overrides: {list}; generated from the component | Instância com substituições: {list}; gerado do componente |
 | PropFill | Fill | Preenchimento |
 | PropGap | Gap | Espaço entre itens |
-| PropPadH | Horizontal padding | Padding horizontal |
-| PropPadV | Vertical padding | Padding vertical |
+| PropPadH | Horizontal padding | Espaçamento interno horizontal |
+| PropPadV | Vertical padding | Espaçamento interno vertical |
 | PropRadius | Radius | Raio |
 | PropStroke | Stroke | Traço |
 | PropTypography | Typography | Tipografia |
@@ -145,15 +145,15 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | Variants | {n} variants; first one shown | {n} variantes; mostrada a primeira |
 | WarnNoDate | The date could not be read from the app's clock ({reason}). | Não foi possível ler a data do relógio do app ({reason}). |
 | WarnTmpComment | A temporary comment (id {id}) made to read the date was not removed. Delete it by hand. | Um comentário temporário (id {id}), criado para ler a data, não foi removido. Apague-o manualmente. |
-| KindFrame | Frame | Frame |
-| KindGroup | Group | Group |
-| KindRectangle | Rectangle | Rectangle |
-| KindEllipse | Ellipse | Ellipse |
-| KindVector | Vector | Vector |
-| KindLine | Line | Line |
-| KindStar | Star | Star |
-| KindPolygon | Polygon | Polygon |
-| KindBooleanOperation | Boolean Operation | Boolean Operation |
+| KindFrame | Frame | Quadro |
+| KindGroup | Group | Grupo |
+| KindRectangle | Rectangle | Retângulo |
+| KindEllipse | Ellipse | Elipse |
+| KindVector | Vector | Vetor |
+| KindLine | Line | Linha |
+| KindStar | Star | Estrela |
+| KindPolygon | Polygon | Polígono |
+| KindBooleanOperation | Boolean Operation | Operação booleana |
 | KindComponent | Component | Componente |
 | KindComponentSet | Component Set | Conjunto de componentes |
 | KindInstance | Instance | Instância |

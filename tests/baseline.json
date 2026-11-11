@@ -951,7 +951,7 @@
     "lines": 8,
     "sections": 0,
     "instances": 2,
-    "fuel": 32457553,
+    "fuel": 32463977,
     "deltas": {},
     "anatomy": {
       "blocks": [
@@ -977,7 +977,7 @@
     "lines": 17,
     "sections": 0,
     "instances": 2,
-    "fuel": 168146063,
+    "fuel": 168157124,
     "deltas": {},
     "anatomy": {
       "blocks": [
@@ -1028,7 +1028,7 @@
     "lines": 8,
     "sections": 0,
     "instances": 14,
-    "fuel": 155856845,
+    "fuel": 155777770,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
@@ -1059,16 +1059,16 @@
       "Type=Primary, Size=Small, State=Enabled": [
         "Raio : Radius/radius/default → 8 (10 → 8)",
         "Espaço entre itens : Spacing/space/8 → 6 (8 → 6)",
-        "Padding horizontal : Spacing/space/16 → Spacing/space/12 (16 → 12)",
-        "Padding vertical : Spacing/space/8 → 4 (8 → 4)",
+        "Espaçamento interno horizontal : Spacing/space/16 → Spacing/space/12 (16 → 12)",
+        "Espaçamento interno vertical : Spacing/space/8 → 4 (8 → 4)",
         "Largura : 100 → 84",
         "Altura : 36 → 24",
         "↳ Label / Text",
         "Tipografia : text/label-m → Inter 12/16 Medium (Inter 14/20 Medium → Inter 12/16 Medium)"
       ],
       "Type=Primary, Size=Large, State=Enabled": [
-        "Padding horizontal : Spacing/space/16 → Spacing/space/24 (16 → 24)",
-        "Padding vertical : Spacing/space/8 → Spacing/space/12 (8 → 12)",
+        "Espaçamento interno horizontal : Spacing/space/16 → Spacing/space/24 (16 → 24)",
+        "Espaçamento interno vertical : Spacing/space/8 → Spacing/space/12 (8 → 12)",
         "Largura : 100 → 123",
         "Altura : 36 → 48",
         "↳ Leading icon / plus",
@@ -1130,11 +1130,11 @@
     "lines": 45,
     "sections": 0,
     "instances": 5,
-    "fuel": 239015899,
+    "fuel": 239194490,
     "deltas": {
       "Size=Compact": [
-        "Padding horizontal : Spacing/space/24 → Spacing/space/16 (24 → 16)",
-        "Padding vertical : Spacing/space/24 → Spacing/space/16 (24 → 16)",
+        "Espaçamento interno horizontal : Spacing/space/24 → Spacing/space/16 (24 → 16)",
+        "Espaçamento interno vertical : Spacing/space/24 → Spacing/space/16 (24 → 16)",
         "Largura : 384 → 320",
         "Altura : 422 → 238",
         "↳ Header / Title row / Title",
@@ -1246,7 +1246,7 @@
     "lines": 11,
     "sections": 0,
     "instances": 4,
-    "fuel": 71749109,
+    "fuel": 71748779,
     "deltas": {
       "State=Collapsed": [
         "Altura : 130 → 54",
