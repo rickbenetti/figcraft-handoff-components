@@ -711,6 +711,8 @@ fn kind_key(kind: &str) -> Option<Key> {
         "COMPONENT" => Key::KindComponent,
         "COMPONENT_SET" => Key::KindComponentSet,
         "INSTANCE" => Key::KindInstance,
+        "SECTION" => Key::KindSection,
+        "SLICE" => Key::KindSlice,
         _ => return None,
     };
     Some(key)
@@ -1769,6 +1771,19 @@ fn draw_axes(
     Ok(drawn)
 }
 
+/// The summary's text: with or without "to check", and with the count of styles said in the singular
+/// ("1 style") or the plural, each with its own text.
+fn summary_key(checks: bool, styles: usize) -> Key {
+    match (checks, styles) {
+        (false, 0) => Key::Summary,
+        (true, 0) => Key::SummaryChecks,
+        (false, 1) => Key::SummaryOneStyle,
+        (true, 1) => Key::SummaryOneStyleChecks,
+        (false, _) => Key::SummaryStyles,
+        (true, _) => Key::SummaryStylesChecks,
+    }
+}
+
 /// A band with a warning, in the line colour: inside `parent`, `inner` wide.
 fn warning_band(lang: Lang, parent: u64, inner: f64, message: &str, line: &str) -> Result<()> {
     let mut band = FlowSpec::new(t(lang, Key::LayerWarning), inner, "horizontal");
@@ -1925,12 +1940,7 @@ pub fn generate(input: Input) -> Result<Value> {
         ("styles", styles_bound.to_string()),
     ];
     let pairs: Vec<(&str, &str)> = numbers.iter().map(|(k, v)| (*k, v.as_str())).collect();
-    let key = match (to_check > 0, styles_bound > 0) {
-        (false, false) => Key::Summary,
-        (true, false) => Key::SummaryChecks,
-        (false, true) => Key::SummaryStyles,
-        (true, true) => Key::SummaryStylesChecks,
-    };
+    let key = summary_key(to_check > 0, styles_bound);
     let summary = tf(lang, key, &pairs);
     let warning = (suspect > 0).then(|| tf(lang, Key::Collision, &[("n", &suspect.to_string())]));
     let infos = layer_infos(lang, &walked, &drawn)?;
@@ -2275,6 +2285,27 @@ mod tests {
     }
 
     #[test]
+    fn one_style_is_said_in_the_singular_and_the_other_counts_in_the_plural() {
+        let say = |lang: Lang, checks: bool, styles: usize| {
+            let n = [("bound", "8"), ("check", "2"), ("unbound", "0"), ("missing", "0"), ("suspect", "0"), ("total", "8"), ("vars", "7")];
+            let mut v: Vec<(&str, &str)> = n.to_vec();
+            let s = styles.to_string();
+            v.push(("styles", &s));
+            tf(lang, summary_key(checks, styles), &v)
+        };
+        assert_eq!(say(Lang::En, false, 1), "8 bound (7 variables, 1 style) · 0 no token · 0 missing · 0 suspect · of 8 properties");
+        assert_eq!(say(Lang::En, true, 1), "8 bound (7 variables, 1 style; 2 to check) · 0 no token · 0 missing · 0 suspect · of 8 properties");
+        assert_eq!(say(Lang::En, false, 2), "8 bound (7 variables, 2 styles) · 0 no token · 0 missing · 0 suspect · of 8 properties");
+        assert_eq!(say(Lang::En, true, 8), "8 bound (7 variables, 8 styles; 2 to check) · 0 no token · 0 missing · 0 suspect · of 8 properties");
+        assert_eq!(say(Lang::Pt, false, 1), "8 vinculadas (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades");
+        assert_eq!(say(Lang::Pt, true, 1), "8 vinculadas (7 variáveis, 1 estilo; 2 a verificar) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades");
+        assert_eq!(say(Lang::Pt, false, 3), "8 vinculadas (7 variáveis, 3 estilos) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades");
+        // No styles at all: the summary without the parentheses, as before.
+        assert_eq!(summary_key(false, 0), Key::Summary);
+        assert_eq!(summary_key(true, 0), Key::SummaryChecks);
+    }
+
+    #[test]
     fn the_nine_alignments_in_portuguese_and_a_distribution_joined_by_a_comma() {
         let pt = |mode: &str, main: &str, cross: &str| alignment_text(Lang::Pt, mode, main, cross);
         // A horizontal layout: main is the horizontal axis.
@@ -2305,9 +2336,13 @@ mod tests {
         for (host, pt) in nine {
             assert_eq!(kind_word(Lang::Pt, host), pt, "{host}");
         }
+        // Section and Slice: English as it always was, Portuguese from the dictionary.
+        assert_eq!(kind_word(Lang::En, "SLICE"), "Slice");
+        assert_eq!(kind_word(Lang::En, "SECTION"), "Section");
+        assert_eq!(kind_word(Lang::Pt, "SLICE"), "Fatia");
+        assert_eq!(kind_word(Lang::Pt, "SECTION"), "Seção");
         // A type the dictionary doesn't know is the host's name, as before.
         for l in [Lang::En, Lang::Pt] {
-            assert_eq!(kind_word(l, "SLICE"), "Slice");
             assert_eq!(kind_word(l, "TABLE_CELL"), "Table Cell");
         }
         for k in ["FRAME", "GROUP", "RECTANGLE", "ELLIPSE", "VECTOR", "LINE", "STAR", "POLYGON", "BOOLEAN_OPERATION", "COMPONENT", "COMPONENT_SET", "INSTANCE", "TEXT"] {
@@ -2323,8 +2358,12 @@ mod tests {
         assert_eq!(say(Lang::En, "SECTION"), "layer 50 is a SECTION, not a component or an instance");
         assert_eq!(say(Lang::Pt, "FRAME"), "a camada 50 é Quadro, não um componente nem uma instância");
         assert_eq!(say(Lang::Pt, "TEXT"), "a camada 50 é Texto, não um componente nem uma instância");
+        // Section and Slice: raw in English, worded in Portuguese.
+        assert_eq!(say(Lang::En, "SLICE"), "layer 50 is a SLICE, not a component or an instance");
+        assert_eq!(say(Lang::Pt, "SECTION"), "a camada 50 é Seção, não um componente nem uma instância");
+        assert_eq!(say(Lang::Pt, "SLICE"), "a camada 50 é Fatia, não um componente nem uma instância");
         // A type the dictionary doesn't know stays as the host names it.
-        assert_eq!(say(Lang::Pt, "SECTION"), "a camada 50 é SECTION, não um componente nem uma instância");
+        assert_eq!(say(Lang::Pt, "TABLE_CELL"), "a camada 50 é TABLE_CELL, não um componente nem uma instância");
     }
 
     #[test]

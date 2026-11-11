@@ -137,12 +137,12 @@ keys! {
     PropTypography, PropertiesTitle, ResizeFill, ResizeFixed, ResizeHug,
     SettingsKept, SettingsSaved, SourceComponent, SourceFirst, SourceSaved,
     SpAlignment, SpDirection, SpHResizing, SpVResizing, SpacingTitle,
-    Summary, SummaryChecks, SummaryStyles, SummaryStylesChecks, TypeBoolean,
+    Summary, SummaryChecks, SummaryStyles, SummaryStylesChecks, SummaryOneStyle, SummaryOneStyleChecks, TypeBoolean,
     TypeInstance, TypeText, TypeVariant, Unnumbered, ValueFalse,
     ValueTrue, Variants, WarnNoDate, WarnTmpComment, KindFrame,
     KindGroup, KindRectangle, KindEllipse, KindVector, KindLine,
     KindStar, KindPolygon, KindBooleanOperation, KindComponent, KindComponentSet,
-    KindInstance, EffectDropShadow, EffectInnerShadow, EffectLayerBlur, EffectBackgroundBlur,
+    KindInstance, KindSection, KindSlice, EffectDropShadow, EffectInnerShadow, EffectLayerBlur, EffectBackgroundBlur,
     EffectDefault, EffectBlur, EffectSpread, AtPercent, StyleSuspect,
     TokenAndStyle, LineHeightAuto, LineHeightAutoHost, TypoLetterSpacing, DecoUnderline, DecoStrikethrough,
     ValueNone, AliasBroken, ErrUnknownCommand, AlignTopLeft, AlignTopCenter,
@@ -223,7 +223,7 @@ mod tests {
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken", "OvPadding"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();
@@ -327,6 +327,8 @@ mod tests {
     fn override_categories_fall_back_to_the_raw_name() {
         assert_eq!(override_name(Lang::Pt, "corners"), "cantos");
         assert_eq!(override_name(Lang::Pt, "strokes"), "traços");
+        assert_eq!(override_name(Lang::Pt, "padding"), "espaçamento interno");
+        assert_eq!(override_name(Lang::En, "padding"), "padding");
         assert_eq!(override_name(Lang::Pt, "somethingNew"), "somethingNew");
     }
 

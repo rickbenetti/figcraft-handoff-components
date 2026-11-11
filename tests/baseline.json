@@ -566,11 +566,11 @@
     }
   },
   "ds-base-demo / Button": {
-    "summary": "8 bound (7 variables, 1 styles) · 0 no token · 0 missing · 0 suspect · of 8 properties",
+    "summary": "8 bound (7 variables, 1 style) · 0 no token · 0 missing · 0 suspect · of 8 properties",
     "lines": 8,
     "sections": 7,
     "instances": 14,
-    "fuel": 151165826,
+    "fuel": 153929713,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
@@ -1024,11 +1024,11 @@
     }
   },
   "pt-BR / ds-base-demo / Button": {
-    "summary": "8 vinculadas (7 variáveis, 1 estilos) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades",
+    "summary": "8 vinculadas (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitas · de 8 propriedades",
     "lines": 8,
     "sections": 0,
     "instances": 14,
-    "fuel": 155777770,
+    "fuel": 155924783,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [

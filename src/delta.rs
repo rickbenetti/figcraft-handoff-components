@@ -136,7 +136,13 @@ fn describe_effect(lang: Lang, e: &Value) -> String {
     }
     if let Some(r) = n("radius") {
         out.push(' ');
-        out.push_str(&tf(lang, Key::EffectBlur, &[("r", &r)]));
+        // A layer or background blur is named "…blur" already: only its radius follows. A shadow, or
+        // a type the dictionary doesn't know, has the blur as a parameter of its own.
+        if matches!(kind, "layerBlur" | "backgroundBlur") {
+            out.push_str(&r);
+        } else {
+            out.push_str(&tf(lang, Key::EffectBlur, &[("r", &r)]));
+        }
     }
     if let Some(s) = float(e, "spread").filter(|s| s.abs() > 0.005) {
         out.push(' ');
@@ -623,8 +629,8 @@ mod tests {
             {"type": "backgroundBlur", "radius": 12.0, "visible": true}
         ]);
         let say = |lang: Lang| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &b, &Vars::default(), &Styles::default()))).texts(lang);
-        assert_eq!(say(Lang::En), vec!["Effects : none → Drop shadow 0 8 blur 8 spread 2 #3B5BDB at 30%; Inner shadow 1 1 blur 4 #000000; Layer blur blur 6; Background blur blur 12"]);
-        assert_eq!(say(Lang::Pt), vec!["Efeitos : nenhum → Sombra projetada 0 8 desfoque 8 expansão 2 #3B5BDB a 30%; Sombra interna 1 1 desfoque 4 #000000; Desfoque de camada desfoque 6; Desfoque de fundo desfoque 12"]);
+        assert_eq!(say(Lang::En), vec!["Effects : none → Drop shadow 0 8 blur 8 spread 2 #3B5BDB at 30%; Inner shadow 1 1 blur 4 #000000; Layer blur 6; Background blur 12"]);
+        assert_eq!(say(Lang::Pt), vec!["Efeitos : nenhum → Sombra projetada 0 8 desfoque 8 expansão 2 #3B5BDB a 30%; Sombra interna 1 1 desfoque 4 #000000; Desfoque de camada 6; Desfoque de fundo 12"]);
         // Opacity of a fill: "… at 50%" / "… a 50%".
         let mut c = a.clone();
         c[0].0["fills"] = json!([{"type": "solid", "color": "#3B5BDB", "opacity": 0.5}]);

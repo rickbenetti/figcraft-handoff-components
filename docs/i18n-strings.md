@@ -104,7 +104,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | OvCorners | corners | cantos |
 | OvEffects | effects | efeitos |
 | OvFills | fills | preenchimentos |
-| OvPadding | padding | padding |
+| OvPadding | padding | espaçamento interno |
 | OvPosition | position | posição |
 | OvSize | size | tamanho |
 | OvStrokes | strokes | traços |
@@ -135,6 +135,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | SummaryChecks | {bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
 | SummaryStyles | {bound} bound ({vars} variables, {styles} styles) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilos) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
 | SummaryStylesChecks | {bound} bound ({vars} variables, {styles} styles; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilos; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
+| SummaryOneStyle | {bound} bound ({vars} variables, {styles} style) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilo) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
+| SummaryOneStyleChecks | {bound} bound ({vars} variables, {styles} style; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties | {bound} vinculadas ({vars} variáveis, {styles} estilo; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades |
 | TypeBoolean | Boolean | Booleano |
 | TypeInstance | Instance | Instância |
 | TypeText | Text | Texto |
@@ -157,6 +159,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | KindComponent | Component | Componente |
 | KindComponentSet | Component Set | Conjunto de componentes |
 | KindInstance | Instance | Instância |
+| KindSection | Section | Seção |
+| KindSlice | Slice | Fatia |
 | EffectDropShadow | Drop shadow | Sombra projetada |
 | EffectInnerShadow | Inner shadow | Sombra interna |
 | EffectLayerBlur | Layer blur | Desfoque de camada |

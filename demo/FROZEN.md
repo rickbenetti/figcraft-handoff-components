@@ -3,7 +3,7 @@
 - Date: 2026-11-10
 - File: `ds-base-demo.figcraft` (106,645 bytes)
 - SHA-256: `55ecb92652984e791bb11e06c8fca128f9c783ec3985637a59fff11bcfb8cc57`
-- Plugin used to verify: Handoff Components **0.9.4** (`dist/handoff_components.wasm` SHA-256 `6e891ab31c9ab999d6d8e8f6636c8a9701e04f0fe31c420b0683eccc51f8dc53`)
+- Plugin: Handoff Components checks this file in `scripts/regress.sh` (the DS Base Demo cases). No plugin version or build hash is recorded here: they change with every build, and the file above is what stays frozen.
 - From here on the file changes only on request. Rebuild with `python3 build_ds.py`; the regress will find components by NAME (ids below are information only and change if the build script changes).
 
 ## Variables and styles
