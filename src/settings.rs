@@ -7,12 +7,12 @@
 use crate::clock;
 use crate::gerar::{host, load_set, page_info, resolve};
 use crate::i18n::{Key, Lang, t, tf};
-use crate::store::{META_KEY, Meta, Rerun, SETTINGS_KEY, StageMode, is_hex_colour, update};
+use crate::store::{META_KEY, Meta, Rerun, SETTINGS_KEY, Settings, StageMode, is_hex_colour, update};
 use crate::variants::{self, DefaultError};
 use figcraft_plugin_sdk::{Input, Result, Value, json, notify};
 
 /// Write (or remove, when `text` is `None`) a `pluginData` key of layer `id`.
-fn write_data(lang: Lang, id: u64, key: &str, text: Option<String>) -> Result<()> {
+pub(crate) fn write_data(lang: Lang, id: u64, key: &str, text: Option<String>) -> Result<()> {
     let value = text.map_or(Value::Null, Value::String);
     host(lang, "node.set", &json!({"ids": [id], "props": {"pluginData": {key: value}}}))?;
     Ok(())
@@ -77,19 +77,14 @@ fn tz_field(lang: Lang, current: &Option<String>, field: &str) -> Result<Option<
     }
 }
 
-pub fn settings(input: Input) -> Result<Value> {
-    let page = page_info()?;
-    let stored = page.settings.clone();
-    let field = |name: &str| input.str(name).unwrap_or_default().trim().to_string();
+/// The names of the nine parameters the form had before the panel. A script that passes any of them
+/// gets the old behaviour: written straight, with no panel.
+const LEGACY_PARAMS: [&str; 9] = ["lang", "cor_linha", "cor_preenchimento", "on_rerun", "stage", "tz", "versao", "status", "default_variant"];
 
-    // The language of the messages: the one being set, else the stored one.
+/// The page's settings after the old form's fields (`field(name)` is a field's trimmed text): empty
+/// keeps, "-" clears, anything else must be valid. Nothing is written here.
+pub(crate) fn page_from_params(lang: Lang, stored: &Settings, asked_lang: Option<Lang>, field: &dyn Fn(&str) -> String) -> Result<Settings> {
     let asked = field("lang");
-    let asked_lang = if asked.is_empty() || asked == "-" { None } else { Lang::strict(&asked) };
-    let lang = asked_lang.or_else(|| stored.lang.as_deref().and_then(Lang::strict)).unwrap_or_default();
-    if !asked.is_empty() && asked != "-" && asked_lang.is_none() {
-        return Err(tf(lang, Key::ErrBadLang, &[("value", &asked)]));
-    }
-
     let mut new = stored.clone();
     new.lang = if asked == "-" { None } else { asked_lang.map(|l| l.code().to_string()).or_else(|| canonical_lang(&stored.lang)) };
     new.line = colour_field(lang, &stored.line, &field("cor_linha"))?;
@@ -105,7 +100,7 @@ pub fn settings(input: Input) -> Result<Value> {
 
     let stage = field("stage");
     new.stage = if stage.is_empty() {
-        stage_keep(&stored)
+        stage_keep(stored)
     } else if stage == "-" {
         None
     } else {
@@ -115,6 +110,36 @@ pub fn settings(input: Input) -> Result<Value> {
     // The time zone of the report's date: empty keeps it, "-" goes back to the default (-3). An invalid
     // value is refused here, before anything is written.
     new.tz = tz_field(lang, &stored.tz, &field("tz"))?;
+    Ok(new)
+}
+
+/// The "settings" command. Run from the menu (no parameters) it shows the panel; a panel callback goes
+/// to the panel; called with parameters (scripts, the regression net) it writes them directly.
+pub fn settings(input: Input) -> Result<Value> {
+    if input.event.is_some() {
+        return crate::panel::event(input);
+    }
+    if LEGACY_PARAMS.iter().any(|n| input.params.get(n).is_some()) {
+        return settings_by_params(input);
+    }
+    crate::panel::open(input)
+}
+
+/// The old form's behaviour: every field empty keeps, "-" clears, anything else replaces.
+pub fn settings_by_params(input: Input) -> Result<Value> {
+    let page = page_info()?;
+    let stored = page.settings.clone();
+    let field = |name: &str| input.str(name).unwrap_or_default().trim().to_string();
+
+    // The language of the messages: the one being set, else the stored one.
+    let asked = field("lang");
+    let asked_lang = if asked.is_empty() || asked == "-" { None } else { Lang::strict(&asked) };
+    let lang = asked_lang.or_else(|| stored.lang.as_deref().and_then(Lang::strict)).unwrap_or_default();
+    if !asked.is_empty() && asked != "-" && asked_lang.is_none() {
+        return Err(tf(lang, Key::ErrBadLang, &[("value", &asked)]));
+    }
+
+    let new = page_from_params(lang, &stored, asked_lang, &field)?;
 
     // The component's sheet: needs a selection when any of its fields is given.
     let sheet_given = ["versao", "status", "default_variant"].iter().any(|n| !field(n).is_empty());

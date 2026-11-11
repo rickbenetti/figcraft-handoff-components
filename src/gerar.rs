@@ -134,7 +134,7 @@ fn line_colour(text: Option<&str>) -> String {
 }
 
 /// The fill colour: the one given, or the line colour at 30% (0x4D).
-fn fill_colour(text: Option<&str>, line: &str) -> String {
+pub(crate) fn fill_colour(text: Option<&str>, line: &str) -> String {
     if let Some(t) = text.map(str::trim).filter(|t| !t.is_empty()) {
         return t.to_string();
     }

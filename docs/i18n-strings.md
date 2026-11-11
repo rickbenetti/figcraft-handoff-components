@@ -198,3 +198,42 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | AlignBottomCenter | Bottom center | Base ao centro |
 | AlignBottomRight | Bottom right | Base à direita |
 | AlignCompose | {vertical} {horizontal} | {vertical}, {horizontal} |
+| PanelTitle | Handoff Components: Settings | Handoff Components: Configurações |
+| PanelUnsaved | There are unsaved changes | Há alterações não salvas |
+| PanelAllSaved | All changes are saved | Todas as alterações estão salvas |
+| PanelSave | Save changes | Salvar alterações |
+| PanelReload | Reload | Recarregar |
+| PanelDefaults | Restore defaults | Restaurar padrões |
+| PanelClose | Close | Fechar |
+| PanelPageHeading | This page | Esta página |
+| PanelLang | Language | Idioma |
+| PanelLangEn | English | English |
+| PanelLangPt | Português (Brasil) | Português (Brasil) |
+| PanelLineColour | Line colour | Cor da linha |
+| PanelFillAuto | Fill: line colour at 30% | Preenchimento: cor da linha a 30% |
+| PanelFillColour | Fill colour | Cor do preenchimento |
+| PanelStage | Stage | Palco |
+| PanelStageLight | Light | Claro |
+| PanelStageDark | Dark | Escuro |
+| PanelStageAuto | Auto | Automático |
+| PanelRerun | On rerun | Ao rodar de novo |
+| PanelRerunReplace | Replace | Substituir |
+| PanelRerunNew | New | Novo |
+| PanelTz | Time zone (hours from UTC) | Fuso (horas em relação ao UTC) |
+| PanelTzNote | Fixed offset: no daylight saving time | Fuso fixo: sem horário de verão |
+| PanelTargetComponent | Component: {name} | Componente: {name} |
+| PanelTargetSet | Component set: {name} | Conjunto de componentes: {name} |
+| PanelTargetVariant | Variant of the set: {name} | Variante do conjunto: {name} |
+| PanelNoTarget | Select a component and press Reload | Selecione um componente e aperte Recarregar |
+| PanelVersion | Version | Versão |
+| PanelStatus | Status | Status |
+| PanelDefaultVariant | Default variant: {prop} | Variante padrão: {prop} |
+| PanelNone | (none) | (nenhuma) |
+| PanelMoreProps | +{n} more variant properties not shown | +{n} propriedades de variante não exibidas |
+| PanelSelectionMoved | The selection changed since the panel was loaded. Press Reload to use it. | A seleção mudou desde que o painel foi carregado. Aperte Recarregar para usá-la. |
+| PanelSelectionRefused | The selection is not the loaded component. Nothing was saved: press Reload. | A seleção não é o componente carregado. Nada foi salvo: aperte Recarregar. |
+| PanelReloaded | Reloaded from what is saved; unsaved changes were discarded. | Recarregado do que está salvo; as alterações não salvas foram descartadas. |
+| PanelRestored | Page settings are back to the defaults. Press Save changes to apply. | As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar. |
+| PanelLoadedPage | Loaded from: page: {page} | Carregado de: página: {page} |
+| PanelLoadedBoth | Loaded from: page: {page}; component: {component} | Carregado de: página: {page}; componente: {component} |
+| PanelSourceDefaults | defaults | padrões |

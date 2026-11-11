@@ -150,7 +150,15 @@ keys! {
     LineHeightAutoHost, TypoLetterSpacing, DecoUnderline, DecoStrikethrough, ValueNone,
     AliasBroken, ErrUnknownCommand, AlignTopLeft, AlignTopCenter, AlignTopRight,
     AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft, AlignBottomCenter,
-    AlignBottomRight, AlignCompose,
+    AlignBottomRight, AlignCompose, PanelTitle, PanelUnsaved, PanelAllSaved,
+    PanelSave, PanelReload, PanelDefaults, PanelClose, PanelPageHeading,
+    PanelLang, PanelLangEn, PanelLangPt, PanelLineColour, PanelFillAuto,
+    PanelFillColour, PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
+    PanelRerun, PanelRerunReplace, PanelRerunNew, PanelTz, PanelTzNote,
+    PanelTargetComponent, PanelTargetSet, PanelTargetVariant, PanelNoTarget, PanelVersion,
+    PanelStatus, PanelDefaultVariant, PanelNone, PanelMoreProps, PanelSelectionMoved,
+    PanelSelectionRefused, PanelReloaded, PanelRestored, PanelLoadedPage, PanelLoadedBoth,
+    PanelSourceDefaults,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
@@ -232,7 +240,7 @@ mod tests {
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();

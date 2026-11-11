@@ -49,12 +49,22 @@ It writes `dist/` and prints the absolute path of the manifest to import. In Fig
 
 Select a component or a set, then run **Plugins ▸ Handoff Components ▸ Generate report**.
 
-**Plugins ▸ Handoff Components ▸ Settings…** sets, among others, the language (`en` or `pt-BR`; a `pt` saved by an earlier version keeps working and means `pt-BR`), the line colour, the stage
-(`light`, `dark` or `auto`), what a rerun does (`replace` or `new`), the time zone of the report's date, the default variant,
-and the version and status shown on the report. Leave a field empty to keep its current value; type `-` to clear it and go back
-to the default. The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`;
-on rerun `replace`; time zone `-3`; default variant the component's own default, else the first variant of the set;
-version and status none (left out of the report).
+**Plugins ▸ Handoff Components ▸ Settings…** opens a panel (it needs a FigCraft that supports plugin API 2). The panel has two parts:
+
+- **This page**, saved on the current page: language (English or Português (Brasil)), line colour, fill (a box *Fill: line colour at 30%*; unchecked, a fill colour appears), stage (light, dark or auto), what a rerun does (replace or new) and the time zone of the report's date.
+- **The selected component**, saved on it (on its set, for a variant): version, status and, for a set, one menu per variant property that makes up the default variant (*(none)* leaves the property out). Without a component selected, only the page part is shown, with a note to select one and press **Reload**.
+
+Nothing is saved until you press **Save changes**; the panel says whether there are unsaved changes, and stays open after saving. **Reload** reads the selection and what is saved again (and discards unsaved changes); **Restore defaults** sets the page's fields to "not defined" (press **Save changes** to remove them); **Close** closes it. Notes:
+
+- **The component is the one loaded in the panel.** Saving writes to it, and refuses (saving nothing) when the selection is another one: press **Reload**. This also happens after you generate a report with the panel open, because the report becomes the selection.
+- **Empty version or status erases it.** The saved values appear filled in.
+- **Only what you changed is written.** A field you did not change keeps exactly what is saved, and a setting that is not defined stays not defined: choosing the default value by hand (for example the default line colour) while nothing is saved does not save it. Use **Restore defaults** to go back to "not defined" for the page.
+- **One undo step.** **Save changes** writes the page and the component together as one undo step, and none when nothing changed. Undoing does not refresh the panel: press **Reload**.
+- The panel is in the page's language and redraws at once when you change it, keeping what you typed.
+
+The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`; time zone `-3`; default variant the component's own default, else the first variant of the set; version and status none (left out of the report).
+
+**Scripts** can still set everything without the panel: `plugin.run` with the `settings` command and parameters `lang`, `cor_linha`, `cor_preenchimento`, `on_rerun`, `stage`, `tz`, `versao`, `status` and `default_variant` writes them directly (an empty parameter keeps the saved value, `-` clears it), with the same checks and messages as before; this is what `scripts/regress.sh` uses for its pt-BR cases.
 
 ### The report's date
 
@@ -86,7 +96,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Known limitations
 
 - Version 0.9.x, before 1.0: expect rough edges.
-- The report is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in **Settings…**. The Settings form labels stay in English (the host shows one label per field), and so do the values you type there (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
+- The report is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in **Settings…**. The **Settings…** item in the Plugins menu stays in English (the host takes its label from the manifest); the panel itself follows the page's language, and the values it saves stay in English (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
 - The host does not report a layer's text case, so it is missing from the typography lines.
 - A run has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
   use much of it: the heaviest case in the regression net, a test fixture with a 155-layer component, uses 64.2%; the DS Base
@@ -99,7 +109,7 @@ There is no date to type: it is read from the app's clock on each **Generate rep
 ## Tests and regression
 
 ```sh
-cargo test                      # 122 unit tests + 4 that keep English text out of the code
+cargo test                      # 147 unit tests + 4 that keep English text out of the code
 scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
 ```

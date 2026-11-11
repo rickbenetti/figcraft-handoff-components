@@ -10,6 +10,7 @@ mod theme;
 mod variants;
 mod glyphs;
 mod i18n;
+mod panel;
 mod settings;
 mod store;
 
