@@ -27,7 +27,10 @@
       "text.style",
       "component.properties",
       "export.add",
-      "style.list"
+      "style.list",
+      "comment.list",
+      "comment.add",
+      "comment.delete"
     ]
   },
   "commands": [
@@ -70,6 +73,12 @@
           "default": ""
         },
         {
+          "name": "tz",
+          "label": "Time zone (hours from UTC, default -3)",
+          "type": "text",
+          "default": ""
+        },
+        {
           "name": "default_variant",
           "label": "Default variant",
           "type": "text",
@@ -78,12 +87,6 @@
         {
           "name": "versao",
           "label": "Version",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "data",
-          "label": "Date",
           "type": "text",
           "default": ""
         },

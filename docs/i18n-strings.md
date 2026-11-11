@@ -9,7 +9,8 @@ parameter of the `gerar` command (`en` by default, `pt` or `pt-BR` for Portugues
 | FrameName | Report — {name} | Relatório — {name} |
 | Anatomy | Anatomy | Anatomia |
 | LayerTitle | Component | Componente |
-| LayerSubtitle | Version · date · status | Versão · data · status |
+| LayerSubtitle | Version · status | Versão · status |
+| LayerGenerated | Generated on | Gerado em |
 | LayerStage | Stage | Palco |
 | LayerMeasure | Measure {value} | Medida {value} |
 | LayerValue | Value {value} | Valor {value} |
@@ -20,6 +21,10 @@ parameter of the `gerar` command (`en` by default, `pt` or `pt-BR` for Portugues
 | LayerMarker | Marker {n} | Marcador {n} |
 | LayerLeader | Leader {n} | Guia {n} |
 | LayerWarning | Warning | Aviso |
+| GeneratedOn | Generated on | Gerado em |
+| DateUnavailable | unavailable | indisponível |
+| WarnNoDate | The date could not be read from the app's clock ({reason}). | Não foi possível ler a data do relógio do app ({reason}). |
+| WarnTmpComment | A temporary comment (id {id}) made to read the date was not removed. Delete it by hand. | Um comentário temporário (id {id}), criado para ler a data, não foi removido. Apague-o manualmente. |
 | PropRadius | Radius | Raio |
 | PropGap | Gap | Espaçamento |
 | PropPadH | Horizontal padding | Padding horizontal |
@@ -125,7 +130,8 @@ parameter of the `gerar` command (`en` by default, `pt` or `pt-BR` for Portugues
 | DeltaEffectOnly | No readable differences (visual effect only) | = EN |
 | LayerDeltas | Differences | = EN |
 | ErrNoSelection | Select a component or an instance | Selecione um componente ou uma instância |
-| ErrMetaSelection | Select the component or instance whose version, date or status you are setting | Selecione o componente ou a instância cuja versão, data ou status você está definindo |
+| ErrMetaSelection | Select the component or instance whose version or status you are setting | Selecione o componente ou a instância cuja versão ou status você está definindo |
+| ErrBadTz | time zone must be a number of hours from UTC between -14 and 14 (for example -3, 0 or 5.5), not "{value}" | o fuso deve ser um número de horas em relação ao UTC entre -14 e 14 (por exemplo -3, 0 ou 5.5), não "{value}" |
 | ErrBadLang | language must be en or pt, not "{value}" | o idioma deve ser en ou pt, não "{value}" |
 | ErrBadRerun | on rerun must be replace or new, not "{value}" | ao repetir deve ser replace ou new, não "{value}" |
 | ErrBadColour | "{value}" is not a hex colour like #FF4D6D | "{value}" não é uma cor hexadecimal como #FF4D6D |

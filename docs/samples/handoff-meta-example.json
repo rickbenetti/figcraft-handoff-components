@@ -1,7 +1,8 @@
 {
   "where": "pluginData of the main component; of the component set for a variant",
   "key": "handoff-meta",
-  "value_is_a_JSON_text": "{\"date\":\"2026-11-01\",\"status\":\"Aprovado\",\"version\":\"1.2.0\"}",
+  "value_is_a_JSON_text": "{\"status\":\"Aprovado\",\"version\":\"1.2.0\"}",
+  "note": "Files saved by 0.9.5 and before may also hold a \"date\" key. It is ignored when reading and kept when the sheet is saved. The report's date comes from the app's clock.",
   "report_mark": {
     "where": "pluginData of the report frame",
     "key": "handoff-report",

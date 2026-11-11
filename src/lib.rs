@@ -2,6 +2,7 @@
 //! Handoff Components: generates the handoff report for a component.
 
 mod audit;
+mod clock;
 mod contrast;
 mod delta;
 mod gerar;
