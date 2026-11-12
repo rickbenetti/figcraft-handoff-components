@@ -11,7 +11,7 @@ a field's event comes first, so the button already sees the new value. This scri
      selection is what it was, and the screen is at the start of the documentation.
   3. Nothing selected: refused with a note, nothing in the document.
   4. A selection that is not a component (the documentation itself): refused with a note, nothing new.
-  5. The line colour (and Fill %) typed, then the button: saved on the page on the first click; a Fill (%)
+  5. The line colour (and the fill opacity) typed, then the button: saved on the page on the first click; a fill opacity
      that is not a whole number from 0 to 100 is refused with a note; the fill's alpha is absolute.
   6. A forced error (an instruction budget too small for the callback): everything is rolled back.
 
@@ -152,16 +152,33 @@ def main():
         r = run(copia, [select(32), generate(), event("line", "#112233"), event("generate"), select(32), generate(), event("defaults"), event("generate"), generate(), ui()], tmp)
         check(r[9]["result"]["values"].get("line") == "#FCA311", "Restore defaults, then the button: the page's settings are cleared", str(r[9]["result"]["values"].get("line")))
 
-        # 5b. Fill (%): 50 typed, then one click: saved; 12.5 typed: refused with a note, nothing made.
+        # 5b. Fill opacity: 50 typed, then one click: saved; 12.5 typed: refused with a note, nothing made.
         r = run(copia, [select(32), generate(), event("fill_opacity", 50), event("generate"), generate(), ui()], tmp)
-        check(r[5]["result"]["values"].get("fill_opacity") == 50, "Fill (%) = 50 typed, then one click: saved on the page (a reopened panel shows 50)", str(r[5]["result"]["values"].get("fill_opacity")))
+        check(r[5]["result"]["values"].get("fill_opacity") == 50, "Fill opacity = 50 typed, then one click: saved on the page (a reopened panel shows 50)", str(r[5]["result"]["values"].get("fill_opacity")))
         r = run(copia, [select(32), generate(), event("fill_opacity", 12.5), event("generate"), find("Documentation")], tmp)
         labels = [l for _, l in controls(r[3])]
-        check(output(r[3])["refused"] and r[4]["result"]["total"] == 0 and any(l.startswith("✖ The fill must be a whole number from 0 to 100") for l in labels), "Fill (%) = 12.5: refused with a ✖ note, nothing made, the field kept")
+        check(output(r[3])["refused"] and r[4]["result"]["total"] == 0 and any(l.startswith("✖ The fill must be a whole number from 0 to 100") for l in labels), "Fill opacity = 12.5: refused with a ✖ note, nothing made, the field kept")
         r = run(copia, [select(32), generate(direct=True, fill_opacity=50, line="#11F2FC5B")], tmp)
         check(output(r[1])["settings"]["fill"] == "#11F2FC80", "direct: fill_opacity 50 on a line with its own alpha gives the absolute alpha 80", output(r[1])["settings"]["fill"])
         r = run(copia, [select(32), generate(direct=True, line="#11F2FC5B")], tmp)
         check(output(r[1])["settings"]["fill"] == "#11F2FC4D", "direct: the default 30 on #11F2FC5B gives #11F2FC4D")
+        # 5b2. 0 makes no fill layer at all; 1, 30 and 100 give the absolute alpha 03, 4D and FF (direct mode and panel).
+        def measure_fills(steps):
+            rr = run(copia, steps + [{"command": "node.find", "params": {"name": "Measure", "limit": 200}}], tmp)
+            ids = rr[-1]["result"]["ids"]
+            gets = run(copia, steps + [{"command": "node.get", "params": {"id": i, "fields": ["fills"]}} for i in ids[:3]], tmp)
+            return ids, [g["result"].get("fills") for g in gets[len(steps):]]
+
+        for pct, want in [(0, None), (1, "#11F2FC03"), (30, "#11F2FC4D"), (100, "#11F2FCFF")]:
+            rr = run(copia, [select(32), generate(direct=True, fill_opacity=pct, line="#11F2FC")], tmp)
+            check(output(rr[1])["settings"]["fill"] == want, f"direct: fill_opacity {pct} -> settings.fill {want}", str(output(rr[1])["settings"]["fill"]))
+            ids, fills = measure_fills([select(32), generate(direct=True, fill_opacity=pct, line="#11F2FC")])
+            if want is None:
+                check(bool(ids) and all(not f for f in fills), "fill_opacity 0: the measure rectangles have no fill layer", str(fills))
+            else:
+                check(bool(ids) and all(f and len(f) == 1 and str(f[0]).upper().find(want[1:7]) >= 0 for f in fills), f"fill_opacity {pct}: one fill layer on the measure rectangles", str(fills[:1]))
+        ids, fills = measure_fills([select(32), generate(), event("fill_opacity", 0), event("generate")])
+        check(bool(ids) and all(not f for f in fills), "panel: fill opacity 0 typed, then one click: no fill layer", str(fills))
         err = run(copia, [select(32), generate(direct=True, fill_opacity="101")], tmp, expect_error=True)
         check(err is not None and "0 to 100" in err.get("error", ""), "direct: fill_opacity 101 is refused with the dictionary's message", (err or {}).get("error", "")[:90])
 

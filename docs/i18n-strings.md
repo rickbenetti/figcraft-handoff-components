@@ -211,7 +211,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
 | PanelGenerate | Generate documentation | Gerar documentação |
 | ErrBadOpacity | fill opacity must be a whole number from 0 to 100, not "{value}" | a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não "{value}" |
-| PanelFillOpacity | Fill (%) | Preenchimento (%) |
-| PanelFillHint | Fill opacity, using the line colour. 0 = no fill. | Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento. |
+| PanelFillOpacity | Fill opacity (0–100) | Preenchimento (%) |
+| PanelFillHint | Fill opacity, using the line colour. 0 = no fill. | Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento. |
 | PanelBadOpacity | The fill must be a whole number from 0 to 100. Correct it and press Generate documentation. | O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação. |
-| LabelPad | 8 | 0 |

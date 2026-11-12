@@ -1251,21 +1251,22 @@ struct RedStyle {
     ring: Option<&'static str>,
     guide: String,
     guide_weight: f64,
-    overlay_fill: String,
+    /// The measure rectangles' fill; `None` (fill opacity 0) means no fill at all, not a fill with alpha 00.
+    overlay_fill: Option<String>,
     overlay_stroke: String,
     overlay_weight: f64,
     /// The colour of the measure values.
     value: String,
 }
 
-fn red_style(dark: bool, custom_line: bool, line: &str, fill: &str) -> RedStyle {
+fn red_style(dark: bool, custom_line: bool, line: &str, fill: Option<&str>) -> RedStyle {
     if dark || custom_line {
         RedStyle {
             accent: line.to_string(),
             ring: None,
             guide: line.to_string(),
             guide_weight: 1.0,
-            overlay_fill: fill.to_string(),
+            overlay_fill: fill.map(str::to_string),
             overlay_stroke: line.to_string(),
             overlay_weight: 1.0,
             value: line.to_string(),
@@ -1276,7 +1277,7 @@ fn red_style(dark: bool, custom_line: bool, line: &str, fill: &str) -> RedStyle 
             ring: Some(theme::PRUSSIAN),
             guide: line.to_string(),
             guide_weight: 2.0,
-            overlay_fill: fill.to_string(),
+            overlay_fill: fill.map(str::to_string),
             overlay_stroke: line.to_string(),
             overlay_weight: 1.5,
             value: theme::PRUSSIAN.to_string(),
@@ -1401,7 +1402,7 @@ fn draw_overlay(lang: Lang, stage: u64, sb: Rect, ib: Rect, lines: &[Value], red
             lang,
             "shape.rectangle",
             &json!({"x": rx - sb.x, "y": ry - sb.y, "width": rw, "height": rh, "parent": stage, "name": tf(lang, Key::LayerMeasure, &[("value", &label)]), "select": false,
-                "props": {"fill": red.overlay_fill, "stroke": red.overlay_stroke, "strokeWeight": red.overlay_weight, "strokeAlign": "inside"}}),
+                "props": {"fill": red.overlay_fill.as_deref(), "stroke": red.overlay_stroke, "strokeWeight": red.overlay_weight, "strokeAlign": "inside"}}),
         )?;
         rects.push(id_of(lang, &r, "shape.rectangle")?);
         pending.push((label, lx, ly));
@@ -1844,7 +1845,8 @@ pub fn generate(input: Input) -> Result<Value> {
     let versao = meta_text(input.str("version"));
     let status = meta_text(input.str("status"));
     let cor_linha = line_colour(page.settings.line.as_deref());
-    let cor_fill = fill_colour(page.settings.fill_percent(), &cor_linha);
+    // Opacity 0 means no fill: no fill paint at all (the output's `fill` is then null).
+    let cor_fill = (page.settings.fill_percent() > 0).then(|| fill_colour(page.settings.fill_percent(), &cor_linha));
     let comp = &target.node;
     let name = target.title.clone();
     let size = bounds(comp).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
@@ -2004,7 +2006,7 @@ pub fn generate(input: Input) -> Result<Value> {
     if mode == StageMode::Auto && anatomy_dark {
         host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": theme::PANEL, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}))?;
     }
-    let red = red_style(anatomy_dark, custom_line, &cor_linha, &cor_fill);
+    let red = red_style(anatomy_dark, custom_line, &cor_linha, cor_fill.as_deref());
     let tree = Tree::new(&nodes, walked.iter().map(|(_, d)| *d).collect());
     let numbered: Vec<(usize, usize)> = anatomy_blocks.iter().filter_map(|b| b.badge.map(|n| b.nodes.iter().filter(|i| drawn.get(**i).copied().unwrap_or(false)).map(move |i| (n, *i)))).flatten().collect();
     let badges = draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
@@ -2140,6 +2142,10 @@ mod tests {
         assert_eq!(fill_colour(0, "#3B5BDB"), "#3B5BDB00");
         assert_eq!(fill_colour(50, "#3B5BDB"), "#3B5BDB80");
         assert_eq!(fill_colour(1, "#3B5BDB"), "#3B5BDB03");
+        // 0 never reaches the stage as a colour: there is no fill at all.
+        let none = red_style(false, false, "#3B5BDB", None);
+        assert_eq!(none.overlay_fill, None);
+        assert_eq!(none.overlay_stroke, "#3B5BDB");
         // Not a colour: the default line's.
         assert_eq!(fill_colour(30, "nope"), "#FCA3114D");
     }
@@ -2645,15 +2651,15 @@ mod tests {
     #[test]
     fn redlines_follow_the_stage_and_the_line_colour() {
         // Light stage, default line colour: the line colour at full strength, 2 px, Prussian values and ring.
-        let light = red_style(false, false, "#FCA311", "#FCA3114D");
+        let light = red_style(false, false, "#FCA311", Some("#FCA3114D"));
         assert_eq!((light.guide.as_str(), light.ring), ("#FCA311", Some("#14213D")));
         assert_eq!((light.accent.as_str(), light.overlay_stroke.as_str(), light.value.as_str()), ("#FCA311", "#FCA311", "#14213D"));
-        assert_eq!((light.guide_weight, light.overlay_weight, light.overlay_fill.as_str()), (2.0, 1.5, "#FCA3114D"));
+        assert_eq!((light.guide_weight, light.overlay_weight, light.overlay_fill.as_deref()), (2.0, 1.5, Some("#FCA3114D")));
         // Dark stage: the line colour everywhere, 1 px, no ring.
-        let dark = red_style(true, false, "#FCA311", "#FCA3114D");
+        let dark = red_style(true, false, "#FCA311", Some("#FCA3114D"));
         assert_eq!((dark.guide.as_str(), dark.ring, dark.value.as_str(), dark.guide_weight), ("#FCA311", None, "#FCA311", 1.0));
         // A line colour set in the settings counts on every stage.
-        let custom = red_style(false, true, "#3B82F6", "#3B82F64D");
+        let custom = red_style(false, true, "#3B82F6", Some("#3B82F64D"));
         assert_eq!((custom.guide.as_str(), custom.ring, custom.overlay_stroke.as_str(), custom.value.as_str()), ("#3B82F6", None, "#3B82F6", "#3B82F6"));
         assert_eq!(stage_fill(false), "#E5E5E5");
         assert_eq!(stage_fill(true), "#14213D");

@@ -318,11 +318,6 @@ fn button(name: &str, label: &str) -> Value {
     json!({"type": "button", "name": name, "label": safe_text(label, MAX_LABEL)})
 }
 
-/// The non-breaking spaces that end a label: `LabelPad` in the dictionary says how many (0 when it isn't a number).
-fn label_pad(lang: Lang) -> String {
-    "\u{a0}".repeat(t(lang, Key::LabelPad).trim().parse::<usize>().unwrap_or(0).min(MAX_LABEL / 2))
-}
-
 /// The panel's spec in the language `lang` (the form's own), with every field's value from `form`.
 ///
 /// The order is: the fields, then the buttons, then the messages. The host hands its events to the plugin
@@ -335,10 +330,7 @@ pub fn spec(lang: Lang, form: &Form, message: &Message) -> Value {
     // a spacer (except at the top): the host has no section, divider or spacing of its own.
     c.push(note(t(lang, Key::PanelTitlePage)));
     c.push(json!({"type": "select", "name": "lang", "label": label(Key::PanelLang), "options": [lang_label(Lang::En), lang_label(Lang::Pt)], "value": lang_label(form.lang)}));
-    // The English "Line colour" gets non-breaking spaces at its end (the dictionary's `LabelPad`) so that the column
-    // of labels is as wide in English as in Portuguese. Added after `safe_text`, which would trim them.
-    let line_label = format!("{}{}", label(Key::PanelLineColour), label_pad(lang));
-    c.push(json!({"type": "color", "name": "line", "label": line_label, "value": form.line}));
+    c.push(json!({"type": "color", "name": "line", "label": label(Key::PanelLineColour), "value": form.line}));
     // The field holds a whole number from 0 to 100 (the host clamps what is typed; the plugin checks the rest).
     let shown = if form.fill_pct.is_finite() { form.fill_pct } else { f64::from(DEFAULT_FILL_OPACITY) };
     c.push(json!({"type": "number", "name": "fill_opacity", "label": label(Key::PanelFillOpacity), "min": 0, "max": 100, "value": shown}));
@@ -610,7 +602,7 @@ mod tests {
         assert_eq!(
             en,
             [
-                "note:THIS PAGE", "lang", "line", "fill_opacity", "note:Fill opacity, using the line colour. 0 = no fill.", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status",
+                "note:THIS PAGE", "lang", "line", "fill_opacity", "note:Fill opacity, using the line colour. 0 = no\u{a0}fill.", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status",
                 &format!("note:Left blank, the documentation shows “to{nb}be{nb}defined”."), "note:", "generate", "defaults", "close",
                 "note:", "note:MESSAGES", "note:Select a component, a component set or a variant and press Generate documentation.", "note:ℹ The screen freezes while the documentation is generated."
             ]
@@ -732,18 +724,19 @@ mod tests {
     }
 
     #[test]
-    fn the_english_line_colour_label_is_padded_to_the_width_of_the_portuguese_column() {
-        let line = |lang: Lang| spec(lang, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap().iter().find(|c| c["name"] == "line").unwrap()["label"].as_str().unwrap().to_string();
-        let (en, pt) = (line(Lang::En), line(Lang::Pt));
-        assert_eq!(en, format!("Line colour{}", "\u{a0}".repeat(8)));
-        assert_eq!(pt, "Cor da linha", "Portuguese needs no padding");
-        assert!(en.chars().count() <= MAX_LABEL);
-        // The padding is non-breaking spaces and nothing else is padded.
-        assert_eq!((t(Lang::En, Key::LabelPad), t(Lang::Pt, Key::LabelPad)), ("8", "0"), "the number of non-breaking spaces, one constant per language");
-        assert_eq!(label_pad(Lang::En), "\u{a0}".repeat(8));
-        assert_eq!(label_pad(Lang::Pt), "");
-        let others: Vec<String> = spec(Lang::En, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap().iter().filter(|c| c["name"] != "line" && c["type"] != "note").map(|c| c["label"].as_str().unwrap().to_string()).collect();
-        assert!(others.iter().all(|l| !l.contains('\u{a0}')));
+    fn the_english_fill_hint_keeps_no_and_fill_together_and_the_labels_are_plain_text() {
+        assert_eq!(t(Lang::En, Key::PanelFillHint), "Fill opacity, using the line colour. 0 = no\u{a0}fill.");
+        assert_eq!(t(Lang::Pt, Key::PanelFillHint), "Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.");
+        assert_eq!((t(Lang::En, Key::PanelFillOpacity), t(Lang::Pt, Key::PanelFillOpacity)), ("Fill opacity (0–100)", "Preenchimento (%)"));
+        for lang in [Lang::En, Lang::Pt] {
+            for c in spec(lang, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap() {
+                if c["type"] != "note" {
+                    let l = c["label"].as_str().unwrap();
+                    assert_eq!(l, l.trim(), "no label ends or starts with a space: {l:?}");
+                    assert!(!l.contains('\u{a0}'), "{l:?}");
+                }
+            }
+        }
     }
 
     #[test]
@@ -793,7 +786,7 @@ mod tests {
         let c = sp["controls"].as_array().unwrap().iter().find(|c| c["name"] == "fill_opacity").unwrap();
         assert_eq!((c["type"].as_str(), c["label"].as_str(), c["min"].as_i64(), c["max"].as_i64(), c["value"].as_f64()), (Some("number"), Some("Preenchimento (%)"), Some(0), Some(100), Some(30.0)));
         let en = spec(Lang::En, &Form::defaults(), &Message::Idle);
-        assert!(en["controls"].as_array().unwrap().iter().any(|c| c["label"] == "Fill (%)"));
+        assert!(en["controls"].as_array().unwrap().iter().any(|c| c["label"] == "Fill opacity (0–100)"));
         for sp in [sp, en] {
             let names: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter_map(|c| c["name"].as_str()).collect();
             assert!(!names.contains(&"fill") && !names.contains(&"fill_auto"));

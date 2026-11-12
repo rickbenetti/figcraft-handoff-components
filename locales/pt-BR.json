@@ -206,6 +206,5 @@
   "ErrBadOpacity": "a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não \"{value}\"",
   "PanelFillOpacity": "Preenchimento (%)",
   "PanelFillHint": "Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.",
-  "PanelBadOpacity": "O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação.",
-  "LabelPad": "0"
+  "PanelBadOpacity": "O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação."
 }
