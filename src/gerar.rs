@@ -1523,7 +1523,11 @@ fn clean_name(name: &str) -> &str {
 
 /// The properties of a component as `component.properties` gives them. `default` holds the pairs
 /// of the default variant, which say the default option of each variant property.
-fn property_views(lang: Lang, defs: &Value, default: Option<&Pairs>) -> Vec<PropView> {
+///
+/// `resolve` gives the name of the component a swap property has as its default (`None` when the id is not found, or its
+/// name is empty); it is asked once for each distinct id, and for no other kind of property.
+fn property_views(lang: Lang, defs: &Value, default: Option<&Pairs>, resolve: &mut dyn FnMut(u64) -> Option<String>) -> Vec<PropView> {
+    let mut resolved: HashMap<u64, Option<String>> = HashMap::new();
     let list = defs.get("properties").and_then(Value::as_array).cloned().unwrap_or_default();
     let base_names: Vec<String> = list.iter().filter_map(|p| p.get("name").and_then(Value::as_str)).map(|n| clean_name(n).to_string()).collect();
     // A base name that several definitions share (whatever their types and "#id" suffixes) is numbered 1, 2, ...
@@ -1547,6 +1551,14 @@ fn property_views(lang: Lang, defs: &Value, default: Option<&Pairs>) -> Vec<Prop
                 "boolean" => {
                     let on = p.get("default").and_then(Value::as_bool).unwrap_or(false);
                     vec![(t(lang, Key::ValueTrue).to_string(), on), (t(lang, Key::ValueFalse).to_string(), !on)]
+                }
+                // A swap property shows the name of its default component; an id that doesn't resolve says so.
+                "instanceSwap" => {
+                    let text = match p.get("default").and_then(Value::as_u64) {
+                        Some(id) => resolved.entry(id).or_insert_with(|| resolve(id).map(|n| n.trim().to_string()).filter(|n| !n.is_empty())).clone().unwrap_or_else(|| t(lang, Key::ValueNotFound).to_string()),
+                        None => t(lang, Key::ValueEmpty).to_string(),
+                    };
+                    vec![(text, true)]
                 }
                 // A text whose default is empty would be a pill with nothing in it: it says so.
                 _ => p.get("default").and_then(Value::as_str).map(|d| vec![(if d.is_empty() { t(lang, Key::ValueEmpty).to_string() } else { d.to_string() }, true)]).unwrap_or_default(),
@@ -1888,7 +1900,9 @@ pub fn generate(input: Input) -> Result<Value> {
 
     // 3b. The component's properties, and the variant axes of a set.
     let defs = host(lang, "component.properties", &json!({"id": component})).ok();
-    let views = defs.as_ref().map(|d| property_views(lang, d, target.set.as_ref().map(|sp| &sp.default))).unwrap_or_default();
+    // A swap property's default is a component id: its name is one `node.get` (a failed call or a null result is "not found").
+    let mut component_name = |id: u64| host(lang, "node.get", &json!({"id": id, "fields": ["name"]})).ok().and_then(|n| n.get("name").and_then(Value::as_str).map(ToString::to_string));
+    let views = defs.as_ref().map(|d| property_views(lang, d, target.set.as_ref().map(|sp| &sp.default), &mut component_name)).unwrap_or_default();
     let axes_list: Vec<variants::Axis> = match &target.set {
         Some(sp) => {
             let order: Vec<(String, Vec<String>)> =
@@ -2119,7 +2133,7 @@ mod tests {
     }
 
     fn names(lang: Lang, d: &Value) -> Vec<String> {
-        property_views(lang, d, None).into_iter().map(|v| v.name).collect()
+        property_views(lang, d, None, &mut |_| None).into_iter().map(|v| v.name).collect()
     }
 
     #[test]
@@ -2145,10 +2159,76 @@ mod tests {
         assert_eq!(names(Lang::En, &bare), ["A 1", "A 2"]);
     }
 
+    fn swap_defs() -> Value {
+        defs(json!([
+            {"name": "Leading glyph", "type": "instanceSwap", "default": 166, "preferred": [208]},
+            {"name": "Trailing glyph", "type": "instanceSwap", "default": 190, "preferred": [208]},
+            {"name": "Again", "type": "instanceSwap", "default": 166},
+            {"name": "Gone", "type": "instanceSwap", "default": 999},
+            {"name": "Nameless", "type": "instanceSwap", "default": 5},
+            {"name": "Null", "type": "instanceSwap", "default": null},
+            {"name": "Text default", "type": "instanceSwap", "default": "x"},
+            {"name": "Absent", "type": "instanceSwap"}
+        ]))
+    }
+
+    fn lookup(id: u64) -> Option<String> {
+        match id {
+            166 => Some("Name=plus, Size=16".into()),
+            190 => Some("Name=arrow-right, Size=16".into()),
+            5 => Some("  ".into()),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn a_swap_property_shows_the_name_of_its_default_component_and_asks_for_each_id_once() {
+        let mut asked: Vec<u64> = Vec::new();
+        let views = property_views(Lang::En, &swap_defs(), None, &mut |id| {
+            asked.push(id);
+            lookup(id)
+        });
+        let chip = |i: usize| views[i].options.clone();
+        assert_eq!(chip(0), vec![("Name=plus, Size=16".to_string(), true)]);
+        assert_eq!(chip(1), vec![("Name=arrow-right, Size=16".to_string(), true)]);
+        assert_eq!(chip(2), vec![("Name=plus, Size=16".to_string(), true)], "the same id again: same name");
+        assert_eq!(asked, vec![166, 190, 999, 5], "one call for each distinct numeric id, in order; preferred is not asked");
+        // Not found: a null result (999) or an empty name (5).
+        assert_eq!(chip(3), vec![("(not found)".to_string(), true)]);
+        assert_eq!(chip(4), vec![("(not found)".to_string(), true)]);
+        // Null, absent or not a number: "(empty)", nothing is asked.
+        for v in &views[5..8] {
+            assert_eq!(v.options, vec![("(empty)".to_string(), true)], "{}", v.name);
+        }
+        let pt = property_views(Lang::Pt, &swap_defs(), None, &mut |id| lookup(id));
+        assert_eq!((pt[3].options[0].0.as_str(), pt[5].options[0].0.as_str()), ("(não encontrado)", "(vazio)"));
+    }
+
+    #[test]
+    fn the_other_property_types_do_not_ask_the_host_and_do_not_change() {
+        let d = defs(json!([
+            {"name": "Status", "type": "variant", "options": ["a", "b"], "default": "a"},
+            {"name": "Show#1:0", "type": "boolean", "default": true},
+            {"name": "Label#1:1", "type": "text", "default": "Hi"},
+            {"name": "Note#1:2", "type": "text", "default": ""}
+        ]));
+        let mut asked = 0;
+        let views = property_views(Lang::En, &d, None, &mut |_| {
+            asked += 1;
+            None
+        });
+        assert_eq!(asked, 0, "the host is not asked for a variant, a boolean or a text");
+        let chips: Vec<Vec<(String, bool)>> = views.into_iter().map(|v| v.options).collect();
+        assert_eq!(chips[0], vec![("a".to_string(), true), ("b".to_string(), false)]);
+        assert_eq!(chips[1], vec![("True".to_string(), true), ("False".to_string(), false)]);
+        assert_eq!(chips[2], vec![("Hi".to_string(), true)]);
+        assert_eq!(chips[3], vec![("(empty)".to_string(), true)]);
+    }
+
     #[test]
     fn an_empty_text_default_is_said_and_any_other_default_is_kept() {
         let d = defs(json!([{"name": "Title#1:0", "type": "text", "default": ""}, {"name": "Body#1:1", "type": "text", "default": "Hello"}]));
-        let chips = |lang| property_views(lang, &d, None).into_iter().map(|v| v.options).collect::<Vec<_>>();
+        let chips = |lang| property_views(lang, &d, None, &mut |_| None).into_iter().map(|v| v.options).collect::<Vec<_>>();
         assert_eq!(chips(Lang::En), vec![vec![("(empty)".to_string(), true)], vec![("Hello".to_string(), true)]]);
         assert_eq!(chips(Lang::Pt), vec![vec![("(vazio)".to_string(), true)], vec![("Hello".to_string(), true)]]);
     }

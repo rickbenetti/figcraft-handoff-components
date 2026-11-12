@@ -136,6 +136,7 @@
   "Unnumbered": "+{n} camadas sem número",
   "UnnumberedOne": "+{n} camada sem número",
   "ValueEmpty": "(vazio)",
+  "ValueNotFound": "(não encontrado)",
   "ValueFalse": "Falso",
   "ValueTrue": "Verdadeiro",
   "Variants": "{n} variantes; mostrada a primeira",

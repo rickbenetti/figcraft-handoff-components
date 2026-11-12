@@ -136,6 +136,7 @@
   "Unnumbered": "+{n} layers without a number",
   "UnnumberedOne": "+{n} layer without a number",
   "ValueEmpty": "(empty)",
+  "ValueNotFound": "(not found)",
   "ValueFalse": "False",
   "ValueTrue": "True",
   "Variants": "{n} variants; first one shown",

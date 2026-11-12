@@ -142,7 +142,7 @@ keys! {
     NounStyle, NounStyles, NounProperty, NounProperties, NounBound, NounBounds, NounMissing, NounMissings,
     NounSuspect, NounSuspects, TypeBoolean,
     TypeInstance, TypeText, TypeVariant, Unnumbered, UnnumberedOne,
-    ValueEmpty, ValueFalse, ValueTrue, Variants,
+    ValueEmpty, ValueNotFound, ValueFalse, ValueTrue, Variants,
     KindFrame, KindGroup, KindRectangle, KindEllipse, KindVector,
     KindLine, KindStar, KindPolygon, KindBooleanOperation, KindComponent,
     KindComponentSet, KindInstance, KindSection, KindSlice, EffectDropShadow,
@@ -389,6 +389,12 @@ mod tests {
             assert_eq!((t(Lang::En, one), t(Lang::En, many)), en);
             assert_eq!((t(Lang::Pt, one), t(Lang::Pt, many)), pt);
         }
+    }
+
+    #[test]
+    fn the_empty_and_not_found_values_are_different_texts_in_both_languages() {
+        assert_eq!((t(Lang::En, Key::ValueEmpty), t(Lang::En, Key::ValueNotFound)), ("(empty)", "(not found)"));
+        assert_eq!((t(Lang::Pt, Key::ValueEmpty), t(Lang::Pt, Key::ValueNotFound)), ("(vazio)", "(não encontrado)"));
     }
 
     #[test]

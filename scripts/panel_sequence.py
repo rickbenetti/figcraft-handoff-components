@@ -191,6 +191,28 @@ def main():
             totals = [x["result"]["total"] for x in rr[2:]]
             check(totals[:-1] == [1] * 7 and totals[-1] == 0, f"repeated property names are numbered ({lang}): 6 numbered rows and Closable alone", str(totals))
 
+        # 5b4. Swap properties show the name of their default component: "Glyph" points at a component of the file, "Gone" at an
+        # id that does not exist (the Generate goes on, the chip says it was not found).
+        for lang, word, nf in (("en", "Property", "(not found)"), ("pt-BR", "Propriedade", "(não encontrado)")):
+            rr = run(props, [select(2), generate(direct=True, lang=lang)] + [{"command": "node.find", "params": {"type": "frame", "name": f"{word}: {n}", "limit": 5}} for n in ("Glyph", "Gone")], tmp)
+            check(bool(output(rr[1]).get("frame")), f"swap property with an id that does not resolve: the Generate goes on ({lang})")
+            texts = []
+            for line in rr[2:]:
+                row = line["result"]["ids"][0]
+                level = [row]
+                found = []
+                while level:
+                    got = run(props, [select(2), generate(direct=True, lang=lang)] + [{"command": "node.get", "params": {"id": i, "fields": ["type", "characters", "children"]}} for i in level], tmp)[2:]
+                    nxt = []
+                    for g in got:
+                        r = g["result"]
+                        if r.get("type") == "TEXT":
+                            found.append(r.get("characters"))
+                        nxt += [c["id"] for c in r.get("children", [])]
+                    level = nxt
+                texts.append(found)
+            check(texts[0][-1] == "Icon/plus" and texts[1][-1] == nf, f"swap chips ({lang}): the default's name, and {nf} for an id that does not resolve", str(texts))
+
         # 5c. Restore defaults keeps the language (the panel must not turn English), and saves it with the next click.
         r = run(copia, [select(32), generate(direct=True, lang="pt-BR", line="#112233"), select(32), generate(), event("defaults"), ui(), event("generate"), generate(), ui()], tmp)
         shown = r[5]["result"]
