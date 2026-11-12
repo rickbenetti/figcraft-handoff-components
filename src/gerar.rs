@@ -1241,16 +1241,15 @@ fn make_stage(lang: Lang, at: Rect, dark: bool) -> Result<u64> {
     id_of(lang, &r, "frame.create")
 }
 
-/// The colours and weights of the redlines (badges, guides, measures and overlay) on a stage. On the
-/// light stage with the default line colour the guides, the overlay's outline and the badges are the
-/// line colour at full strength (2 px guides, 1.5 px outline), with Prussian blue for the measure values (the line
-/// colour is too pale to read on the light stage) and a Prussian ring on the badge. On the dark
-/// stage, or with a line colour set in the settings, everything is the line colour, 1 px, no ring.
+/// The colours and weights of the redlines (badges, guides, measures and overlay) on a stage. The guides are
+/// always `GUIDE_WEIGHT`. On the light stage with the default line colour the guides, the overlay's outline and the
+/// badges are the line colour at full strength (1.5 px outline), with Prussian blue for the measure values (the line
+/// colour is too pale to read on the light stage) and a Prussian ring on the badge. On the dark stage, or with a line
+/// colour set in the settings, everything is the line colour, the outline 1 px, no ring.
 struct RedStyle {
     accent: String,
     ring: Option<&'static str>,
     guide: String,
-    guide_weight: f64,
     /// The measure rectangles' fill; `None` (fill opacity 0) means no fill at all, not a fill with alpha 00.
     overlay_fill: Option<String>,
     overlay_stroke: String,
@@ -1259,13 +1258,15 @@ struct RedStyle {
     value: String,
 }
 
+/// The stroke weight of a marker's guide: the same on every stage, with or without a line colour set on the page.
+const GUIDE_WEIGHT: f64 = 1.5;
+
 fn red_style(dark: bool, custom_line: bool, line: &str, fill: Option<&str>) -> RedStyle {
     if dark || custom_line {
         RedStyle {
             accent: line.to_string(),
             ring: None,
             guide: line.to_string(),
-            guide_weight: 1.0,
             overlay_fill: fill.map(str::to_string),
             overlay_stroke: line.to_string(),
             overlay_weight: 1.0,
@@ -1276,7 +1277,6 @@ fn red_style(dark: bool, custom_line: bool, line: &str, fill: Option<&str>) -> R
             accent: line.to_string(),
             ring: Some(theme::PRUSSIAN),
             guide: line.to_string(),
-            guide_weight: 2.0,
             overlay_fill: fill.map(str::to_string),
             overlay_stroke: line.to_string(),
             overlay_weight: 1.5,
@@ -1471,7 +1471,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
         let d = dx.hypot(dy).max(0.001);
         // The guide starts at the circle's edge.
         let start = (m.centre.0 + dx / d * MARKER_D / 2.0, m.centre.1 + dy / d * MARKER_D / 2.0);
-        leader(lang, stage, origin, start, m.end, (red.guide.as_str(), red.guide_weight), &tf(lang, Key::LayerLeader, &[("n", &m.number.to_string())]))?;
+        leader(lang, stage, origin, start, m.end, (red.guide.as_str(), GUIDE_WEIGHT), &tf(lang, Key::LayerLeader, &[("n", &m.number.to_string())]))?;
         let name = tf(lang, Key::LayerMarker, &[("n", &m.number.to_string())]);
         let c = host(
             lang,
@@ -2654,10 +2654,11 @@ mod tests {
         let light = red_style(false, false, "#FCA311", Some("#FCA3114D"));
         assert_eq!((light.guide.as_str(), light.ring), ("#FCA311", Some("#14213D")));
         assert_eq!((light.accent.as_str(), light.overlay_stroke.as_str(), light.value.as_str()), ("#FCA311", "#FCA311", "#14213D"));
-        assert_eq!((light.guide_weight, light.overlay_weight, light.overlay_fill.as_deref()), (2.0, 1.5, Some("#FCA3114D")));
+        assert_eq!((light.overlay_weight, light.overlay_fill.as_deref()), (1.5, Some("#FCA3114D")));
+        assert_eq!(GUIDE_WEIGHT, 1.5, "one weight for every guide, on any stage");
         // Dark stage: the line colour everywhere, 1 px, no ring.
         let dark = red_style(true, false, "#FCA311", Some("#FCA3114D"));
-        assert_eq!((dark.guide.as_str(), dark.ring, dark.value.as_str(), dark.guide_weight), ("#FCA311", None, "#FCA311", 1.0));
+        assert_eq!((dark.guide.as_str(), dark.ring, dark.value.as_str()), ("#FCA311", None, "#FCA311"));
         // A line colour set in the settings counts on every stage.
         let custom = red_style(false, true, "#3B82F6", Some("#3B82F64D"));
         assert_eq!((custom.guide.as_str(), custom.ring, custom.overlay_stroke.as_str(), custom.value.as_str()), ("#3B82F6", None, "#3B82F6", "#3B82F6"));
