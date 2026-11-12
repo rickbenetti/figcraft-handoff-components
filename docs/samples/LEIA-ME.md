@@ -26,7 +26,7 @@ estava, e mesmo esses seguem a regra.
 - `relatorio-v5-*.png`: documentações do `gerar` 0.5.0 (id 32 em en e pt; id 3 no fixture-carga-v2 e na cópia do fixture-copia-2; id 194).
 - `relatorio-v6-*.png`: documentações do `gerar` 0.6.0 (id 32 em en e pt; id 3 na cópia do fixture-copia-2).
 - `relatorio-v61-*.png`: documentações do `gerar` 0.6.1 (id 32 em en e pt; id 3 na cópia do fixture-copia-2).
-- `relatorio-v7-a-pt-azul.png` e `handoff-*-example.json`: o `generate` 0.7.0 depois de `settings` (pt, linha #3B82F6, 1.2.0, 2026-11-01, Aprovado) e o formato do que fica no pluginData.
+- `relatorio-v7-a-pt-azul.png` e `handoff-settings-example.json`: o `generate` 0.7.0 depois de `settings` (pt, linha #3B82F6, 1.2.0, 2026-11-01, Aprovado) e o formato do que fica no pluginData.
 - `relatorio-v8-id32.png` e `relatorio-v8-id3.png`: a documentação do 0.8.0 (spec à esquerda, palco à direita; id 3 na cópia do fixture-copia-2).
 - `relatorio-v82-id32.png` e `relatorio-v82-id194.png` (só o topo): a documentação do 0.8.1, em blocos por camada, com as seções Anatomy e Spacing.
 - `fixture-carga-v2 copy.figcraft`: cópia feita fora destes testes (não é gerada por eles); foi commitada por engano numa rodada anterior e o app a modificou depois.

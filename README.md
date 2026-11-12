@@ -47,48 +47,47 @@ It writes `dist/` and prints the absolute path of the manifest to import. In Fig
 
 ## Usage
 
-Select a component or a set, then run **Plugins ▸ Handoff Components ▸ Generate documentation**.
-
-**Plugins ▸ Handoff Components ▸ Settings…** opens a panel (it needs a FigCraft that supports plugin API 2). The panel has two parts of fields, then the messages and the buttons:
+Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a panel (it needs a FigCraft that supports plugin API 2) that stays open until you close it:
 
 - **This page**, saved on the current page: language (English or Português (Brasil)), line colour, fill (a box *Fill: line colour at 30%*; unchecked, a fill colour appears), stage (light, dark or auto) and what a rerun does (replace or new).
-- **The selected component**, saved on it (on its set, for a variant): version, status and, for a set, one menu per variant property that makes up the default variant (*(none)* leaves the property out). The section is always there: with no component loaded it says so (the app does not tell a plugin that the selection changed, so select a component and press **Reload**).
-- **Messages**, below the fields: whether there are unsaved changes (`●`), whether everything is saved (`✔`) and the result of the last button (`✔` done, `✖` refused). The buttons come after all the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls, so a button above a field would run before the field's new value arrived.
+- **Documentation**: **Version** and **Status**. Left blank, the documentation shows “to be defined” (“a definir” in Portuguese): the header always has the line `Version: … · Status: …`. Nothing is remembered: after a documentation is made, both fields are blank again.
+- **Messages**: what happened the last time (`✔` done, `✖` refused) and a fixed warning (`ℹ`) that the screen freezes while the documentation is generated. The buttons come after all the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls, so a button above a field would run before the field's new value arrived.
 
-Nothing is saved until you press **Save changes**; the panel says whether there are unsaved changes, and stays open after saving. **Reload** reads the selection and what is saved again (and discards unsaved changes); **Restore defaults** sets the page's fields to "not defined" (press **Save changes** to remove them); **Close** closes it. Notes:
+**Generate documentation** works on whatever is selected **at the moment of the click**: a component, a component set (it shows the set's own default variant, else the first one) or a variant. Then it:
 
-- **The component is the one loaded in the panel.** Saving writes to it, and refuses (saving nothing) when the selection is another one: press **Reload**. This also happens after you generate the documentation with the panel open, because the documentation becomes the selection.
-- **Empty version or status erases it.** The saved values appear filled in.
-- **Only what you changed is written.** A field you did not change keeps exactly what is saved, and a setting that is not defined stays not defined: choosing the default value by hand (for example the default line colour) while nothing is saved does not save it. Use **Restore defaults** to go back to "not defined" for the page.
-- **One undo step.** **Save changes** writes the page and the component together as one undo step, and none when nothing changed. Undoing does not refresh the panel: press **Reload**.
-- The panel is in the page's language and redraws at once when you change it, keeping what you typed.
+1. refuses, with a note and without touching the file, when nothing is selected or the selection is not a component, a set or a variant;
+2. saves the page's settings as the panel shows them (only what you changed is written);
+3. makes the documentation, as one undo step;
+4. takes the screen to the **start** of the documentation, as wide as the screen allows (zoom 100% at most);
+5. gives the selection back (what was selected before the click stays selected);
+6. empties Version and Status.
 
-The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`; default variant the component's own default, else the first variant of the set; version and status none (left out of the documentation).
+If something fails on the way, the app puts everything back as it was and shows the error. **Restore defaults** sets the page's fields to "not defined" (they are saved with the next documentation); **Close** closes the panel. The panel is in the page's language and redraws at once when you change it, keeping what you typed.
 
-**Scripts** can still set everything without the panel: `plugin.run` with the `settings` command and parameters `lang`, `cor_linha`, `cor_preenchimento`, `on_rerun`, `stage`, `versao`, `status` and `default_variant` writes them directly (an empty parameter keeps the saved value, `-` clears it), with the same checks and messages as before; this is what `scripts/regress.sh` uses for its pt-BR cases.
+The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`.
 
-### The documentation's date
+**Scripts** make the documentation with no panel by passing `direct: true` (the menu sends no parameters, and opens the panel): `plugin.run` with the `generate` command and the parameters `direct`, and optionally `lang`, `line`, `fill`, `stage`, `on_rerun` (they set the page's settings: an empty one keeps what is saved, `-` clears it, anything else is checked, with the same messages as the panel) and `version`, `status` (the header's texts; absent means “to be defined”). The selection is the one at the time of the call. This is what `scripts/regress.sh` uses.
+
+### The documentation's date, and what older versions saved
 
 The documentation does not show a generation date. The plugin host gives a plugin only the instant in UTC, with no time zone and
 no local time, so a date would be wrong for many people; it will come back when the plugin API offers a clock.
 
-- **Old settings.** Earlier versions (0.9.6 and before) saved a `tz` (time zone) on the page, and 0.9.5 and before a typed `date` in
-  each component's sheet (`handoff-meta`). Both are ignored, not erased: they stay in the file as they were. **Restore defaults**
-  removes the page's keys, `tz` included.
-- **A script that passes `tz`** to the `settings` command: the parameter is ignored.
+- **Old files.** Earlier versions saved a `tz` (time zone) on the page, and a `handoff-meta` sheet on each component (version, status, default variant, and a typed `date` before 0.9.6). The plugin ignores them and does not erase them: they stay in the file as they were. **Restore defaults** removes the page's keys, `tz` included.
 
 ## Demo
 
 [`demo/`](demo/README.md) holds the **DS Base Demo**: a small neutral design system built from scratch
 (Icon, Button, Card, Accordion, Code), with variables, styles and Light/Dark modes. Open
-`demo/ds-base-demo.figcraft` and generate documentation on it.
+`demo/ds-base-demo.figcraft` and generate documentation for it.
 
 ## Known limitations
 
 - Version 0.9.x, before 1.0: expect rough edges.
-- The documentation is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in **Settings…**. The **Settings…** item in the Plugins menu stays in English (the host takes its label from the manifest); the panel itself follows the page's language, and the values it saves stay in English (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
+- The documentation is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in the panel. The item in the Plugins menu stays in English (the host takes its label from the manifest); the panel itself follows the page's language, and the values it saves stay in English (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
 - The host does not report a layer's text case, so it is missing from the typography lines.
-- A run has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
+- The screen freezes while the documentation is generated (it is made inside the click, in the app's own thread, with no progress indicator).
+- A run, and each click in the panel, has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
   use much of it: the heaviest case in the regression net, a test fixture with a 155-layer component, uses 64.2%; the DS Base
   Demo's Card uses 23.5%.
 - Swapping an instance between variants shows up as one layer becoming hidden and another visible.
@@ -99,10 +98,10 @@ no local time, so a date would be wrong for many people; it will come back when 
 ## Tests and regression
 
 ```sh
-cargo test                      # 134 unit tests + 4 that keep English text out of the code
+cargo test                      # 130 unit tests + 4 that keep English text out of the code
 scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
-scripts/panel_sequence.py       # the Settings panel driven like the app does: field, then Save, writes on the first click
+scripts/panel_sequence.py       # the panel driven like the app does: Version and Status, then the button, in one click; refusals; direct mode
 ```
 
 `scripts/regress.sh --update [text]` rewrites the baseline for the cases whose name contains `text` (all, if omitted).

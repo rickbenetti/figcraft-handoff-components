@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""The Settings panel, driven the way the host drives it (headless, with the built dist/).
+"""The "Generate documentation…" panel, driven the way the host drives it (headless, with the built dist/).
 
-The host hands its events to the plugin in the order of the panel's controls and, in one frame, a field that
-loses focus and the button that took it both fire. With the buttons AFTER the fields the field's event comes
-first, so the button already sees the new value. This script plays that order and checks that the first Save
-writes what was typed:
+The host hands its events to the plugin in the order of the panel's controls; with the buttons AFTER the fields
+a field's event comes first, so the button already sees the new value. This script plays that order:
 
-  1. Version = "0.3", then Save   -> the component's sheet holds version 0.3 after that one Save.
-  2. Line colour = "#112233", then Save -> the page's settings hold line #112233 after that one Save.
-  3. No button comes before any field, in the real panel, for every kind of selection.
-  4. Selection changed, then Save -> refused: one refusal note only, nothing written.
-  5. The messages: no "all saved" next to "Settings saved"; the short Reload note unless something was unsaved.
-  6. Nothing loaded: the component section says so and the "selection changed" warning is not shown.
+  1. The menu (generate, no parameters) opens the panel and makes nothing; `direct: true` makes the
+     documentation with no panel.
+  2. Version="1.2" and Status="Aprovado" typed, then "Generate documentation": the documentation says
+     "Versão: 1.2 · Status: Aprovado", the first click wrote it, Version and Status are empty again, the
+     selection is what it was, and the screen is at the start of the documentation.
+  3. Nothing selected: refused with a note, nothing in the document.
+  4. A selection that is not a component (the documentation itself): refused with a note, nothing new.
+  5. The line colour typed, then the button: saved on the page on the first click.
+  6. A forced error (an instruction budget too small for the callback): everything is rolled back.
 
-`--states` prints the ordered controls (type and label) of each state of the panel, in pt-BR, as Markdown.
+`--states` prints the ordered controls (type and label) of the panel in each state, in pt-BR, as Markdown.
 Everything is written to a temporary folder (never over a fixture). Needs the plugin built (scripts/build.sh)
 and figcraft-cli on the PATH (or FIGCRAFT_CLI=/path/to/figcraft-cli)."""
 import json, os, subprocess, sys, tempfile
@@ -21,13 +22,12 @@ import json, os, subprocess, sys, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.path.join(ROOT, "dist")
 FIX = os.path.join(ROOT, "tests/fixtures")
-DEMO = os.path.join(ROOT, "demo/ds-base-demo.figcraft")
 PID = "me.benetti.handoff-components"
 CLI = os.environ.get("FIGCRAFT_CLI", "figcraft-cli")
 FIELDS = {"text", "number", "boolean", "select", "color", "list", "slider"}
 
 
-def run(src, steps, tmp, n=[0]):
+def run(src, steps, tmp, n=[0], expect_error=False):
     n[0] += 1
     script = os.path.join(tmp, f"s{n[0]}.json")
     out = os.path.join(tmp, f"s{n[0]}.figcraft")
@@ -35,17 +35,15 @@ def run(src, steps, tmp, n=[0]):
     p = subprocess.run([CLI, "run", "--in", src, "--out", out, script], capture_output=True, text=True, timeout=300)
     lines = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
     bad = [l for l in lines if not l.get("ok")]
+    if expect_error:
+        return bad[0] if bad else None
     if bad:
         sys.exit(f"step failed: {bad[0]}")
     return lines[1:]  # without plugin.import
 
 
-def settings(**params):
-    return {"command": "plugin.run", "params": {"id": PID, "command": "settings", "params": params}}
-
-
-def open_panel():
-    return {"command": "plugin.run", "params": {"id": PID, "command": "settings"}}
+def generate(**params):
+    return {"command": "plugin.run", "params": {"id": PID, "command": "generate", "params": params}}
 
 
 def event(control, value=None):
@@ -55,12 +53,25 @@ def event(control, value=None):
     return {"command": "plugin.event", "params": p}
 
 
+def ui():
+    return {"command": "plugin.ui", "params": {"id": PID}}
+
+
 def select(*ids):
     return {"command": "select.set", "params": {"ids": list(ids)}}
 
 
+def find(name):
+    return {"command": "node.find", "params": {"type": "frame", "name": name, "limit": 50}}
+
+
+def output(line):
+    return line["result"]["output"]
+
+
 def controls(line):
-    return [(c["type"], c.get("label", "")) for c in line["result"]["panel"]["controls"]]
+    panel = line["result"].get("panel") or line["result"]
+    return [(c["type"], c.get("label", "")) for c in panel["controls"]]
 
 
 def check_order(ctl, where):
@@ -68,7 +79,7 @@ def check_order(ctl, where):
     first_button = kinds.index("button")
     last_field = max((i for i, k in enumerate(kinds) if k in FIELDS), default=-1)
     assert last_field < first_button, f"{where}: a button comes before a field: {kinds}"
-    assert ctl[first_button][1] in ("Save changes", "Salvar alterações"), f"{where}: the first button is not Save"
+    assert ctl[first_button][1] in ("Generate documentation", "Gerar documentação"), f"{where}: the first button is not Generate"
 
 
 def main():
@@ -76,72 +87,83 @@ def main():
     if not os.path.isdir(DIST):
         sys.exit(f"build the plugin first: {DIST} is missing")
     failures = []
+
+    def check(ok, text, detail=""):
+        print(f"[{'ok' if ok else 'FAIL'}] {text}{(' — ' + detail) if detail else ''}")
+        if not ok:
+            failures.append(text + (f": {detail}" if detail else ""))
+
     with tempfile.TemporaryDirectory(prefix="handoff-panel-") as tmp:
         copia = f"{FIX}/fixture-copia-2.figcraft"
 
-        # 1. Version, then Save: the first Save writes it.
-        r = run(copia, [select(32), open_panel(), event("version", "0.3"), event("save"), event("reload")], tmp)
-        opened, typed, saved, reloaded = r[1], r[2], r[3], r[4]
-        ok = saved["result"]["output"]["extra"]["saved"] and saved["result"]["output"]["extra"]["wrote_component"]
-        shown = reloaded["result"]["panel"]["values"].get("version")
-        if not (ok and shown == "0.3"):
-            failures.append(f"version then save: saved={ok}, reloaded shows {shown!r}")
-        print(f"[{'ok' if ok and shown == '0.3' else 'FAIL'}] Version=0.3, then Save: written on the first Save, and a Reload shows {shown!r}")
+        # 1. The menu opens the panel; `direct` makes the documentation with no panel.
+        r = run(copia, [select(32), generate(), ui(), find("Documentation")], tmp)
+        opened, panel, frames = r[1], r[2], r[3]
+        ok = output(opened)["phase"] == "open" and bool(panel["result"]) and frames["result"]["total"] == 0
+        check(ok, "generate with no parameters (the menu) opens the panel and makes nothing", f"{len(controls(panel))} controls, {frames['result']['total']} documentation frames")
+        check_order(controls(panel), "menu")
+        r = run(copia, [select(32), generate(direct=True), ui(), find("Documentation")], tmp)
+        check(bool(output(r[1]).get("frame")) and not r[2]["result"] and r[3]["result"]["total"] == 1, "generate with direct: true makes the documentation and opens no panel")
 
-        # 2. The line colour typed in the hex field, then Save.
-        r = run(copia, [select(32), open_panel(), event("line", "#112233"), event("save"), event("reload")], tmp)
-        saved, reloaded = r[3], r[4]
-        ok = saved["result"]["output"]["extra"]["saved"] and saved["result"]["output"]["extra"]["wrote_page"]
-        shown = reloaded["result"]["panel"]["values"].get("line")
-        if not (ok and shown == "#112233"):
-            failures.append(f"line then save: saved={ok}, reloaded shows {shown!r}")
-        print(f"[{'ok' if ok and shown == '#112233' else 'FAIL'}] Line colour=#112233, then Save: written on the first Save, and a Reload shows {shown!r}")
+        # 2. Version and Status typed, then the button; in Portuguese.
+        r = run(
+            copia,
+            [select(32), generate(), event("lang", "Português (Brasil)"), event("version", "1.2"), event("status", "Aprovado"), event("generate"), ui(), event("stage", "Claro"), find("Documentação")],
+            tmp,
+        )
+        click, after, seen, frames = r[5], r[6], r[7], r[8]
+        out = output(click)
+        values = after["result"]["values"]
+        check(not out["refused"] and out["meta"] == {"version": "1.2", "status": "Aprovado"}, "Versão=1.2 and Status=Aprovado typed, then one click: made, with both texts", json.dumps(out["meta"], ensure_ascii=False))
+        check(values.get("version") == "" and values.get("status") == "", "Version and Status are empty again after the documentation")
+        check(output(seen)["selection_now"] == [32], "the selection is back to what it was before the click", str(output(seen)["selection_now"]))
+        v = out["view"]
+        check("error" not in v and v["zoom"] is not None and 0 < v["zoom"] <= 1.0, "the screen went to the documentation (zoom at most 100%)", json.dumps({k: v.get(k) for k in ("zoom", "cx", "cy", "vw", "vh")}))
+        check(frames["result"]["total"] == 1, "one documentation frame named Documentação — …")
+        msg = [l for _, l in controls(after)]
+        done = [l for l in msg if l.startswith("✔ Documentação gerada: ")]
+        check(bool(done), "the panel says ✔ Documentação gerada", done[0] if done else "")
+        # The header line, read from the documentation (the frame is 50 in this fixture; its Header's texts follow).
+        r = run(copia, [select(32), generate(direct=True, lang="pt-BR", version="1.2", status="Aprovado")] + [{"command": "node.get", "params": {"id": i, "fields": ["characters"]}} for i in range(52, 58)], tmp)
+        lines = [x["result"].get("characters") for x in r[2:]]
+        check("Versão: 1.2 · Status: Aprovado" in lines, "the header says «Versão: 1.2 · Status: Aprovado»", str([l for l in lines if l][:3]))
+        r = run(copia, [select(32), generate(direct=True)] + [{"command": "node.get", "params": {"id": i, "fields": ["characters"]}} for i in range(52, 58)], tmp)
+        lines = [x["result"].get("characters") for x in r[2:]]
+        check("Version: to be defined · Status: to be defined" in lines, "with nothing typed the header says «to be defined» twice")
 
-        # 3. No button before any field, whatever is selected.
-        cases = [("no selection", copia, []), ("component", copia, [32]), ("variant", copia, [3]), ("set", DEMO, None)]
-        for name, src, ids in cases:
-            if ids is None:
-                found = find_set(src, "Button", tmp)
-                ids = [found]
-            r = run(src, [select(*ids), open_panel()], tmp)
-            ctl = controls(r[1])
+        # 3. Nothing selected.
+        r = run(copia, [select(), generate(), event("generate"), find("Documentation")], tmp)
+        out, frames = output(r[2]), r[3]
+        labels = [l for _, l in controls(r[2])]
+        check(out["refused"] and frames["result"]["total"] == 0 and any(l.startswith("✖ Nothing is selected") for l in labels), "nothing selected: refused with a ✖ note, nothing made")
+
+        # 4. The selection is not a component: the documentation just made.
+        r = run(copia, [select(32), generate(direct=True), generate(), event("generate"), find("Documentation")], tmp)
+        out, frames = output(r[3]), r[4]
+        labels = [l for _, l in controls(r[3])]
+        refusal = [l for l in labels if l.startswith("✖")]
+        check(out["refused"] and frames["result"]["total"] == 1 and any(l.startswith("✖ The selection is of type Frame") for l in labels), "a frame selected: refused with a ✖ note, nothing new made", refusal[0] if refusal else "")
+
+        # 5. A field, then the button: written on the first click.
+        r = run(copia, [select(32), generate(), event("line", "#112233"), event("generate"), generate(), ui()], tmp)
+        reopened = r[5]["result"]["values"]
+        check(reopened.get("line") == "#112233", "line colour typed, then one click: saved on the page (a reopened panel shows it)", str(reopened.get("line")))
+        r = run(copia, [select(32), generate(), event("line", "#112233"), event("generate"), select(32), generate(), event("defaults"), event("generate"), generate(), ui()], tmp)
+        check(r[9]["result"]["values"].get("line") == "#FCA311", "Restore defaults, then the button: the page's settings are cleared", str(r[9]["result"]["values"].get("line")))
+
+        # 6. The order of the controls in the real panel, whatever is selected.
+        for name, src, ids in [("no selection", copia, []), ("component", copia, [32]), ("variant", copia, [3])]:
+            r = run(src, [select(*ids), generate()], tmp)
             try:
-                check_order(ctl, name)
-                print(f"[ok] order, {name}: {len(ctl)} controls, buttons after every field")
+                check_order(controls(r[1]), name)
+                print(f"[ok] order, {name}: {len(controls(r[1]))} controls, buttons after every field")
             except AssertionError as e:
                 failures.append(str(e))
                 print(f"[FAIL] {e}")
 
-        # 4. A save refused because the selection is another one: a single refusal note.
-        r = run(copia, [select(32), open_panel(), select(3), event("version", "9"), event("save")], tmp)
-        out = r[4]["result"]["output"]
-        labels = [l for _, l in controls(r[4])]
-        refusals = [l for l in labels if l.startswith("✖")]
-        ok = (not out["extra"]["saved"]) and len(refusals) == 1 and "Nothing was saved" in refusals[0]
-        if not ok:
-            failures.append(f"refusal: saved={out['extra']['saved']}, notes={refusals}")
-        print(f"[{'ok' if ok else 'FAIL'}] Selection changed, then Save: refused, {len(refusals)} refusal note: {refusals}")
-
-        # 5. Messages: no duplicate after a save; the short reload note unless there were unsaved changes.
-        r = run(copia, [select(32), open_panel(), event("version", "0.4"), event("save"), event("reload"), event("version", "0.5"), event("reload")], tmp)
-        after_save = [l for _, l in controls(r[3])]
-        clean = [l for _, l in controls(r[4])]
-        dirty = [l for _, l in controls(r[6])]
-        ok = (not any("All changes are saved" in l for l in after_save) and any(l == "✔ Settings saved" for l in after_save)
-              and "✔ Reloaded from what is saved." in clean and not any("discarded" in l for l in clean)
-              and any("unsaved changes were discarded" in l for l in dirty))
-        if not ok:
-            failures.append(f"messages: after save={after_save[-8:]}, clean reload={clean[-8:]}, dirty reload={dirty[-8:]}")
-        print(f"[{'ok' if ok else 'FAIL'}] Messages: no 'all saved' next to 'Settings saved'; short Reload note, long one only after unsaved changes")
-
-        # 6. Nothing loaded: the component section says so, and the selection warning is not shown.
-        r = run(copia, [select(), open_panel(), select(32), event("line", "#112233")], tmp)
-        for where, line in (("opened", r[1]), ("after a selection change", r[3])):
-            labels = [l for _, l in controls(line)]
-            ok = "COMPONENT" in labels and any(l.startswith("No component loaded.") for l in labels) and not any("selection changed" in l for l in labels)
-            if not ok:
-                failures.append(f"no component, {where}: {labels}")
-            print(f"[{'ok' if ok else 'FAIL'}] No component loaded, {where}: section note present, no selection warning")
+        # 7. A forced error: the instruction budget is too small for the callback, so the host rolls everything back.
+        err = run(copia, [select(32), {"command": "plugin.run", "params": {"id": PID, "command": "generate", "fuel": 9000000}}, event("generate")], tmp, expect_error=True)
+        check(err is not None and err.get("rolledBack") is True and "instruction budget" in err.get("error", ""), "a callback that fails is rolled back by the host (a budget too small is the forced error)", (err or {}).get("error", "no error")[:120])
 
         if states:
             print_states(tmp, copia)
@@ -154,16 +176,6 @@ def main():
     return 0
 
 
-def find_set(src, name, tmp):
-    r = run(src, [{"command": "node.find", "params": {"name": name, "type": "component_set", "limit": 10}}], tmp)
-    ids = r[0]["result"]["ids"]
-    for i in ids:
-        g = run(src, [{"command": "node.get", "params": {"id": i, "fields": ["name"]}}], tmp)
-        if g[0]["result"]["name"] == name:
-            return i
-    sys.exit(f"set {name!r} not found")
-
-
 def md(title, ctl):
     print(f"\n#### {title} ({len(ctl)} controles)\n")
     for i, (t, l) in enumerate(ctl, 1):
@@ -171,23 +183,17 @@ def md(title, ctl):
 
 
 def print_states(tmp, copia):
-    pt = settings(lang="pt-BR")
-    button = find_set(DEMO, "Button", tmp)
-    r = run(copia, [pt, select(), open_panel()], tmp)
-    md("Sem seleção", controls(r[2]))
-    r = run(copia, [pt, select(32), open_panel(), event("version", "0.3"), event("save"), event("reload")], tmp)
-    md("Componente (recém-aberto)", controls(r[2]))
-    md("Componente, com alterações não salvas (após digitar a Versão)", controls(r[3]))
-    md("Componente, logo depois de salvar", controls(r[4]))
-    md("Componente, logo depois de recarregar", controls(r[5]))
-    r = run(DEMO, [pt, select(button), open_panel()], tmp)
-    md("Conjunto com variantes (Button do DS Base Demo)", controls(r[2]))
-    r = run(copia, [pt, select(3), open_panel()], tmp)
-    md("Variante de um conjunto (copia-2, id 3)", controls(r[2]))
-    r = run(copia, [pt, select(32), open_panel(), select(3), event("version", "9"), event("save")], tmp)
-    md("Recusa por seleção diferente (salvar com outra seleção)", controls(r[5]))
-    r = run(copia, [pt, select(32), open_panel(), select(3), event("version", "9")], tmp)
-    md("Seleção mudou, sem salvar (aviso de seleção)", controls(r[4]))
+    pt = generate(direct=True, lang="pt-BR")
+    # The page is set to pt-BR by a direct run first (that also leaves a documentation, so the file is reopened
+    # fresh for what comes next); then the panel is opened from the menu.
+    r = run(copia, [select(32), pt, select(32), generate()], tmp)
+    md("Aberto (com ou sem seleção: a lista é a mesma)", controls(r[3]))
+    r = run(copia, [select(32), pt, select(32), generate(), event("version", "1.2"), event("status", "Aprovado"), event("generate")], tmp)
+    md("Depois de gerar com sucesso (Versão e Status em branco)", controls(r[6]))
+    r = run(copia, [select(32), pt, select(), generate(), event("generate")], tmp)
+    md("Recusa: nada selecionado", controls(r[4]))
+    r = run(copia, [select(32), pt, generate(), event("generate")], tmp)
+    md("Recusa: seleção que não é componente (a documentação gerada pelo passo direto)", controls(r[3]))
 
 
 if __name__ == "__main__":

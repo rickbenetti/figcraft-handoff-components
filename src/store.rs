@@ -1,31 +1,28 @@
 //! What the plugin remembers, and where.
 //!
-//! - **Settings** (language, colours, what to do on a rerun, the stage) are one JSON object in the
-//!   `pluginData` of the current page, under [`SETTINGS_KEY`].
-//! - **The component's sheet** (version, status and, for a set, the default variant) is one JSON object in the `pluginData` of
-//!   the main component, under [`META_KEY`]; for a variant, of its component set, so that every
-//!   variant shares it.
+//! The page's **settings** (language, colours, what to do on a rerun, the stage) are one JSON object in the
+//! `pluginData` of the current page, under [`SETTINGS_KEY`]. Nothing else is remembered: Version and Status are
+//! typed for each documentation.
 //!
-//! `pluginData` values are strings, so each object is stored as JSON text. A field that was never
-//! set is left out of the object, and an object with nothing in it is removed.
+//! `pluginData` values are strings, so the object is stored as JSON text. A field that was never set is left
+//! out of the object, and an object with nothing in it is removed.
 //!
-//! Sheets saved by 0.9.5 and before may hold a `date`, and a page may hold a `tz` (a time zone, from
-//! the days the report had a date). They are not read, but they are not deleted either: a key the
-//! plugin doesn't know is written back as it was.
+//! A page may still hold a `tz` (a time zone, from the days the documentation had a date), and a component the
+//! `handoff-meta` sheet of earlier versions (version, status, default variant). None of it is read, and none
+//! of it is deleted: a key the plugin doesn't know is written back as it was, and the sheet is never touched.
 
 use figcraft_plugin_sdk::Value;
 
 /// The `pluginData` key of the settings, on the page.
 pub const SETTINGS_KEY: &str = "handoff-settings";
-/// The `pluginData` key of the component's sheet, on the main component (or its set).
-pub const META_KEY: &str = "handoff-meta";
-/// The `pluginData` key that marks a report frame with the id of the component it shows.
+/// The `pluginData` key that marks a documentation frame with the id of the component it shows. It keeps
+/// its old name so that a rerun still finds (and replaces) what earlier versions made.
 pub const REPORT_KEY: &str = "handoff-report";
 
-/// What to do when a report of the component is already on the page.
+/// What to do when a documentation of the component is already on the page.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Rerun {
-    /// Delete the old report and make the new one where it was.
+    /// Delete the old documentation and make the new one where it was.
     #[default]
     Replace,
     /// Keep the old one and make a new one to the right of everything.
@@ -92,18 +89,6 @@ impl StageMode {
     }
 }
 
-/// The component's sheet.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Meta {
-    pub version: Option<String>,
-    pub status: Option<String>,
-    /// The default variant of a component set ("Size=Small, State=Enabled"; may be partial).
-    pub default: Option<String>,
-    /// The keys of the stored object that this version doesn't know (a `date` from 0.9.5 and
-    /// before): ignored when reading, written back when the sheet is saved.
-    pub other: serde_json::Map<String, Value>,
-}
-
 fn text_of(obj: &Value, key: &str) -> Option<String> {
     obj.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()).map(ToString::to_string)
 }
@@ -145,18 +130,6 @@ impl Settings {
     /// The rerun mode: the stored one, or the default.
     pub fn rerun(&self) -> Rerun {
         self.on_rerun.as_deref().and_then(Rerun::parse).unwrap_or_default()
-    }
-}
-
-impl Meta {
-    pub fn from_plugin_data(plugin_data: &Value) -> Meta {
-        let o = stored(plugin_data, META_KEY);
-        let other = o.as_object().map(|m| m.iter().filter(|(k, _)| !matches!(k.as_str(), "version" | "status" | "default")).map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default();
-        Meta { version: text_of(&o, "version"), status: text_of(&o, "status"), default: text_of(&o, "default"), other }
-    }
-
-    pub fn to_text(&self) -> Option<String> {
-        to_text(&[("default", &self.default), ("version", &self.version), ("status", &self.status)], &self.other)
     }
 }
 
@@ -202,7 +175,6 @@ mod tests {
     #[test]
     fn nothing_set_means_nothing_stored_and_defaults() {
         assert_eq!(Settings::default().to_text(), None);
-        assert_eq!(Meta::default().to_text(), None);
         assert_eq!(Settings::default().rerun(), Rerun::Replace);
         // Absent, empty or broken data all read as nothing.
         for data in [json!({}), json!(null), json!({SETTINGS_KEY: "not json"}), json!({SETTINGS_KEY: "[1]"})] {
@@ -218,28 +190,6 @@ mod tests {
         assert_eq!(update(&cur, "-"), None);
         assert_eq!(update(&cur, " 2.0 "), Some("2.0".to_string()));
         assert_eq!(update(&None, ""), None);
-    }
-
-    #[test]
-    fn meta_round_trip() {
-        let m = Meta { version: Some("1.2.0".into()), status: Some("Aprovado".into()), default: Some("Size=Small".into()), other: serde_json::Map::new() };
-        assert_eq!(Meta::from_plugin_data(&json!({META_KEY: m.to_text().unwrap()})), m);
-    }
-
-    #[test]
-    fn a_date_saved_by_an_older_version_is_not_read_but_is_kept() {
-        let old = r#"{"date":"2026-11-01","default":"Size=Small","status":"Aprovado","version":"1.2.0"}"#;
-        let m = Meta::from_plugin_data(&json!({META_KEY: old}));
-        assert_eq!((m.version.as_deref(), m.status.as_deref(), m.default.as_deref()), (Some("1.2.0"), Some("Aprovado"), Some("Size=Small")));
-        // Changing the status writes the old date back untouched.
-        let next = Meta { status: Some("Rascunho".into()), ..m };
-        assert_eq!(next.to_text().as_deref(), Some(r#"{"date":"2026-11-01","default":"Size=Small","status":"Rascunho","version":"1.2.0"}"#));
-        // A sheet that holds only the old date is not emptied.
-        let only = Meta::from_plugin_data(&json!({META_KEY: r#"{"date":"2026-11-01"}"#}));
-        assert_eq!(only.to_text().as_deref(), Some(r#"{"date":"2026-11-01"}"#));
-        // Clearing every field the plugin knows leaves just that.
-        let cleared = Meta { version: None, status: None, default: None, ..only };
-        assert_eq!(cleared.to_text().as_deref(), Some(r#"{"date":"2026-11-01"}"#));
     }
 
     #[test]

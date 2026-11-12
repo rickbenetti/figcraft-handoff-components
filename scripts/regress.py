@@ -6,7 +6,7 @@ contains `text`, when given; the other entries are kept). `--dump FILE` writes t
 `--private` runs only the cases in tests/private/ (a folder git ignores) and compares them with
 tests/private/baseline-private.json; without the folder it says so and exits 0.
 
-The cases named "pt-BR / ..." run the same way after a `settings` run that sets the language to pt-BR (their summary,
+The cases named "pt-BR / ..." run the same way with the language set to pt-BR in the parameters (their summary,
 deltas and block titles are in Portuguese). The cases without that prefix run in English (the default) and are the
 net that the English report does not change.
 
@@ -37,7 +37,7 @@ for _n in ["Button", "Card", "Accordion", "Code", "Icon"]:
     CASES[f"ds-base-demo / {_n}"] = (DEMO, _n)
 
 # The same layers with the report in Brazilian Portuguese (added in 0.9.6; the English cases above are untouched).
-# name: (file, id or name, language the Settings are set to before the run)
+# name: (file, id or name, language passed in the parameters)
 PT_CASES = {
     "pt-BR / copia-2 / id 32": (f"{FIX}/fixture-copia-2.figcraft", 32, "pt-BR"),
     "pt-BR / carga-v2 / id 3 (Toast variant)": (f"{FIX}/fixture-carga-v2.figcraft", 3, "pt-BR"),
@@ -92,12 +92,12 @@ def run_case(src, layer, tmp, n, lang=None):
         layer = found
     script = os.path.join(tmp, f"case{n}.json")
     out = os.path.join(tmp, f"case{n}.figcraft")
-    steps = [{"command": "plugin.import", "params": {"path": DIST}}]
-    if lang:
-        steps.append({"command": "plugin.run", "params": {"id": PID, "command": "settings", "params": {"lang": lang}}})
-    steps += [
+    # `direct` makes the documentation with no panel (the menu sends no parameters and opens the panel).
+    params = {"direct": True, **({"lang": lang} if lang else {})}
+    steps = [
+        {"command": "plugin.import", "params": {"path": DIST}},
         {"command": "select.set", "params": {"ids": [layer]}},
-        {"command": "plugin.run", "params": {"id": PID, "command": "generate"}},
+        {"command": "plugin.run", "params": {"id": PID, "command": "generate", "params": params}},
     ]
     json.dump(steps, open(script, "w"))
     p = cli(["run", "--in", src, "--out", out, script])

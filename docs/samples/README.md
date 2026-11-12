@@ -12,10 +12,10 @@ see `LEIA-ME.md`, in Portuguese). They are kept as reference for the host's comm
 
 1. Build the plugin with `scripts/build.sh`. It prints the absolute path of the manifest to import.
 2. In FigCraft: **Plugins ▸ Development ▸ Import plugin from manifest…**, pick `dist/figcraft-plugin.json`.
-3. Open `demo/ds-base-demo.figcraft`, select a component or a set, and run **Plugins ▸ Handoff Components ▸ Generate documentation**.
+3. Open `demo/ds-base-demo.figcraft`, select a component or a set, run **Plugins ▸ Handoff Components ▸ Generate documentation…** and press **Generate documentation** in the panel.
    The documentation goes to the right of everything on the page, at the same height.
 
-From a terminal (always write to another file, never over the original):
+From a terminal (always write to another file, never over the original; `direct` makes it with no panel):
 
 ```sh
 figcraft-cli run --in demo/ds-base-demo.figcraft --out /tmp/demo-out.figcraft script.json
@@ -26,5 +26,5 @@ where `script.json` imports the plugin, selects a layer (look the id up by name 
 ```json
 [{"command": "plugin.import", "params": {"path": "dist"}},
  {"command": "select.set", "params": {"ids": [623]}},
- {"command": "plugin.run", "params": {"id": "me.benetti.handoff-components", "command": "generate"}}]
+ {"command": "plugin.run", "params": {"id": "me.benetti.handoff-components", "command": "generate", "params": {"direct": true}}}]
 ```

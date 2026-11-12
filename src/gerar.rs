@@ -8,7 +8,7 @@ use crate::glyphs;
 use crate::i18n::{Key, Lang, override_name, plural, t, tf};
 use crate::contrast::{self, Rgba};
 use crate::delta;
-use crate::store::{Meta, REPORT_KEY, Rerun, Settings, StageMode};
+use crate::store::{REPORT_KEY, Rerun, Settings, StageMode};
 use crate::theme;
 use crate::variants::{self, Pairs, SetInfo, Variant};
 use figcraft_plugin_sdk::{Input, Result, Value, call, json, notify};
@@ -690,7 +690,7 @@ fn header_name(name: &str, layers: usize, content: Option<&str>) -> String {
 
 /// A layer type in words: "Frame", "Text", "Group"… A type the dictionary doesn't know is the host's
 /// name in title case.
-fn kind_word(lang: Lang, kind: &str) -> String {
+pub(crate) fn kind_word(lang: Lang, kind: &str) -> String {
     kind_key(kind).map_or_else(|| title_case(kind), |key| t(lang, key).to_string())
 }
 
@@ -1135,7 +1135,7 @@ fn component_default(lang: Lang, set: u64, info: &SetInfo) -> Option<Pairs> {
         .filter(|p| p.get("type").and_then(Value::as_str) == Some("variant"))
         .filter_map(|p| Some((clean_name(p.get("name")?.as_str()?).to_string(), p.get("default")?.as_str()?.to_string())))
         .collect();
-    if typed.is_empty() { None } else { variants::complete(info, &typed).ok() }
+    if typed.is_empty() { None } else { variants::complete(info, &typed) }
 }
 
 /// The variants of a component set, as `node.get` gives its children (name and box).
@@ -1151,14 +1151,6 @@ pub fn variants_of(node: &Value) -> Vec<Variant> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-/// Load a component set: its variants and what they spell.
-pub fn load_set(lang: Lang, id: u64) -> Result<(SetInfo, Meta)> {
-    let node = host(lang, "node.get", &json!({"id": id, "fields": ["name", "children", "absoluteBounds", "pluginData"]}))?;
-    let name = node.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
-    let meta = Meta::from_plugin_data(node.get("pluginData").unwrap_or(&Value::Null));
-    Ok((SetInfo::new(id, name, variants_of(&node)), meta))
 }
 
 /// The component set that holds `component`, if one does.
@@ -1181,7 +1173,7 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
     if selection.len() > 1 {
         notes.push(tf(lang, Key::Variants, &[("n", &selection.len().to_string())]));
     }
-    let mut node = host(lang, "node.get", &json!({"id": id, "fields": ["type", "name", "mainComponent", "overrides", "children", "absoluteBounds", "pluginData"]}))?;
+    let mut node = host(lang, "node.get", &json!({"id": id, "fields": ["type", "name", "mainComponent", "overrides", "children", "absoluteBounds"]}))?;
     let mut set: Option<u64> = None;
     let mut set_pick: Option<SetPick> = None;
     let mut set_name = String::new();
@@ -2085,7 +2077,7 @@ pub fn generate(input: Input) -> Result<Value> {
         .collect();
     let badge_layers: Vec<Value> = numbered.iter().map(|(n, node)| json!({"n": n, "layer": walked.get(*node).and_then(|(v, _)| v.get("name")).cloned().unwrap_or(Value::Null)})).collect();
     Ok(json!({
-        "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
+        "name": name, "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
         "x": x, "y": y, "replaced": replaced, "rerun": rerun.name(), "top_level_layers": top_level, "id_source": id_source,
         "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill}, "meta": {"version": versao, "status": status},
         "notes": notes, "lang": lang.code(), "selected": selected,

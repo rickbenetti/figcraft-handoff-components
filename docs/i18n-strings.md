@@ -40,17 +40,11 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ErrBadRerun | on rerun must be replace or new, not "{value}" | ao rodar de novo deve ser replace ou new, não "{value}" |
 | ErrBadStage | stage must be light, dark or auto, not "{value}" | o palco deve ser light, dark ou auto, não "{value}" |
 | ErrCall | {cmd}: {reason} | {cmd}: {reason} |
-| ErrDefaultMalformed | "{text}" is not Property=Option (for example Size=Small, State=Enabled) | "{text}" não está no formato Propriedade=Opção (por exemplo Size=Small, State=Enabled) |
-| ErrDefaultNoVariant | No variant is named "{name}" | Nenhuma variante se chama "{name}" |
-| ErrDefaultOption | "{value}" is not an option of {prop}. Valid: {valid} | "{value}" não é uma opção de {prop}. Válidas: {valid} |
-| ErrDefaultProp | "{prop}" is not a variant property. Valid: {valid} | "{prop}" não é uma propriedade de variante. Válidas: {valid} |
 | ErrEmptySet | component set {id} has no variants | o conjunto de componentes {id} não tem variantes |
-| ErrMetaSelection | Select the component or instance whose version or status you are setting | Selecione o componente ou a instância cuja versão ou status você está definindo |
 | ErrNoId | {what}: no id in the reply | {what}: sem id na resposta |
 | ErrNoMain | instance {id} has no main component | a instância {id} não tem componente principal |
 | ErrNoPage | page.list: no page | page.list: nenhuma página |
 | ErrNoSelection | Select a component or an instance | Selecione um componente ou uma instância |
-| ErrNoVariants | This component has no variants, so it has no default variant | Este componente não tem variantes, então não tem variante padrão |
 | ErrNotComponent | layer {id} is a {kind}, not a component or an instance | a camada {id} é {kind}, não um componente nem uma instância |
 | ErrNotList | page.list: the reply isn't a list | page.list: a resposta não é uma lista |
 | ErrParent | instance.place put the instance in {parent}, not in the stage {stage} | instance.place colocou a instância em {parent}, não no palco {stage} |
@@ -121,8 +115,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ResizeFill | Fill | Preencher contêiner |
 | ResizeFixed | Fixed | Fixo |
 | ResizeHug | Hug | Ajustar ao conteúdo |
-| SettingsKept | Nothing to change | Nada a alterar |
-| SettingsSaved | Settings saved | Configurações salvas |
 | SpAlignment | Alignment | Alinhamento |
 | SpDirection | Direction | Direção |
 | SpHResizing | Horizontal resizing | Redimensionamento horizontal |
@@ -189,11 +181,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | AlignBottomCenter | Bottom center | Base ao centro |
 | AlignBottomRight | Bottom right | Base à direita |
 | AlignCompose | {vertical} {horizontal} | {vertical}, {horizontal} |
-| PanelTitle | Handoff Components: Settings | Handoff Components: Configurações |
-| PanelUnsaved | There are unsaved changes | Há alterações não salvas |
-| PanelAllSaved | All changes are saved | Todas as alterações estão salvas |
-| PanelSave | Save changes | Salvar alterações |
-| PanelReload | Reload | Recarregar |
+| PanelTitle | Handoff Components: Generate documentation | Handoff Components: Gerar documentação |
 | PanelDefaults | Restore defaults | Restaurar padrões |
 | PanelClose | Close | Fechar |
 | PanelTitlePage | THIS PAGE | ESTA PÁGINA |
@@ -210,20 +198,17 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelRerun | On rerun | Ao rodar de novo |
 | PanelRerunReplace | Replace | Substituir |
 | PanelRerunNew | New | Novo |
-| PanelTitleComponent | COMPONENT | COMPONENTE |
-| PanelTitleSet | COMPONENT SET | CONJUNTO DE COMPONENTES |
-| PanelTitleVariant | SET VARIANT | VARIANTE DO CONJUNTO |
 | PanelVersion | Version | Versão |
 | PanelStatus | Status | Status |
-| PanelDefaultVariant | Default variant: {prop} | Variante padrão: {prop} |
-| PanelNone | (none) | (nenhuma) |
-| PanelMoreProps | +{n} more variant properties not shown | +{n} propriedades de variante não exibidas |
-| PanelSelectionMoved | The selection changed since the panel was loaded. Press Reload to use it. | A seleção mudou desde que o painel foi carregado. Aperte Recarregar para usá-la. |
-| PanelSelectionRefused | The selection is not the loaded component. Nothing was saved: press Reload. | A seleção não é o componente carregado. Nada foi salvo: aperte Recarregar. |
-| PanelReloaded | Reloaded from what is saved. | Recarregado do que está salvo. |
-| PanelReloadedDiscarded | Reloaded from what is saved; unsaved changes were discarded. | Recarregado do que está salvo; as alterações não salvas foram descartadas. |
-| PanelNoComponent | No component loaded. Select a component on the canvas and press Reload. | Nenhum componente carregado. Selecione um componente no canvas e aperte Recarregar. |
-| PanelRestored | Page settings are back to the defaults. Press Save changes to apply. | As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar. |
+| PanelRestored | Page settings are back to the defaults. They are saved with the next documentation. | As configurações da página voltaram aos padrões. Elas são gravadas na próxima documentação gerada. |
 | PanelTitleMessages | MESSAGES | MENSAGENS |
 | VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
 | ToBeDefined | to be defined | a definir |
+| PanelTitleDocumentation | DOCUMENTATION | DOCUMENTAÇÃO |
+| PanelBlankHint | Left blank, the documentation shows “to be defined”. | Em branco, a documentação mostra “a definir”. |
+| PanelIdle | Select a component, a component set or a variant and press Generate documentation. | Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação. |
+| PanelGenerated | Documentation generated: {name}. | Documentação gerada: {name}. |
+| PanelNothingSelected | Nothing is selected. Select a component, a component set or a variant and press Generate documentation. | Nada selecionado. Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação. |
+| PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e aperte Gerar documentação. |
+| PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
+| PanelGenerate | Generate documentation | Gerar documentação |

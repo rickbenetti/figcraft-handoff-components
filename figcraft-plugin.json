@@ -27,17 +27,15 @@
       "text.style",
       "component.properties",
       "export.add",
-      "style.list"
+      "style.list",
+      "view.get",
+      "view.set"
     ]
   },
   "commands": [
     {
       "id": "generate",
-      "label": "Generate documentation"
-    },
-    {
-      "id": "settings",
-      "label": "Settings…"
+      "label": "Generate documentation…"
     }
   ]
 }

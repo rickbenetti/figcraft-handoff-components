@@ -9,6 +9,6 @@ delta.rs | spread | the host's field name of an effect (`spread`)
 delta.rs | effect | the host's field name `styles.effect`
 gerar.rs | Bold | the font style passed to the host to draw the report's own texts
 gerar.rs | selection: Input.selection (the `selection` field of the run's input; not a FigCraft command) | only in the JSON a run returns (`id_source`), never drawn
-store.rs | auto | the stage mode typed in Settings and saved (light, dark and auto stay in English, decision P11)
+store.rs | auto | the stage mode saved from the panel or a script (light, dark and auto stay in English, decision P11)
 theme.rs | Inter | the report's font family
 audit.rs | Auto | the host's `lineHeight` text, matched here and worded through LineHeightAutoHost
