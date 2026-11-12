@@ -192,7 +192,7 @@
   "PanelReload": "Reload",
   "PanelDefaults": "Restore defaults",
   "PanelClose": "Close",
-  "PanelPageHeading": "── This page ──",
+  "PanelTitlePage": "THIS PAGE",
   "PanelLang": "Language",
   "PanelLangEn": "English",
   "PanelLangPt": "Português (Brasil)",
@@ -206,9 +206,9 @@
   "PanelRerun": "On rerun",
   "PanelRerunReplace": "Replace",
   "PanelRerunNew": "New",
-  "PanelTargetComponent": "── Component: {name} ──",
-  "PanelTargetSet": "── Component set: {name} ──",
-  "PanelTargetVariant": "── Variant of the set: {name} ──",
+  "PanelTitleComponent": "COMPONENT",
+  "PanelTitleSet": "COMPONENT SET",
+  "PanelTitleVariant": "SET VARIANT",
   "PanelVersion": "Version",
   "PanelStatus": "Status",
   "PanelDefaultVariant": "Default variant: {prop}",
@@ -216,7 +216,9 @@
   "PanelMoreProps": "+{n} more variant properties not shown",
   "PanelSelectionMoved": "The selection changed since the panel was loaded. Press Reload to use it.",
   "PanelSelectionRefused": "The selection is not the loaded component. Nothing was saved: press Reload.",
-  "PanelReloaded": "Reloaded from what is saved; unsaved changes were discarded.",
+  "PanelReloaded": "Reloaded from what is saved.",
+  "PanelReloadedDiscarded": "Reloaded from what is saved; unsaved changes were discarded.",
+  "PanelNoComponent": "No component loaded. Select a component on the canvas and press Reload.",
   "PanelRestored": "Page settings are back to the defaults. Press Save changes to apply.",
-  "PanelMessagesHeading": "── Messages ──"
+  "PanelTitleMessages": "MESSAGES"
 }

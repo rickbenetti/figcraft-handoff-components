@@ -151,13 +151,13 @@ keys! {
     AliasBroken, ErrUnknownCommand, AlignTopLeft, AlignTopCenter, AlignTopRight,
     AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft, AlignBottomCenter,
     AlignBottomRight, AlignCompose, PanelTitle, PanelUnsaved, PanelAllSaved,
-    PanelSave, PanelReload, PanelDefaults, PanelClose, PanelPageHeading,
+    PanelSave, PanelReload, PanelDefaults, PanelClose, PanelTitlePage,
     PanelLang, PanelLangEn, PanelLangPt, PanelLineColour, PanelFillAuto,
     PanelFillColour, PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
     PanelRerun, PanelRerunReplace, PanelRerunNew,
-    PanelTargetComponent, PanelTargetSet, PanelTargetVariant, PanelVersion,
+    PanelTitleComponent, PanelTitleSet, PanelTitleVariant, PanelVersion,
     PanelStatus, PanelDefaultVariant, PanelNone, PanelMoreProps, PanelSelectionMoved,
-    PanelSelectionRefused, PanelReloaded, PanelRestored, PanelMessagesHeading,
+    PanelSelectionRefused, PanelReloaded, PanelReloadedDiscarded, PanelNoComponent, PanelRestored, PanelTitleMessages,
 }
 
 /// The text of `key` in `lang` (English when the language has none).

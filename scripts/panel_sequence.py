@@ -10,6 +10,8 @@ writes what was typed:
   2. Line colour = "#112233", then Save -> the page's settings hold line #112233 after that one Save.
   3. No button comes before any field, in the real panel, for every kind of selection.
   4. Selection changed, then Save -> refused: one refusal note only, nothing written.
+  5. The messages: no "all saved" next to "Settings saved"; the short Reload note unless something was unsaved.
+  6. Nothing loaded: the component section says so and the "selection changed" warning is not shown.
 
 `--states` prints the ordered controls (type and label) of each state of the panel, in pt-BR, as Markdown.
 Everything is written to a temporary folder (never over a fixture). Needs the plugin built (scripts/build.sh)
@@ -119,6 +121,27 @@ def main():
         if not ok:
             failures.append(f"refusal: saved={out['extra']['saved']}, notes={refusals}")
         print(f"[{'ok' if ok else 'FAIL'}] Selection changed, then Save: refused, {len(refusals)} refusal note: {refusals}")
+
+        # 5. Messages: no duplicate after a save; the short reload note unless there were unsaved changes.
+        r = run(copia, [select(32), open_panel(), event("version", "0.4"), event("save"), event("reload"), event("version", "0.5"), event("reload")], tmp)
+        after_save = [l for _, l in controls(r[3])]
+        clean = [l for _, l in controls(r[4])]
+        dirty = [l for _, l in controls(r[6])]
+        ok = (not any("All changes are saved" in l for l in after_save) and any(l == "✔ Settings saved" for l in after_save)
+              and "✔ Reloaded from what is saved." in clean and not any("discarded" in l for l in clean)
+              and any("unsaved changes were discarded" in l for l in dirty))
+        if not ok:
+            failures.append(f"messages: after save={after_save[-8:]}, clean reload={clean[-8:]}, dirty reload={dirty[-8:]}")
+        print(f"[{'ok' if ok else 'FAIL'}] Messages: no 'all saved' next to 'Settings saved'; short Reload note, long one only after unsaved changes")
+
+        # 6. Nothing loaded: the component section says so, and the selection warning is not shown.
+        r = run(copia, [select(), open_panel(), select(32), event("line", "#112233")], tmp)
+        for where, line in (("opened", r[1]), ("after a selection change", r[3])):
+            labels = [l for _, l in controls(line)]
+            ok = "COMPONENT" in labels and any(l.startswith("No component loaded.") for l in labels) and not any("selection changed" in l for l in labels)
+            if not ok:
+                failures.append(f"no component, {where}: {labels}")
+            print(f"[{'ok' if ok else 'FAIL'}] No component loaded, {where}: section note present, no selection warning")
 
         if states:
             print_states(tmp, copia)

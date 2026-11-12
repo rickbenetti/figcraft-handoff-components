@@ -192,7 +192,7 @@
   "PanelReload": "Recarregar",
   "PanelDefaults": "Restaurar padrões",
   "PanelClose": "Fechar",
-  "PanelPageHeading": "── Esta página ──",
+  "PanelTitlePage": "ESTA PÁGINA",
   "PanelLang": "Idioma",
   "PanelLangEn": "English",
   "PanelLangPt": "Português (Brasil)",
@@ -206,9 +206,9 @@
   "PanelRerun": "Ao rodar de novo",
   "PanelRerunReplace": "Substituir",
   "PanelRerunNew": "Novo",
-  "PanelTargetComponent": "── Componente: {name} ──",
-  "PanelTargetSet": "── Conjunto de componentes: {name} ──",
-  "PanelTargetVariant": "── Variante do conjunto: {name} ──",
+  "PanelTitleComponent": "COMPONENTE",
+  "PanelTitleSet": "CONJUNTO DE COMPONENTES",
+  "PanelTitleVariant": "VARIANTE DO CONJUNTO",
   "PanelVersion": "Versão",
   "PanelStatus": "Status",
   "PanelDefaultVariant": "Variante padrão: {prop}",
@@ -216,7 +216,9 @@
   "PanelMoreProps": "+{n} propriedades de variante não exibidas",
   "PanelSelectionMoved": "A seleção mudou desde que o painel foi carregado. Aperte Recarregar para usá-la.",
   "PanelSelectionRefused": "A seleção não é o componente carregado. Nada foi salvo: aperte Recarregar.",
-  "PanelReloaded": "Recarregado do que está salvo; as alterações não salvas foram descartadas.",
+  "PanelReloaded": "Recarregado do que está salvo.",
+  "PanelReloadedDiscarded": "Recarregado do que está salvo; as alterações não salvas foram descartadas.",
+  "PanelNoComponent": "Nenhum componente carregado. Selecione um componente no canvas e aperte Recarregar.",
   "PanelRestored": "As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar.",
-  "PanelMessagesHeading": "── Mensagens ──"
+  "PanelTitleMessages": "MENSAGENS"
 }
