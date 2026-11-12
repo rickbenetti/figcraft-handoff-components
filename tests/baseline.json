@@ -788,21 +788,19 @@
     "lines": 11,
     "sections": 4,
     "instances": 4,
-    "fuel": 67442859,
+    "fuel": 69520523,
     "deltas": {
       "State=Collapsed": [
         "Height : 130 → 54",
-        "↳ Trigger / Chevron / caret-down : visible",
-        "↳ Answer : hidden",
-        "↳ Trigger / Chevron / caret-up : hidden"
+        "↳ Trigger / Chevron : Name: caret-up → caret-down",
+        "↳ Answer : hidden"
       ],
       "State=Expanded": [],
       "State=Locked": [
         "Height : 130 → 54",
         "Opacity : 100% → 50%",
-        "↳ Trigger / Chevron / caret-down : visible",
-        "↳ Answer : hidden",
-        "↳ Trigger / Chevron / caret-up : hidden"
+        "↳ Trigger / Chevron : Name: caret-up → caret-down",
+        "↳ Answer : hidden"
       ]
     },
     "anatomy": {
@@ -1246,21 +1244,19 @@
     "lines": 11,
     "sections": 0,
     "instances": 4,
-    "fuel": 71748779,
+    "fuel": 73078698,
     "deltas": {
       "State=Collapsed": [
         "Altura : 130 → 54",
-        "↳ Trigger / Chevron / caret-down : visível",
-        "↳ Answer : oculto",
-        "↳ Trigger / Chevron / caret-up : oculto"
+        "↳ Trigger / Chevron : Name: caret-up → caret-down",
+        "↳ Answer : oculto"
       ],
       "State=Expanded": [],
       "State=Locked": [
         "Altura : 130 → 54",
         "Opacidade : 100% → 50%",
-        "↳ Trigger / Chevron / caret-down : visível",
-        "↳ Answer : oculto",
-        "↳ Trigger / Chevron / caret-up : oculto"
+        "↳ Trigger / Chevron : Name: caret-up → caret-down",
+        "↳ Answer : oculto"
       ]
     },
     "anatomy": {

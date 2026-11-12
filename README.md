@@ -90,7 +90,7 @@ no local time, so a date would be wrong for many people; it will come back when 
 - A run, and each click in the panel, has a fixed instruction budget (1,000,000,000 by default in the FigCraft v0.14.0 sources). Very large components can
   use much of it: the heaviest case in the regression net, a test fixture with a 155-layer component, uses 64.2%; the DS Base
   Demo's Card uses 23.5%.
-- Swapping an instance between variants shows up as one layer becoming hidden and another visible.
+- Swapping an instance for another component between variants is listed as one line, `↳ Trigger / Chevron : Name: caret-up → caret-down` (only the variant properties that change; both names as they are when they are not variant names of the same properties), and what is inside the instance is not listed. A layer that is hidden in one variant and shown in another (an icon that is not an instance, or an instance that is only turned on or off) is still listed as visible / hidden.
 - Long text changes are shown as a short excerpt (40 characters) around the first difference.
 - Layer rotation is not audited or compared between variants.
 - The app's Arrow is a Line with an arrowhead (the host reports it as a `LINE`), so the documentation calls it Line (Linha in pt-BR), not Arrow.

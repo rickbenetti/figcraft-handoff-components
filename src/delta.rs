@@ -114,6 +114,9 @@ pub struct Snap {
     pub entries: Vec<Entry>,
     /// The layer's effects as the host gave them, to tell a change the entries can't read.
     pub effects_raw: String,
+    /// For an instance inside the component: the name of its main component (`mainComponentName`); `None` for any other layer,
+    /// for the root (it is the variant itself, placed on the stage) or when the host gave none.
+    pub main: Option<String>,
 }
 
 fn float(v: &Value, key: &str) -> Option<f64> {
@@ -252,6 +255,7 @@ pub fn snapshot(lang: Lang, walked: &[(Value, usize)], vars: &Vars, styles: &Sty
             visible: n.get("visible").and_then(Value::as_bool).unwrap_or(true),
             entries: entries(lang, n, i == 0, vars, styles),
             effects_raw: n.get("effects").map(ToString::to_string).unwrap_or_default(),
+            main: (i > 0 && n.get("type").and_then(Value::as_str) == Some("INSTANCE")).then(|| n.get("mainComponentName").and_then(Value::as_str)).flatten().filter(|m| !m.is_empty()).map(ToString::to_string),
         })
         .collect()
 }
@@ -283,6 +287,8 @@ pub enum Kind {
     Changed { label: Label, from: Side, to: Side },
     /// The layer is hidden (false) or shown (true) in the variant.
     Shown(bool),
+    /// The layer is an instance of another component in the variant: the text says what changed (see [`swap_text`]).
+    Swapped(String),
 }
 
 /// A change on a layer; `layer` is its path (`None`: the root).
@@ -301,6 +307,36 @@ pub struct Diff {
     pub unreadable_effect: bool,
 }
 
+/// A variant name as its "Key=value" pairs; `None` when it is not that (a piece without exactly one `=`, which is
+/// also how a value with a comma shows up), or a key repeats.
+fn variant_pairs(name: &str) -> Option<Vec<(&str, &str)>> {
+    let mut out: Vec<(&str, &str)> = Vec::new();
+    for piece in name.split(',') {
+        let mut it = piece.split('=');
+        let (k, v) = (it.next()?.trim(), it.next()?.trim());
+        if it.next().is_some() || k.is_empty() || out.iter().any(|(o, _)| *o == k) {
+            return None;
+        }
+        out.push((k, v));
+    }
+    Some(out)
+}
+
+/// What an instance's swap says: when both names are variant names with the same keys, only the keys that change
+/// ("Name: caret-up → caret-down", several joined by ", "); otherwise both names as they came. Names and values are the
+/// file's, so they are not translated.
+fn swap_text(from: &str, to: &str) -> String {
+    let whole = || format!("{from} → {to}");
+    let (Some(a), Some(b)) = (variant_pairs(from), variant_pairs(to)) else {
+        return whole();
+    };
+    if a.len() != b.len() || !a.iter().all(|(k, _)| b.iter().any(|(o, _)| o == k)) {
+        return whole();
+    }
+    let changed: Vec<String> = a.iter().filter_map(|(k, v)| b.iter().find(|(o, _)| o == k).filter(|(_, w)| w != v).map(|(_, w)| format!("{k}: {v} → {w}"))).collect();
+    if changed.is_empty() { whole() } else { changed.join(", ") }
+}
+
 /// What `variant` changes from `base`: the layers matched by path, the root by position.
 pub fn compare(base: &[Snap], variant: &[Snap]) -> Diff {
     let mut diff = Diff::default();
@@ -308,9 +344,19 @@ pub fn compare(base: &[Snap], variant: &[Snap]) -> Diff {
     let (base_drawn, var_drawn) = (drawn(base), drawn(variant));
     let mut matched = vec![false; base.len()];
     let mut mapped = vec![false; variant.len()];
+    // The instances that are another component in the variant: what is inside them is the old or the new component's, not a change.
+    let mut swapped: Vec<String> = Vec::new();
+    let inside = |swapped: &[String], path: &str| swapped.iter().any(|s| path.strip_prefix(s.as_str()).is_some_and(|rest| rest.starts_with('/')));
     for (j, v) in variant.iter().enumerate() {
         let i = if j == 0 { (!base.is_empty()).then_some(0) } else { by_path.get(v.path.as_str()).copied() };
         let layer = (j > 0).then(|| v.path.clone());
+        if j > 0 && inside(&swapped, &v.path) {
+            if let Some(i) = i {
+                matched[i] = true;
+            }
+            mapped[j] = true;
+            continue;
+        }
         let Some(i) = i else {
             // A layer the default doesn't have: it appears (when it is drawn).
             // Only the layer itself, not what is inside it.
@@ -338,6 +384,12 @@ pub fn compare(base: &[Snap], variant: &[Snap]) -> Diff {
         if !vd {
             continue;
         }
+        if let (Some(from), Some(to)) = (&b.main, &v.main)
+            && from != to
+        {
+            diff.changes.push(Change { layer: layer.clone(), kind: Kind::Swapped(swap_text(from, to)), minor: false });
+            swapped.push(v.path.clone());
+        }
         let mut labels: Vec<Label> = b.entries.iter().map(|e| e.label).collect();
         for e in &v.entries {
             if !labels.contains(&e.label) {
@@ -359,7 +411,7 @@ pub fn compare(base: &[Snap], variant: &[Snap]) -> Diff {
     }
     // A layer of the default that the variant doesn't have is gone.
     for (i, b) in base.iter().enumerate().skip(1) {
-        let gone = !matched.get(i).copied().unwrap_or(false);
+        let gone = !matched.get(i).copied().unwrap_or(false) && !inside(&swapped, &b.path);
         if gone && base_drawn.get(i).copied().unwrap_or(false) && b.parent.is_none_or(|p| matched.get(p).copied().unwrap_or(false)) {
             diff.changes.push(Change { layer: Some(b.path.clone()), kind: Kind::Shown(false), minor: false });
         }
@@ -466,10 +518,12 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
             order.push(c.layer.as_ref());
         }
     }
-    // A layer with a single switch of visibility is one line; any other gets a heading (the root none).
+    // A layer with a single switch of visibility is one line; so is a swapped instance, whose line names the layer for
+    // its other changes too; any other gets a heading (the root none).
     let headed = |layer: Option<&String>| {
         let mut own = diff.changes.iter().filter(|c| c.layer.as_ref() == layer);
-        layer.is_some() && !(own.next().is_some_and(|c| matches!(c.kind, Kind::Shown(_))) && own.next().is_none())
+        let swapped = own.clone().any(|c| matches!(c.kind, Kind::Swapped(_)));
+        layer.is_some() && !swapped && !(own.next().is_some_and(|c| matches!(c.kind, Kind::Shown(_))) && own.next().is_none())
     };
     // The budget goes to the main changes first and then to the minor ones (sizes), in tree order.
     let mut picked = vec![false; diff.changes.len()];
@@ -503,6 +557,7 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
             let text = match &c.kind {
                 Kind::Changed { label, from, to } => change_text(lang, *label, from, to),
                 Kind::Shown(on) => format!("↳ {name} : {}", t(lang, if *on { Key::DeltaVisible } else { Key::DeltaHidden })),
+                Kind::Swapped(text) => format!("↳ {name} : {text}"),
             };
             lines.push(Line { text, heading: false });
             shown += 1;
@@ -544,6 +599,98 @@ mod tests {
 
     fn texts(d: &Diff) -> Vec<String> {
         list(Lang::En, d).texts(Lang::En)
+    }
+
+    /// A component with an instance "Chevron" (of `main`) that has a vector inside (`inner`, visible or not), a sibling "Label"
+    /// and, when `width` is given, a size for the instance.
+    fn with_instance(main: &str, inner: &str, width: f64) -> Vec<(Value, usize)> {
+        vec![
+            (json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0),
+            (json!({"name": "Chevron", "type": "INSTANCE", "mainComponentName": main, "sizing": {"horizontal": "fixed", "vertical": "fixed"},
+                "absoluteBounds": {"x": 0.0, "y": 0.0, "width": width, "height": 16.0}}), 1),
+            (json!({"name": inner, "type": "VECTOR", "visible": true, "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 8.0, "height": 8.0}}), 2),
+            (json!({"name": "Label", "type": "TEXT", "characters": "Hi"}), 1),
+        ]
+    }
+
+    fn swap(a: &str, b: &str) -> Vec<String> {
+        texts(&diff_of(&with_instance(a, "up", 16.0), &with_instance(b, "down", 16.0)))
+    }
+
+    #[test]
+    fn a_swapped_instance_says_only_the_keys_that_change() {
+        // (a) one key differs.
+        assert_eq!(swap("Name=caret-up, Size=16", "Name=caret-down, Size=16"), vec!["↳ Chevron : Name: caret-up → caret-down"]);
+        // (b) two keys differ, in the order of the first name.
+        assert_eq!(swap("Name=a, Size=16", "Name=b, Size=24"), vec!["↳ Chevron : Name: a → b, Size: 16 → 24"]);
+        // The order of the keys in the second name does not matter.
+        assert_eq!(swap("Name=a, Size=16", "Size=24, Name=a"), vec!["↳ Chevron : Size: 16 → 24"]);
+    }
+
+    #[test]
+    fn a_swap_that_is_not_a_clean_variant_change_says_both_names() {
+        // (c) other keys, a key more, a name that is not a variant name.
+        assert_eq!(swap("Name=a, Size=16", "Kind=a, Size=16"), vec!["↳ Chevron : Name=a, Size=16 → Kind=a, Size=16"]);
+        assert_eq!(swap("Name=a", "Name=a, Size=16"), vec!["↳ Chevron : Name=a → Name=a, Size=16"]);
+        assert_eq!(swap("Icon / Plus", "Icon / Minus"), vec!["↳ Chevron : Icon / Plus → Icon / Minus"]);
+        assert_eq!(swap("Name=a", "Icon"), vec!["↳ Chevron : Name=a → Icon"]);
+        // (d) a value with a comma is ambiguous: whole names. So is a repeated key, and names that differ only in order.
+        assert_eq!(swap("Name=a,b, Size=16", "Name=c, Size=16"), vec!["↳ Chevron : Name=a,b, Size=16 → Name=c, Size=16"]);
+        assert_eq!(swap("Name=a, Name=b", "Name=a, Name=c"), vec!["↳ Chevron : Name=a, Name=b → Name=a, Name=c"]);
+        assert_eq!(swap("Name=a, Size=1", "Size=1, Name=a"), vec!["↳ Chevron : Name=a, Size=1 → Size=1, Name=a"]);
+    }
+
+    #[test]
+    fn what_is_inside_a_swapped_instance_is_not_listed_but_its_own_changes_and_its_siblings_are() {
+        // (e) the vector inside changes name ("up" gone, "down" new): no lines for it. (f) the instance keeps its own size change.
+        let d = diff_of(&with_instance("Name=up", "up", 16.0), &with_instance("Name=down", "down", 24.0));
+        assert_eq!(texts(&d), vec!["↳ Chevron : Name: up → down", "Width : 16 → 24"]);
+        // A change outside the instance is still listed, in the tree's order.
+        let mut b = with_instance("Name=down", "down", 16.0);
+        b[3].0 = json!({"name": "Label", "type": "TEXT", "characters": "Bye"});
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &b)), vec!["↳ Chevron : Name: up → down", "↳ Label", "Text : \"Hi\" → \"Bye\""]);
+    }
+
+    #[test]
+    fn an_instance_of_the_same_component_keeps_the_old_behaviour() {
+        // (g) same main component: the inner layers are listed as before (one hidden, one shown), no swap line.
+        let a = with_instance("Name=up", "up", 16.0);
+        let mut b = with_instance("Name=up", "down", 16.0);
+        b[2].0 = json!({"name": "down", "type": "VECTOR", "visible": true, "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 8.0, "height": 8.0}});
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Chevron / down : visible", "↳ Chevron / up : hidden"]);
+        // No main component name on either side (the host gave none): nothing to compare.
+        let mut no_main_a = with_instance("", "up", 16.0);
+        no_main_a[1].0 = json!({"name": "Chevron", "type": "INSTANCE", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 16.0, "height": 16.0}});
+        assert!(!texts(&diff_of(&no_main_a, &with_instance("Name=down", "down", 16.0))).iter().any(|l| l.contains("→ Name")));
+    }
+
+    #[test]
+    fn the_root_is_never_a_swap_even_when_it_is_an_instance_of_each_variant() {
+        // The walk's root is the variant placed on the stage: an instance of a different main component for each variant.
+        let root = |main: &str, w: f64| (json!({"name": "Row", "type": "INSTANCE", "mainComponentName": main, "absoluteBounds": {"x": 0.0, "y": 0.0, "width": w, "height": 40.0}, "sizing": {"horizontal": "fixed", "vertical": "fixed"}}), 0);
+        let d = diff_of(&[root("Size=Small", 100.0)], &[root("Size=Large", 120.0)]);
+        assert_eq!(texts(&d), vec!["Width : 100 → 120"]);
+    }
+
+    #[test]
+    fn only_instances_are_swapped_and_a_layer_that_appears_or_goes_is_still_shown_or_hidden() {
+        // (h) a frame whose children change is not a swap, whatever it is called.
+        let frame = |inner: &str| {
+            vec![
+                (json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0),
+                (json!({"name": "Chevron", "type": "FRAME", "mainComponentName": "Name=x", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 16.0, "height": 16.0}}), 1),
+                (json!({"name": inner, "type": "VECTOR", "visible": true}), 2),
+            ]
+        };
+        assert_eq!(texts(&diff_of(&frame("up"), &frame("down"))), vec!["↳ Chevron / down : visible", "↳ Chevron / up : hidden"]);
+        // (i) an instance that is hidden in one variant and shown in the other, or that only one has: visible / hidden.
+        let mut hidden = with_instance("Name=up", "up", 16.0);
+        hidden[1].0 = json!({"name": "Chevron", "type": "INSTANCE", "mainComponentName": "Name=up", "visible": false});
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &hidden)), vec!["↳ Chevron : hidden"]);
+        let without = vec![with_instance("Name=up", "up", 16.0).remove(0)];
+        // (the sibling "Label" of the helper comes and goes with it)
+        assert_eq!(texts(&diff_of(&without, &with_instance("Name=up", "up", 16.0))), vec!["↳ Chevron : visible", "↳ Label : visible"]);
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &without)), vec!["↳ Chevron : hidden", "↳ Label : hidden"]);
     }
 
     #[test]
