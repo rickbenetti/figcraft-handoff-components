@@ -1776,9 +1776,10 @@ struct SummaryCounts {
     styles: usize,
 }
 
-/// The summary line. Its text depends on whether some bindings are "to check" and whether some are
-/// styles; its nouns (variables, styles, properties) are said in the singular when their count is
-/// exactly 1, each noun with a text of its own. With any other count the line is what it always was.
+/// The summary line: the total first (design values), then its parts, which add up to it: bound, no token, missing and
+/// suspect (every audited row is exactly one of the four). Its text depends on whether some bindings are "to check" and whether some are
+/// styles; its words (design values, bound, variables, styles, missing, suspect) are said in the singular when their count is
+/// exactly 1, each with a text of its own.
 fn summary_text(lang: Lang, c: &SummaryCounts) -> String {
     let key = match (c.check > 0, c.styles > 0) {
         (false, false) => Key::Summary,
@@ -1799,6 +1800,9 @@ fn summary_text(lang: Lang, c: &SummaryCounts) -> String {
         ("vars_word", noun(c.vars, Key::NounVariable, Key::NounVariables).to_string()),
         ("styles_word", noun(c.styles, Key::NounStyle, Key::NounStyles).to_string()),
         ("total_word", noun(c.total, Key::NounProperty, Key::NounProperties).to_string()),
+        ("bound_word", noun(c.bound, Key::NounBound, Key::NounBounds).to_string()),
+        ("missing_word", noun(c.missing, Key::NounMissing, Key::NounMissings).to_string()),
+        ("suspect_word", noun(c.suspect, Key::NounSuspect, Key::NounSuspects).to_string()),
     ];
     let pairs: Vec<(&str, &str)> = values.iter().map(|(k, v)| (*k, v.as_str())).collect();
     tf(lang, key, &pairs)
@@ -2371,73 +2375,33 @@ mod tests {
         SummaryCounts { bound: 8, check, unbound: 3, missing: 0, suspect: 2, total, vars, styles }
     }
 
-    /// The four summary texts as they were before the singular (0.9.6 up to 02613e0): the oracle for any
-    /// count other than 1.
-    fn old_summary(lang: Lang, c: &SummaryCounts) -> String {
-        let (plain, checks, styles, both) = match lang {
-            Lang::En => (
-                "{bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-                "{bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-                "{bound} bound ({vars} variables, {styles} styles) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-                "{bound} bound ({vars} variables, {styles} styles; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-            ),
-            Lang::Pt => (
-                "{bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-                "{bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-                "{bound} vinculadas ({vars} variáveis, {styles} estilos) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-                "{bound} vinculadas ({vars} variáveis, {styles} estilos; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-            ),
-        };
-        let template = match (c.check > 0, c.styles > 0) {
-            (false, false) => plain,
-            (true, false) => checks,
-            (false, true) => styles,
-            (true, true) => both,
-        };
-        [("bound", c.bound), ("check", c.check), ("unbound", c.unbound), ("missing", c.missing), ("suspect", c.suspect), ("total", c.total), ("vars", c.vars), ("styles", c.styles)]
-            .iter()
-            .fold(template.to_string(), |acc, (k, v)| acc.replace(&format!("{{{k}}}"), &v.to_string()))
-    }
-
     #[test]
-    fn the_summary_is_what_it_was_for_every_count_but_one() {
-        let mut n = 0;
-        for lang in [Lang::En, Lang::Pt] {
-            for check in [0, 2] {
-                for vars in [0, 2, 7, 35] {
-                    for styles in [0, 2, 8] {
-                        for total in [0, 2, 45] {
-                            let c = counts(check, vars, styles, total);
-                            assert_eq!(summary_text(lang, &c), old_summary(lang, &c), "{lang:?} check {check} vars {vars} styles {styles} total {total}");
-                            n += 1;
-                        }
-                    }
-                }
-            }
-        }
-        assert_eq!(n, 2 * 2 * 4 * 3 * 3);
-    }
-
-    #[test]
-    fn the_summary_says_variable_style_and_property_in_the_singular_for_exactly_one() {
-        // Each noun on its own, with the others in the plural.
-        assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect · of 45 properties");
-        assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 45 properties");
-        assert_eq!(summary_text(Lang::En, &counts(0, 7, 2, 1)), "8 bound (7 variables, 2 styles) · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "8 vinculadas (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "8 vinculadas (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 2, 1)), "8 vinculadas (7 variáveis, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        // The three at once, with and without "to check".
-        assert_eq!(summary_text(Lang::En, &counts(0, 1, 1, 1)), "8 bound (1 variable, 1 style) · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 1)), "8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        // Only the total (no styles, so no parentheses): the Icon of the demo.
-        assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 1)), "8 bound · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 1)), "8 vinculadas · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 1)), "8 bound (2 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
+    fn the_summary_puts_the_total_first_and_its_parts_after() {
+        assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "45 design values · 8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "45 design values · 8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "45 valores de design · 8 vinculados (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "45 valores de design · 8 vinculados (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitos");
+        // With "to check", and with no styles (no parentheses), and the plain line.
+        assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 45)), "45 design values · 8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 45)), "45 valores de design · 8 vinculados (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 45)), "45 design values · 8 bound (2 to check) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 45)), "45 valores de design · 8 vinculados · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 45)), "45 design values · 8 bound · 3 no token · 0 missing · 2 suspect");
         // 0 is the plural.
-        assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 0 properties");
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "0 design values · 8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect");
+    }
+
+    #[test]
+    fn the_summary_words_are_singular_for_exactly_one_and_agree_in_portuguese() {
+        let one = SummaryCounts { bound: 1, check: 0, unbound: 1, missing: 1, suspect: 1, total: 1, vars: 1, styles: 1 };
+        assert_eq!(summary_text(Lang::En, &one), "1 design value · 1 bound (1 variable, 1 style) · 1 no token · 1 missing · 1 suspect");
+        assert_eq!(summary_text(Lang::Pt, &one), "1 valor de design · 1 vinculado (1 variável, 1 estilo) · 1 sem token · 1 ausente · 1 suspeito");
+        let two = SummaryCounts { bound: 2, check: 0, unbound: 2, missing: 2, suspect: 2, total: 2, vars: 1, styles: 1 };
+        assert_eq!(summary_text(Lang::Pt, &two), "2 valores de design · 2 vinculados (1 variável, 1 estilo) · 2 sem token · 2 ausentes · 2 suspeitos");
+        // The Alert of the report: 14 bound (11 variables, 3 styles), 3 no token, 0 missing, 0 suspect = 17.
+        let alert = SummaryCounts { bound: 14, check: 0, unbound: 3, missing: 0, suspect: 0, total: 17, vars: 11, styles: 3 };
+        assert_eq!(summary_text(Lang::Pt, &alert), "17 valores de design · 14 vinculados (11 variáveis, 3 estilos) · 3 sem token · 0 ausentes · 0 suspeitos");
+        assert_eq!(summary_text(Lang::En, &alert), "17 design values · 14 bound (11 variables, 3 styles) · 3 no token · 0 missing · 0 suspect");
     }
 
     #[test]

@@ -139,7 +139,8 @@ keys! {
     SpAlignment,
     SpDirection, SpHResizing, SpVResizing, SpacingTitle, Summary,
     SummaryChecks, SummaryStyles, SummaryStylesChecks, NounVariable, NounVariables,
-    NounStyle, NounStyles, NounProperty, NounProperties, TypeBoolean,
+    NounStyle, NounStyles, NounProperty, NounProperties, NounBound, NounBounds, NounMissing, NounMissings,
+    NounSuspect, NounSuspects, TypeBoolean,
     TypeInstance, TypeText, TypeVariant, Unnumbered, UnnumberedOne,
     ValueEmpty, ValueFalse, ValueTrue, Variants,
     KindFrame, KindGroup, KindRectangle, KindEllipse, KindVector,
@@ -380,7 +381,10 @@ mod tests {
         for (one, many, en, pt) in [
             (Key::NounVariable, Key::NounVariables, ("variable", "variables"), ("variável", "variáveis")),
             (Key::NounStyle, Key::NounStyles, ("style", "styles"), ("estilo", "estilos")),
-            (Key::NounProperty, Key::NounProperties, ("property", "properties"), ("propriedade", "propriedades")),
+            (Key::NounProperty, Key::NounProperties, ("design value", "design values"), ("valor de design", "valores de design")),
+            (Key::NounBound, Key::NounBounds, ("bound", "bound"), ("vinculado", "vinculados")),
+            (Key::NounMissing, Key::NounMissings, ("missing", "missing"), ("ausente", "ausentes")),
+            (Key::NounSuspect, Key::NounSuspects, ("suspect", "suspect"), ("suspeito", "suspeitos")),
         ] {
             assert_eq!((t(Lang::En, one), t(Lang::En, many)), en);
             assert_eq!((t(Lang::Pt, one), t(Lang::Pt, many)), pt);

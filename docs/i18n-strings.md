@@ -120,16 +120,22 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | SpHResizing | Horizontal resizing | Redimensionamento horizontal |
 | SpVResizing | Vertical resizing | Redimensionamento vertical |
 | SpacingTitle | Spacing | Espaçamento |
-| Summary | {bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
-| SummaryChecks | {bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
-| SummaryStyles | {bound} bound ({vars} {vars_word}, {styles} {styles_word}) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas ({vars} {vars_word}, {styles} {styles_word}) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
-| SummaryStylesChecks | {bound} bound ({vars} {vars_word}, {styles} {styles_word}; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} {total_word} | {bound} vinculadas ({vars} {vars_word}, {styles} {styles_word}; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} {total_word} |
+| Summary | {total} {total_word} · {bound} {bound_word} · {unbound} no token · {missing} {missing_word} · {suspect} {suspect_word} | {total} {total_word} · {bound} {bound_word} · {unbound} sem token · {missing} {missing_word} · {suspect} {suspect_word} |
+| SummaryChecks | {total} {total_word} · {bound} {bound_word} ({check} to check) · {unbound} no token · {missing} {missing_word} · {suspect} {suspect_word} | {total} {total_word} · {bound} {bound_word} ({check} a verificar) · {unbound} sem token · {missing} {missing_word} · {suspect} {suspect_word} |
+| SummaryStyles | {total} {total_word} · {bound} {bound_word} ({vars} {vars_word}, {styles} {styles_word}) · {unbound} no token · {missing} {missing_word} · {suspect} {suspect_word} | {total} {total_word} · {bound} {bound_word} ({vars} {vars_word}, {styles} {styles_word}) · {unbound} sem token · {missing} {missing_word} · {suspect} {suspect_word} |
+| SummaryStylesChecks | {total} {total_word} · {bound} {bound_word} ({vars} {vars_word}, {styles} {styles_word}; {check} to check) · {unbound} no token · {missing} {missing_word} · {suspect} {suspect_word} | {total} {total_word} · {bound} {bound_word} ({vars} {vars_word}, {styles} {styles_word}; {check} a verificar) · {unbound} sem token · {missing} {missing_word} · {suspect} {suspect_word} |
 | NounVariable | variable | variável |
 | NounVariables | variables | variáveis |
 | NounStyle | style | estilo |
 | NounStyles | styles | estilos |
-| NounProperty | property | propriedade |
-| NounProperties | properties | propriedades |
+| NounProperty | design value | valor de design |
+| NounProperties | design values | valores de design |
+| NounBound | bound | vinculado |
+| NounBounds | bound | vinculados |
+| NounMissing | missing | ausente |
+| NounMissings | missing | ausentes |
+| NounSuspect | suspect | suspeito |
+| NounSuspects | suspect | suspeitos |
 | TypeBoolean | Boolean | Booleano |
 | TypeInstance | Instance | Instância |
 | TypeText | Text | Texto |
