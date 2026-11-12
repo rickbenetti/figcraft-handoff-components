@@ -137,11 +137,6 @@ impl Settings {
         to_text(&[("lang", &self.lang), ("line", &self.line), ("fill", &self.fill), ("on_rerun", &self.on_rerun), ("stage", &self.stage)], &self.other)
     }
 
-    /// Whether none of the settings this version knows is set (a leftover `tz` doesn't count).
-    pub fn is_default(&self) -> bool {
-        Settings { other: serde_json::Map::new(), ..self.clone() } == Settings::default()
-    }
-
     /// The stage mode: the stored one, or light.
     pub fn stage_mode(&self) -> StageMode {
         self.stage.as_deref().and_then(StageMode::parse).unwrap_or_default()
@@ -199,10 +194,8 @@ mod tests {
     fn a_stored_time_zone_is_ignored_but_kept() {
         let back = Settings::from_plugin_data(&json!({SETTINGS_KEY: r##"{"lang":"pt","tz":"5.5"}"##}));
         assert_eq!(back.lang.as_deref(), Some("pt"));
-        assert!(!back.is_default());
         assert_eq!(back.to_text().unwrap(), r##"{"lang":"pt","tz":"5.5"}"##);
         let only_tz = Settings::from_plugin_data(&json!({SETTINGS_KEY: r##"{"tz":"-3"}"##}));
-        assert!(only_tz.is_default());
         assert_eq!(only_tz.to_text().unwrap(), r##"{"tz":"-3"}"##);
     }
 

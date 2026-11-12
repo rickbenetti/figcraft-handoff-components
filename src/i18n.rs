@@ -155,10 +155,9 @@ keys! {
     PanelLang, PanelLangEn, PanelLangPt, PanelLineColour, PanelFillAuto,
     PanelFillColour, PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
     PanelRerun, PanelRerunReplace, PanelRerunNew,
-    PanelTargetComponent, PanelTargetSet, PanelTargetVariant, PanelNoTarget, PanelVersion,
+    PanelTargetComponent, PanelTargetSet, PanelTargetVariant, PanelVersion,
     PanelStatus, PanelDefaultVariant, PanelNone, PanelMoreProps, PanelSelectionMoved,
-    PanelSelectionRefused, PanelReloaded, PanelRestored, PanelLoadedPage, PanelLoadedBoth,
-    PanelSourceDefaults,
+    PanelSelectionRefused, PanelReloaded, PanelRestored, PanelMessagesHeading,
 }
 
 /// The text of `key` in `lang` (English when the language has none).

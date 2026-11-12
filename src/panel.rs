@@ -379,8 +379,21 @@ pub struct Notes {
     pub result: Option<String>,
     /// The selection is not the one the panel was loaded with.
     pub moved: bool,
-    /// Where the values came from.
-    pub loaded_from: String,
+}
+
+/// The symbols that start a note (the host's font has them): done, unsaved, refused or failed.
+const SYM_OK: &str = "✔";
+const SYM_DIRTY: &str = "●";
+const SYM_ERR: &str = "✖";
+
+/// A note's text after its symbol.
+fn marked(symbol: &str, text: &str) -> String {
+    format!("{symbol} {text}")
+}
+
+/// The refusal of a save whose selection is not the loaded component.
+fn refusal(lang: Lang) -> String {
+    marked(SYM_ERR, t(lang, Key::PanelSelectionRefused))
 }
 
 fn note(label: &str) -> Value {
@@ -395,18 +408,11 @@ fn button(name: &str, label: &str) -> Value {
 pub fn spec(lang: Lang, form: &Form, target: Option<&Target>, notes: &Notes) -> Value {
     let label = |k: Key| safe_text(t(lang, k), MAX_LABEL);
     let mut c: Vec<Value> = Vec::new();
-    c.push(note(t(lang, if notes.dirty { Key::PanelUnsaved } else { Key::PanelAllSaved })));
-    if let Some(r) = &notes.result {
-        c.push(note(r));
-    }
-    if notes.moved {
-        c.push(note(t(lang, Key::PanelSelectionMoved)));
-    }
-    c.push(button("save", t(lang, Key::PanelSave)));
-    c.push(button("reload", t(lang, Key::PanelReload)));
+    // The order is: the fields, then the messages, then the buttons. The host hands its events to the
+    // plugin in the order of these controls, so a button before a field would run before the field's
+    // new value arrives and the first click would be lost.
     // A section's note looks like a title (its text is decorated in the dictionary) and has an empty
-    // note before it as a spacer: the host has no section, divider or spacing of its own.
-    c.push(note(""));
+    // note before it as a spacer (except at the top): the host has no section, divider or spacing of its own.
     c.push(note(t(lang, Key::PanelPageHeading)));
     c.push(json!({"type": "select", "name": "lang", "label": label(Key::PanelLang), "options": [lang_label(Lang::En), lang_label(Lang::Pt)], "value": lang_label(form.lang)}));
     c.push(json!({"type": "color", "name": "line", "label": label(Key::PanelLineColour), "value": form.line}));
@@ -418,50 +424,48 @@ pub fn spec(lang: Lang, form: &Form, target: Option<&Target>, notes: &Notes) -> 
     c.push(json!({"type": "select", "name": "stage", "label": label(Key::PanelStage), "options": stage, "value": t(lang, stage_key(form.stage))}));
     let rerun: Vec<&str> = [Rerun::Replace, Rerun::New].iter().map(|r| t(lang, rerun_key(*r))).collect();
     c.push(json!({"type": "select", "name": "on_rerun", "label": label(Key::PanelRerun), "options": rerun, "value": t(lang, rerun_key(form.rerun))}));
-    match target {
-        None => c.push(note(t(lang, Key::PanelNoTarget))),
-        Some(tg) => {
-            let heading = match tg.kind {
-                TargetKind::Component => Key::PanelTargetComponent,
-                TargetKind::Set => Key::PanelTargetSet,
-                TargetKind::Variant => Key::PanelTargetVariant,
-            };
-            c.push(note(""));
-            c.push(note(&tf(lang, heading, &[("name", &tg.title)])));
-            c.push(json!({"type": "text", "name": "version", "label": label(Key::PanelVersion), "value": form.version}));
-            c.push(json!({"type": "text", "name": "status", "label": label(Key::PanelStatus), "value": form.status}));
-            if let Some(info) = &tg.set {
-                let none = t(lang, Key::PanelNone);
-                for (i, (prop, opts)) in info.props.iter().take(MAX_PROPS_SHOWN).enumerate() {
-                    let mut options = vec![none.to_string()];
-                    options.extend(opts.iter().take(MAX_OPTIONS - 1).map(|o| safe_text(o, MAX_LABEL)));
-                    let chosen = form.default.iter().find(|(k, _)| k == prop).map(|(_, v)| safe_text(v, MAX_LABEL)).unwrap_or_else(|| none.to_string());
-                    let text = tf(lang, Key::PanelDefaultVariant, &[("prop", prop)]);
-                    c.push(json!({"type": "select", "name": format!("dv_{i}"), "label": safe_text(&text, MAX_LABEL), "options": options, "value": chosen}));
-                }
-                if info.props.len() > MAX_PROPS_SHOWN {
-                    c.push(note(&tf(lang, Key::PanelMoreProps, &[("n", &(info.props.len() - MAX_PROPS_SHOWN).to_string())])));
-                }
+    if let Some(tg) = target {
+        let heading = match tg.kind {
+            TargetKind::Component => Key::PanelTargetComponent,
+            TargetKind::Set => Key::PanelTargetSet,
+            TargetKind::Variant => Key::PanelTargetVariant,
+        };
+        c.push(note(""));
+        c.push(note(&tf(lang, heading, &[("name", &tg.title)])));
+        c.push(json!({"type": "text", "name": "version", "label": label(Key::PanelVersion), "value": form.version}));
+        c.push(json!({"type": "text", "name": "status", "label": label(Key::PanelStatus), "value": form.status}));
+        if let Some(info) = &tg.set {
+            let none = t(lang, Key::PanelNone);
+            for (i, (prop, opts)) in info.props.iter().take(MAX_PROPS_SHOWN).enumerate() {
+                let mut options = vec![none.to_string()];
+                options.extend(opts.iter().take(MAX_OPTIONS - 1).map(|o| safe_text(o, MAX_LABEL)));
+                let chosen = form.default.iter().find(|(k, _)| k == prop).map(|(_, v)| safe_text(v, MAX_LABEL)).unwrap_or_else(|| none.to_string());
+                let text = tf(lang, Key::PanelDefaultVariant, &[("prop", prop)]);
+                c.push(json!({"type": "select", "name": format!("dv_{i}"), "label": safe_text(&text, MAX_LABEL), "options": options, "value": chosen}));
+            }
+            if info.props.len() > MAX_PROPS_SHOWN {
+                c.push(note(&tf(lang, Key::PanelMoreProps, &[("n", &(info.props.len() - MAX_PROPS_SHOWN).to_string())])));
             }
         }
     }
-    c.push(note(&notes.loaded_from));
+    // The messages: the state, then the result of the last button, then the selection warning (left out
+    // when the result is already the refusal for that same selection: it says what was not saved).
+    c.push(note(""));
+    c.push(note(t(lang, Key::PanelMessagesHeading)));
+    c.push(note(&if notes.dirty { marked(SYM_DIRTY, t(lang, Key::PanelUnsaved)) } else { marked(SYM_OK, t(lang, Key::PanelAllSaved)) }));
+    if let Some(r) = &notes.result {
+        c.push(note(r));
+    }
+    if notes.moved && notes.result.as_deref() != Some(refusal(lang).as_str()) {
+        c.push(note(&marked(SYM_ERR, t(lang, Key::PanelSelectionMoved))));
+    }
+    c.push(note(""));
+    c.push(button("save", t(lang, Key::PanelSave)));
+    c.push(button("reload", t(lang, Key::PanelReload)));
+    c.push(note(""));
     c.push(button("defaults", t(lang, Key::PanelDefaults)));
     c.push(button("close", t(lang, Key::PanelClose)));
     json!({"title": safe_text(t(lang, Key::PanelTitle), 64), "controls": c})
-}
-
-/// Where the values shown came from, in words.
-pub fn loaded_from(lang: Lang, stored: &Stored, target: Option<&Target>) -> String {
-    let defaults = t(lang, Key::PanelSourceDefaults);
-    let page = if stored.settings.is_default() { defaults.to_string() } else { SETTINGS_KEY.to_string() };
-    match (target, &stored.meta) {
-        (Some(_), Some(meta)) => {
-            let component = if *meta == Meta::default() { defaults.to_string() } else { META_KEY.to_string() };
-            tf(lang, Key::PanelLoadedBoth, &[("page", &page), ("component", &component)])
-        }
-        _ => tf(lang, Key::PanelLoadedPage, &[("page", &page)]),
-    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -547,7 +551,7 @@ pub fn open(input: Input) -> Result<Value> {
     let (_, stored) = read_stored(page_lang, target.as_ref())?;
     let form = Form::from_stored(&stored, target.as_ref());
     STATE.with(|s| *s.borrow_mut() = State { target: target.clone(), loaded_selection: input.selection.clone(), cleared: BTreeSet::new() });
-    let notes = Notes { dirty: false, result: None, moved: false, loaded_from: loaded_from(form.lang, &stored, target.as_ref()) };
+    let notes = Notes { dirty: false, result: None, moved: false };
     draw(form.lang, &form, target.as_ref(), &notes, "open", Value::Null)
 }
 
@@ -583,7 +587,7 @@ fn run_event(input: &Input, control: &str, state: &mut State) -> Result<Value> {
             state.cleared.clear();
             let (_, fresh) = read_stored(lang, state.target.as_ref())?;
             form = Form::from_stored(&fresh, state.target.as_ref());
-            result = Some(t(form.lang, Key::PanelReloaded).to_string());
+            result = Some(marked(SYM_OK, t(form.lang, Key::PanelReloaded)));
             return finish(input, &form, state, &fresh, result, "reload", false, wrote);
         }
         "defaults" => {
@@ -618,7 +622,7 @@ fn run_event(input: &Input, control: &str, state: &mut State) -> Result<Value> {
 fn finish(input: &Input, form: &Form, state: &State, stored: &Stored, result: Option<String>, phase: &str, saved: bool, wrote: (bool, bool)) -> Result<Value> {
     let dirty = plan(stored, form, &state.cleared, state.target.as_ref()).map_or(true, |p| !p.is_empty());
     let moved = input.selection != state.loaded_selection;
-    let notes = Notes { dirty, result, moved, loaded_from: loaded_from(form.lang, stored, state.target.as_ref()) };
+    let notes = Notes { dirty, result, moved };
     let mut out = draw(form.lang, form, state.target.as_ref(), &notes, phase, json!({"saved": saved, "wrote_page": wrote.0, "wrote_component": wrote.1}))?;
     out["selection_loaded"] = json!(state.loaded_selection);
     Ok(out)
@@ -632,12 +636,12 @@ fn save(input: &Input, state: &mut State, stored: &Stored, form: &Form) -> Resul
     {
         match resolve(lang, &input.selection) {
             Ok(p) if p.holder == tg.holder => state.loaded_selection = input.selection.clone(),
-            _ => return Ok((false, t(lang, Key::PanelSelectionRefused).to_string(), (false, false))),
+            _ => return Ok((false, refusal(lang), (false, false))),
         }
     }
     let plan = match plan(stored, form, &state.cleared, state.target.as_ref()) {
         Ok(p) => p,
-        Err(PlanError::NoSuchVariant(name)) => return Ok((false, tf(lang, Key::ErrDefaultNoVariant, &[("name", &name)]), (false, false))),
+        Err(PlanError::NoSuchVariant(name)) => return Ok((false, marked(SYM_ERR, &tf(lang, Key::ErrDefaultNoVariant, &[("name", &name)])), (false, false))),
     };
     if plan.is_empty() {
         return Ok((false, t(lang, Key::SettingsKept).to_string(), (false, false)));
@@ -652,7 +656,7 @@ fn save(input: &Input, state: &mut State, stored: &Stored, form: &Form) -> Resul
         write_data(lang, tg.holder, META_KEY, next.to_text())?;
         wrote.1 = true;
     }
-    Ok((true, t(lang, Key::SettingsSaved).to_string(), wrote))
+    Ok((true, marked(SYM_OK, t(lang, Key::SettingsSaved)), wrote))
 }
 
 #[cfg(test)]
@@ -759,7 +763,7 @@ mod tests {
                     form.lang = lang;
                     form.fill_auto = auto;
                     form.version = "1.0".into();
-                    for notes in [Notes::default(), Notes { dirty: true, result: Some("x".into()), moved: true, loaded_from: "y".into() }] {
+                    for notes in [Notes::default(), Notes { dirty: true, result: Some("x".into()), moved: true }] {
                         check_spec(&spec(lang, &form, target.as_ref(), &notes));
                     }
                 }
@@ -773,21 +777,21 @@ mod tests {
     }
 
     #[test]
-    fn a_section_note_looks_like_a_title_and_an_empty_note_goes_before_it() {
-        let en = signature(&spec(Lang::En, &Form::defaults(), None, &Notes { loaded_from: "L".into(), ..Notes::default() }));
+    fn the_controls_come_as_fields_then_messages_then_buttons() {
+        let en = signature(&spec(Lang::En, &Form::defaults(), None, &Notes::default()));
         assert_eq!(
             en,
             [
-                "note:All changes are saved", "save", "reload", "note:", "note:── This page ──", "lang", "line", "fill_auto", "stage", "on_rerun",
-                "note:Select a component and press Reload", "note:L", "defaults", "close"
+                "note:── This page ──", "lang", "line", "fill_auto", "stage", "on_rerun", "note:", "note:── Messages ──", "note:✔ All changes are saved", "note:",
+                "save", "reload", "note:", "defaults", "close"
             ]
         );
-        let pt = signature(&spec(Lang::Pt, &Form::defaults(), Some(&set_target()), &Notes { loaded_from: "L".into(), ..Notes::default() }));
+        let pt = signature(&spec(Lang::Pt, &Form::defaults(), Some(&set_target()), &Notes { dirty: true, result: Some("✔ Configurações salvas".into()), moved: false }));
         assert_eq!(
             pt,
             [
-                "note:Todas as alterações estão salvas", "save", "reload", "note:", "note:── Esta página ──", "lang", "line", "fill_auto", "stage", "on_rerun",
-                "note:", "note:── Conjunto de componentes: Button ──", "version", "status", "dv_0", "dv_1", "note:L", "defaults", "close"
+                "note:── Esta página ──", "lang", "line", "fill_auto", "stage", "on_rerun", "note:", "note:── Conjunto de componentes: Button ──", "version", "status", "dv_0", "dv_1",
+                "note:", "note:── Mensagens ──", "note:● Há alterações não salvas", "note:✔ Configurações salvas", "note:", "save", "reload", "note:", "defaults", "close"
             ]
         );
         let comp = signature(&spec(Lang::En, &Form::defaults(), Some(&component_target()), &Notes::default()));
@@ -798,18 +802,87 @@ mod tests {
     }
 
     #[test]
-    fn the_spacers_are_exactly_one_per_section_note_and_nothing_else_is_an_empty_note() {
-        for target in all_targets() {
-            let sp = spec(Lang::En, &Form::defaults(), target.as_ref(), &Notes { loaded_from: "Loaded from: page: defaults".into(), ..Notes::default() });
-            let controls = sp["controls"].as_array().unwrap();
-            let empty: Vec<usize> = controls.iter().enumerate().filter(|(_, c)| c["type"] == "note" && c["label"] == "").map(|(i, _)| i).collect();
-            assert_eq!(empty.len(), if target.is_some() { 2 } else { 1 });
-            for i in empty {
-                let next = controls[i + 1]["label"].as_str().unwrap();
-                assert!(next.starts_with("── ") && next.ends_with(" ──"), "a spacer must come right before a section note, not before {next:?}");
+    fn no_button_comes_before_any_field_in_any_state_of_the_panel() {
+        // The host delivers its events in the order of the controls: a button above a field would run
+        // before the field's new value arrives, and the first click would be lost.
+        const FIELDS: [&str; 7] = ["text", "number", "boolean", "select", "color", "list", "slider"];
+        for lang in [Lang::En, Lang::Pt] {
+            for target in all_targets() {
+                for auto in [true, false] {
+                    let mut form = Form::defaults();
+                    form.lang = lang;
+                    form.fill_auto = auto;
+                    for notes in [
+                        Notes::default(),
+                        Notes { dirty: true, ..Notes::default() },
+                        Notes { dirty: false, result: Some("✔ x".into()), moved: false },
+                        Notes { dirty: true, result: Some(refusal(lang)), moved: true },
+                        Notes { dirty: true, result: None, moved: true },
+                    ] {
+                        let sp = spec(lang, &form, target.as_ref(), &notes);
+                        let kinds: Vec<&str> = sp["controls"].as_array().unwrap().iter().map(|c| c["type"].as_str().unwrap()).collect();
+                        let first_button = kinds.iter().position(|k| *k == "button").unwrap();
+                        let last_field = kinds.iter().rposition(|k| FIELDS.contains(k));
+                        assert!(last_field.is_some_and(|f| f < first_button), "a button comes before a field: {kinds:?}");
+                        assert_eq!(sp["controls"][first_button]["name"], "save", "the first button is the host's primary one: Save");
+                        assert_eq!(sp["controls"][first_button + 1]["name"], "reload");
+                    }
+                }
             }
-            // The decorated notes keep inside the host's limits, with the longest title the tests use.
+        }
+    }
+
+    #[test]
+    fn the_first_control_is_a_section_note_without_a_spacer_and_every_other_spacer_has_a_reason() {
+        for target in all_targets() {
+            let sp = spec(Lang::En, &Form::defaults(), target.as_ref(), &Notes::default());
+            let controls = sp["controls"].as_array().unwrap();
+            assert_eq!(controls[0]["type"], "note");
+            assert_eq!(controls[0]["label"], "── This page ──");
+            let empty: Vec<usize> = controls.iter().enumerate().filter(|(_, c)| c["type"] == "note" && c["label"] == "").map(|(i, _)| i).collect();
+            // Before the component's section (when there is one), the messages, the Save/Reload pair and the last pair.
+            assert_eq!(empty.len(), if target.is_some() { 4 } else { 3 });
+            for i in empty {
+                let next = &controls[i + 1];
+                let label = next["label"].as_str().unwrap();
+                let ok = next["type"] == "button" || (label.starts_with("── ") && label.ends_with(" ──"));
+                assert!(ok, "a spacer must come right before a section note or a button, not before {label:?}");
+            }
             check_spec(&sp);
+        }
+    }
+
+    #[test]
+    fn the_symbols_mark_only_the_notes_that_report_success_unsaved_or_refusal() {
+        let notes = |lang: Lang, n: Notes| -> Vec<String> {
+            let sp = spec(lang, &Form::defaults(), None, &n);
+            let all: Vec<&Value> = sp["controls"].as_array().unwrap().iter().collect();
+            let from = all.iter().position(|c| c["label"].as_str().is_some_and(|l| l.contains("Messages") || l.contains("Mensagens"))).unwrap();
+            all[from + 1..].iter().filter(|c| c["type"] == "note" && c["label"] != "").map(|c| c["label"].as_str().unwrap().to_string()).collect()
+        };
+        assert_eq!(notes(Lang::En, Notes::default()), ["✔ All changes are saved"]);
+        assert_eq!(notes(Lang::En, Notes { dirty: true, ..Notes::default() }), ["● There are unsaved changes"]);
+        assert_eq!(notes(Lang::Pt, Notes { dirty: true, ..Notes::default() }), ["● Há alterações não salvas"]);
+        assert_eq!(notes(Lang::Pt, Notes::default()), ["✔ Todas as alterações estão salvas"]);
+        assert_eq!(
+            notes(Lang::En, Notes { dirty: true, result: Some("✔ Settings saved".into()), moved: true }),
+            ["● There are unsaved changes", "✔ Settings saved", "✖ The selection changed since the panel was loaded. Press Reload to use it."]
+        );
+        assert_eq!(marked(SYM_OK, "a"), "✔ a");
+    }
+
+    #[test]
+    fn two_refusals_at_once_show_only_the_one_that_says_what_was_not_saved() {
+        // The save was refused because the selection is not the loaded component: "The selection is not the
+        // loaded component. Nothing was saved: press Reload." says what happened and what to do, so the
+        // generic "The selection changed…" warning is left out.
+        for lang in [Lang::En, Lang::Pt] {
+            let sp = spec(lang, &Form::defaults(), Some(&component_target()), &Notes { dirty: true, result: Some(refusal(lang)), moved: true });
+            let moved = marked(SYM_ERR, t(lang, Key::PanelSelectionMoved));
+            let labels: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter_map(|c| c["label"].as_str()).collect();
+            assert!(labels.contains(&refusal(lang).as_str()));
+            assert!(!labels.contains(&moved.as_str()));
+            assert!(refusal(lang).starts_with("✖ "));
         }
     }
 
@@ -823,12 +896,10 @@ mod tests {
     }
 
     #[test]
-    fn the_panel_without_a_component_has_the_page_fields_and_the_note_and_no_component_fields() {
+    fn the_panel_without_a_component_has_the_page_fields_and_no_component_fields() {
         let sp = spec(Lang::Pt, &Form::defaults(), None, &Notes::default());
         let names: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter_map(|c| c["name"].as_str()).collect();
-        assert_eq!(names, ["save", "reload", "lang", "line", "fill_auto", "stage", "on_rerun", "defaults", "close"]);
-        let notes: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter(|c| c["type"] == "note").map(|c| c["label"].as_str().unwrap()).collect();
-        assert!(notes.contains(&"Selecione um componente e aperte Recarregar"));
+        assert_eq!(names, ["lang", "line", "fill_auto", "stage", "on_rerun", "save", "reload", "defaults", "close"]);
         assert_eq!(sp["title"], "Handoff Components: Configurações");
     }
 
@@ -1175,22 +1246,11 @@ mod tests {
     }
 
     #[test]
-    fn where_the_values_came_from_is_said_in_words() {
-        let defaults = no_meta_stored();
-        assert_eq!(loaded_from(Lang::En, &defaults, None), "Loaded from: page: defaults");
-        assert_eq!(loaded_from(Lang::Pt, &defaults, None), "Carregado de: página: padrões");
-        let both = stored(st(r#"{"stage":"dark"}"#), Some(Meta::from_plugin_data(&json!({META_KEY: r#"{"version":"1"}"#}))));
-        assert_eq!(loaded_from(Lang::En, &both, Some(&component_target())), "Loaded from: page: handoff-settings; component: handoff-meta");
-        let new_comp = stored(Settings::default(), Some(Meta::default()));
-        assert_eq!(loaded_from(Lang::Pt, &new_comp, Some(&component_target())), "Carregado de: página: padrões; componente: padrões");
-    }
-
-    #[test]
     fn the_notes_say_whether_there_are_unsaved_changes_in_both_languages() {
-        let sp = |lang: Lang, dirty: bool| spec(lang, &Form::defaults(), None, &Notes { dirty, ..Notes::default() })["controls"][0]["label"].as_str().unwrap().to_string();
-        assert_eq!(sp(Lang::En, true), "There are unsaved changes");
-        assert_eq!(sp(Lang::En, false), "All changes are saved");
-        assert_eq!(sp(Lang::Pt, true), "Há alterações não salvas");
-        assert_eq!(sp(Lang::Pt, false), "Todas as alterações estão salvas");
+        let sp = |lang: Lang, dirty: bool| spec(lang, &Form::defaults(), None, &Notes { dirty, ..Notes::default() })["controls"][8]["label"].as_str().unwrap().to_string();
+        assert_eq!(sp(Lang::En, true), "● There are unsaved changes");
+        assert_eq!(sp(Lang::En, false), "✔ All changes are saved");
+        assert_eq!(sp(Lang::Pt, true), "● Há alterações não salvas");
+        assert_eq!(sp(Lang::Pt, false), "✔ Todas as alterações estão salvas");
     }
 }

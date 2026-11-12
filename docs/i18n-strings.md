@@ -216,7 +216,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelTargetComponent | ── Component: {name} ── | ── Componente: {name} ── |
 | PanelTargetSet | ── Component set: {name} ── | ── Conjunto de componentes: {name} ── |
 | PanelTargetVariant | ── Variant of the set: {name} ── | ── Variante do conjunto: {name} ── |
-| PanelNoTarget | Select a component and press Reload | Selecione um componente e aperte Recarregar |
 | PanelVersion | Version | Versão |
 | PanelStatus | Status | Status |
 | PanelDefaultVariant | Default variant: {prop} | Variante padrão: {prop} |
@@ -226,6 +225,4 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelSelectionRefused | The selection is not the loaded component. Nothing was saved: press Reload. | A seleção não é o componente carregado. Nada foi salvo: aperte Recarregar. |
 | PanelReloaded | Reloaded from what is saved; unsaved changes were discarded. | Recarregado do que está salvo; as alterações não salvas foram descartadas. |
 | PanelRestored | Page settings are back to the defaults. Press Save changes to apply. | As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar. |
-| PanelLoadedPage | Loaded from: page: {page} | Carregado de: página: {page} |
-| PanelLoadedBoth | Loaded from: page: {page}; component: {component} | Carregado de: página: {page}; componente: {component} |
-| PanelSourceDefaults | defaults | padrões |
+| PanelMessagesHeading | ── Messages ── | ── Mensagens ── |

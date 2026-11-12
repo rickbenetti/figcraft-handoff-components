@@ -209,7 +209,6 @@
   "PanelTargetComponent": "── Componente: {name} ──",
   "PanelTargetSet": "── Conjunto de componentes: {name} ──",
   "PanelTargetVariant": "── Variante do conjunto: {name} ──",
-  "PanelNoTarget": "Selecione um componente e aperte Recarregar",
   "PanelVersion": "Versão",
   "PanelStatus": "Status",
   "PanelDefaultVariant": "Variante padrão: {prop}",
@@ -219,7 +218,5 @@
   "PanelSelectionRefused": "A seleção não é o componente carregado. Nada foi salvo: aperte Recarregar.",
   "PanelReloaded": "Recarregado do que está salvo; as alterações não salvas foram descartadas.",
   "PanelRestored": "As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar.",
-  "PanelLoadedPage": "Carregado de: página: {page}",
-  "PanelLoadedBoth": "Carregado de: página: {page}; componente: {component}",
-  "PanelSourceDefaults": "padrões"
+  "PanelMessagesHeading": "── Mensagens ──"
 }

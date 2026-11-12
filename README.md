@@ -49,10 +49,11 @@ It writes `dist/` and prints the absolute path of the manifest to import. In Fig
 
 Select a component or a set, then run **Plugins ▸ Handoff Components ▸ Generate report**.
 
-**Plugins ▸ Handoff Components ▸ Settings…** opens a panel (it needs a FigCraft that supports plugin API 2). The panel has two parts:
+**Plugins ▸ Handoff Components ▸ Settings…** opens a panel (it needs a FigCraft that supports plugin API 2). The panel has two parts of fields, then the messages and the buttons:
 
 - **This page**, saved on the current page: language (English or Português (Brasil)), line colour, fill (a box *Fill: line colour at 30%*; unchecked, a fill colour appears), stage (light, dark or auto) and what a rerun does (replace or new).
-- **The selected component**, saved on it (on its set, for a variant): version, status and, for a set, one menu per variant property that makes up the default variant (*(none)* leaves the property out). Without a component selected, only the page part is shown, with a note to select one and press **Reload**.
+- **The selected component**, saved on it (on its set, for a variant): version, status and, for a set, one menu per variant property that makes up the default variant (*(none)* leaves the property out). Without a component selected, only the page part is shown.
+- **Messages**, below the fields: whether there are unsaved changes (`●`), whether everything is saved (`✔`) and the result of the last button (`✔` done, `✖` refused). The buttons come after all the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls, so a button above a field would run before the field's new value arrived.
 
 Nothing is saved until you press **Save changes**; the panel says whether there are unsaved changes, and stays open after saving. **Reload** reads the selection and what is saved again (and discards unsaved changes); **Restore defaults** sets the page's fields to "not defined" (press **Save changes** to remove them); **Close** closes it. Notes:
 
@@ -98,9 +99,10 @@ no local time, so a date would be wrong for many people; it will come back when 
 ## Tests and regression
 
 ```sh
-cargo test                      # 147 unit tests + 4 that keep English text out of the code
+cargo test                      # 134 unit tests + 4 that keep English text out of the code
 scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
+scripts/panel_sequence.py       # the Settings panel driven like the app does: field, then Save, writes on the first click
 ```
 
 `scripts/regress.sh --update [text]` rewrites the baseline for the cases whose name contains `text` (all, if omitted).

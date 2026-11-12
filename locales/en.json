@@ -209,7 +209,6 @@
   "PanelTargetComponent": "── Component: {name} ──",
   "PanelTargetSet": "── Component set: {name} ──",
   "PanelTargetVariant": "── Variant of the set: {name} ──",
-  "PanelNoTarget": "Select a component and press Reload",
   "PanelVersion": "Version",
   "PanelStatus": "Status",
   "PanelDefaultVariant": "Default variant: {prop}",
@@ -219,7 +218,5 @@
   "PanelSelectionRefused": "The selection is not the loaded component. Nothing was saved: press Reload.",
   "PanelReloaded": "Reloaded from what is saved; unsaved changes were discarded.",
   "PanelRestored": "Page settings are back to the defaults. Press Save changes to apply.",
-  "PanelLoadedPage": "Loaded from: page: {page}",
-  "PanelLoadedBoth": "Loaded from: page: {page}; component: {component}",
-  "PanelSourceDefaults": "defaults"
+  "PanelMessagesHeading": "── Messages ──"
 }
