@@ -198,12 +198,12 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelRerunNew | New | Novo |
 | PanelVersion | Version | Versão |
 | PanelStatus | Status | Status |
-| PanelRestored | Page settings are back to the defaults. They are saved with the next documentation. | As configurações da página voltaram aos padrões. Elas são gravadas na próxima documentação gerada. |
+| PanelRestored | Line colour, fill, stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Cor da linha, preenchimento, palco e “ao rodar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
 | PanelTitleMessages | MESSAGES | MENSAGENS |
 | VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
 | ToBeDefined | to be defined | a definir |
 | PanelTitleDocumentation | DOCUMENTATION | DOCUMENTAÇÃO |
-| PanelBlankHint | Left blank, the documentation shows “to be defined”. | Em branco, a documentação mostra “a definir”. |
+| PanelBlankHint | Left blank, the documentation shows “to be defined”. | Em branco, a documentação mostra “a definir”. |
 | PanelIdle | Select a component, a component set or a variant and press Generate documentation. | Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação. |
 | PanelGenerated | Documentation generated: {name}. | Documentação gerada: {name}. |
 | PanelNothingSelected | Nothing is selected. Select a component, a component set or a variant and press Generate documentation. | Nada selecionado. Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação. |
@@ -214,3 +214,4 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelFillOpacity | Fill (%) | Preenchimento (%) |
 | PanelFillHint | Fill opacity, using the line colour. 0 = no fill. | Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento. |
 | PanelBadOpacity | The fill must be a whole number from 0 to 100. Correct it and press Generate documentation. | O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação. |
+| LabelPad | 8 | 0 |

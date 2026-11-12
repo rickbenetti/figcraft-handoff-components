@@ -161,6 +161,7 @@ keys! {
     VersionStatusLine, ToBeDefined,
     PanelTitleDocumentation, PanelBlankHint, PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelFreezeNote, PanelGenerate,
     ErrBadOpacity, PanelFillOpacity, PanelFillHint, PanelBadOpacity,
+    LabelPad,
 }
 
 /// The text of `key` in `lang` (English when the language has none).

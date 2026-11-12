@@ -37,7 +37,8 @@ pub enum Field {
 }
 
 impl Field {
-    pub const PAGE: [Field; 5] = [Field::Lang, Field::Line, Field::FillOpacity, Field::Stage, Field::Rerun];
+    /// What "Restore defaults" restores: everything on the page but the language.
+    pub const RESTORABLE: [Field; 4] = [Field::Line, Field::FillOpacity, Field::Stage, Field::Rerun];
 
     /// The page setting a control edits, by the control's name.
     pub fn of_control(name: &str) -> Option<Field> {
@@ -143,10 +144,11 @@ impl Form {
         (n.is_finite() && n.fract() == 0.0 && (0.0..=100.0).contains(&n)).then_some(n as u8)
     }
 
-    /// The page's part of the form back to "nothing defined".
+    /// The page's part of the form back to "nothing defined", except the language: it stays, so the panel does
+    /// not change language under the user's hands.
     pub fn restore_page_defaults(&self) -> Form {
         let d = Form::defaults();
-        Form { lang: d.lang, line: d.line.clone(), fill_pct: d.fill_pct, stage: d.stage, rerun: d.rerun, ..self.clone() }
+        Form { line: d.line.clone(), fill_pct: d.fill_pct, stage: d.stage, rerun: d.rerun, ..self.clone() }
     }
 
     /// The form after a documentation was made: nothing is remembered, so Version and Status are empty again.
@@ -239,9 +241,9 @@ pub fn plan(stored: &Settings, form: &Form, cleared: &BTreeSet<Field>) -> Option
         },
         on_rerun: choose(&s.on_rerun, s.on_rerun.as_deref().and_then(Rerun::parse), has(Field::Rerun), form.rerun, Rerun::Replace, |r| r.name().to_string()),
         stage: choose(&s.stage, s.stage.as_deref().and_then(StageMode::parse), has(Field::Stage), form.stage, StageMode::Light, |m| m.name().to_string()),
-        // A leftover key (a `tz` from 0.9.6 and before) is ignored, not deleted; "Restore defaults" (every
-        // page setting cleared) clears it too.
-        other: if Field::PAGE.iter().all(|f| has(*f)) { serde_json::Map::new() } else { s.other.clone() },
+        // A leftover key (a `tz` or a `fill` colour from 0.9.6 and before) is ignored, not deleted; "Restore
+        // defaults" (every setting but the language cleared) drops it too.
+        other: if Field::RESTORABLE.iter().all(|f| has(*f)) { serde_json::Map::new() } else { s.other.clone() },
     };
     (new != *s).then_some(new)
 }
@@ -316,9 +318,14 @@ fn button(name: &str, label: &str) -> Value {
     json!({"type": "button", "name": name, "label": safe_text(label, MAX_LABEL)})
 }
 
+/// The non-breaking spaces that end a label: `LabelPad` in the dictionary says how many (0 when it isn't a number).
+fn label_pad(lang: Lang) -> String {
+    "\u{a0}".repeat(t(lang, Key::LabelPad).trim().parse::<usize>().unwrap_or(0).min(MAX_LABEL / 2))
+}
+
 /// The panel's spec in the language `lang` (the form's own), with every field's value from `form`.
 ///
-/// The order is: the fields, then the messages, then the buttons. The host hands its events to the plugin
+/// The order is: the fields, then the buttons, then the messages. The host hands its events to the plugin
 /// in the order of these controls, so a button before a field would run before the field's new value
 /// arrived. The first button is the primary one: it makes the documentation.
 pub fn spec(lang: Lang, form: &Form, message: &Message) -> Value {
@@ -328,7 +335,10 @@ pub fn spec(lang: Lang, form: &Form, message: &Message) -> Value {
     // a spacer (except at the top): the host has no section, divider or spacing of its own.
     c.push(note(t(lang, Key::PanelTitlePage)));
     c.push(json!({"type": "select", "name": "lang", "label": label(Key::PanelLang), "options": [lang_label(Lang::En), lang_label(Lang::Pt)], "value": lang_label(form.lang)}));
-    c.push(json!({"type": "color", "name": "line", "label": label(Key::PanelLineColour), "value": form.line}));
+    // The English "Line colour" gets non-breaking spaces at its end (the dictionary's `LabelPad`) so that the column
+    // of labels is as wide in English as in Portuguese. Added after `safe_text`, which would trim them.
+    let line_label = format!("{}{}", label(Key::PanelLineColour), label_pad(lang));
+    c.push(json!({"type": "color", "name": "line", "label": line_label, "value": form.line}));
     // The field holds a whole number from 0 to 100 (the host clamps what is typed; the plugin checks the rest).
     let shown = if form.fill_pct.is_finite() { form.fill_pct } else { f64::from(DEFAULT_FILL_OPACITY) };
     c.push(json!({"type": "number", "name": "fill_opacity", "label": label(Key::PanelFillOpacity), "min": 0, "max": 100, "value": shown}));
@@ -343,13 +353,15 @@ pub fn spec(lang: Lang, form: &Form, message: &Message) -> Value {
     c.push(json!({"type": "text", "name": "status", "label": label(Key::PanelStatus), "value": form.status}));
     c.push(note(t(lang, Key::PanelBlankHint)));
     c.push(note(""));
-    c.push(note(t(lang, Key::PanelTitleMessages)));
-    c.push(note(&message_text(lang, message)));
-    c.push(note(&marked(SYM_INFO, t(lang, Key::PanelFreezeNote))));
-    c.push(note(""));
     c.push(button("generate", t(lang, Key::PanelGenerate)));
     c.push(button("defaults", t(lang, Key::PanelDefaults)));
     c.push(button("close", t(lang, Key::PanelClose)));
+    // The messages are BELOW the buttons: their height changes from one message to the next, and anything under
+    // them would move; the buttons stay where they are. The list of controls is the same in every state.
+    c.push(note(""));
+    c.push(note(t(lang, Key::PanelTitleMessages)));
+    c.push(note(&message_text(lang, message)));
+    c.push(note(&marked(SYM_INFO, t(lang, Key::PanelFreezeNote))));
     json!({"title": safe_text(t(lang, Key::PanelTitle), 64), "controls": c})
 }
 
@@ -425,7 +437,7 @@ fn run_event(input: &Input, control: &str, state: &mut State) -> Result<Value> {
 
     match control {
         "defaults" => {
-            state.cleared = Field::PAGE.into_iter().collect();
+            state.cleared = Field::RESTORABLE.into_iter().collect();
             form = form.restore_page_defaults();
             state.message = Message::Restored;
         }
@@ -592,14 +604,15 @@ mod tests {
     }
 
     #[test]
-    fn the_controls_come_as_page_fields_then_documentation_fields_then_messages_then_buttons() {
+    fn the_controls_come_as_page_fields_then_documentation_fields_then_buttons_then_messages() {
         let en = signature(&spec(Lang::En, &Form::defaults(), &Message::Idle));
+        let nb = "\u{a0}";
         assert_eq!(
             en,
             [
-                "note:THIS PAGE", "lang", "line", "fill_opacity", "note:Fill opacity, using the line colour. 0 = no fill.", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status", "note:Left blank, the documentation shows “to be defined”.",
-                "note:", "note:MESSAGES", "note:Select a component, a component set or a variant and press Generate documentation.",
-                "note:ℹ The screen freezes while the documentation is generated.", "note:", "generate", "defaults", "close"
+                "note:THIS PAGE", "lang", "line", "fill_opacity", "note:Fill opacity, using the line colour. 0 = no fill.", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status",
+                &format!("note:Left blank, the documentation shows “to{nb}be{nb}defined”."), "note:", "generate", "defaults", "close",
+                "note:", "note:MESSAGES", "note:Select a component, a component set or a variant and press Generate documentation.", "note:ℹ The screen freezes while the documentation is generated."
             ]
         );
         let pt = Form { lang: Lang::Pt, ..Form::defaults() };
@@ -607,14 +620,15 @@ mod tests {
         assert_eq!(
             pt,
             [
-                "note:ESTA PÁGINA", "lang", "line", "fill_opacity", "note:Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.", "stage", "on_rerun", "note:", "note:DOCUMENTAÇÃO", "version", "status", "note:Em branco, a documentação mostra “a definir”.",
-                "note:", "note:MENSAGENS", "note:✔ Documentação gerada: Botão de teste.", "note:ℹ A tela fica travada enquanto a documentação é gerada.", "note:", "generate", "defaults", "close"
+                "note:ESTA PÁGINA", "lang", "line", "fill_opacity", "note:Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.", "stage", "on_rerun", "note:", "note:DOCUMENTAÇÃO", "version", "status",
+                &format!("note:Em branco, a documentação mostra “a{nb}definir”."), "note:", "generate", "defaults", "close",
+                "note:", "note:MENSAGENS", "note:✔ Documentação gerada: Botão de teste.", "note:ℹ A tela fica travada enquanto a documentação é gerada."
             ]
         );
     }
 
     #[test]
-    fn the_panel_has_twenty_controls_in_every_state() {
+    fn the_panel_has_the_same_number_of_controls_in_every_state() {
         for (form, message) in every_state() {
             assert_eq!(spec(form.lang, &form, &message)["controls"].as_array().unwrap().len(), 20);
         }
@@ -645,7 +659,7 @@ mod tests {
             assert_eq!(controls[0]["label"], t(form.lang, Key::PanelTitlePage));
             let titles = [t(form.lang, Key::PanelTitleDocumentation), t(form.lang, Key::PanelTitleMessages)];
             let empty: Vec<usize> = controls.iter().enumerate().filter(|(_, c)| c["type"] == "note" && c["label"] == "").map(|(i, _)| i).collect();
-            assert_eq!(empty.len(), 3, "before DOCUMENTATION, before MESSAGES and before the buttons");
+            assert_eq!(empty.len(), 3, "before DOCUMENTATION, before the buttons and before MESSAGES");
             for i in empty {
                 let next = &controls[i + 1];
                 let label = next["label"].as_str().unwrap();
@@ -659,18 +673,86 @@ mod tests {
     }
 
     #[test]
-    fn the_freeze_warning_is_always_there_and_last_before_the_spacer_of_the_buttons() {
+    fn the_freeze_warning_is_always_there_and_the_last_control() {
         for (form, message) in every_state() {
             let sp = spec(form.lang, &form, &message);
             let controls = sp["controls"].as_array().unwrap();
-            let first_button = controls.iter().position(|c| c["type"] == "button").unwrap();
-            assert_eq!(controls[first_button - 1]["label"], "", "the spacer");
-            let warning = controls[first_button - 2]["label"].as_str().unwrap();
-            assert_eq!(warning, marked(SYM_INFO, t(form.lang, Key::PanelFreezeNote)));
-            assert!(warning.starts_with("ℹ "));
+            let last = controls.last().unwrap();
+            assert_eq!(last["type"], "note");
+            assert_eq!(last["label"].as_str().unwrap(), marked(SYM_INFO, t(form.lang, Key::PanelFreezeNote)));
+            assert!(last["label"].as_str().unwrap().starts_with("ℹ "));
+            // The state note is right above it, under the MESSAGES title.
+            assert_eq!(controls[controls.len() - 3]["label"], t(form.lang, Key::PanelTitleMessages));
         }
         assert_eq!(marked(SYM_INFO, t(Lang::Pt, Key::PanelFreezeNote)), "ℹ A tela fica travada enquanto a documentação é gerada.");
         assert_eq!(marked(SYM_INFO, t(Lang::En, Key::PanelFreezeNote)), "ℹ The screen freezes while the documentation is generated.");
+    }
+
+    #[test]
+    fn the_list_of_controls_and_their_labels_is_the_same_in_every_state_and_both_languages() {
+        // Only the text of the state note may differ from one state to the next (it is the one note under MESSAGES).
+        // The layout then cannot jump: a field, a note or a button never appears, goes away or changes its label.
+        let shape = |sp: &Value| -> Vec<(String, String, String)> {
+            let controls = sp["controls"].as_array().unwrap();
+            let state_note = controls.len() - 2;
+            controls
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let label = if i == state_note { "<state note>".to_string() } else { c["label"].as_str().unwrap_or_default().to_string() };
+                    (c["type"].as_str().unwrap().to_string(), c["name"].as_str().unwrap_or_default().to_string(), label)
+                })
+                .collect()
+        };
+        type Shape = Vec<(String, String, String)>;
+        let mut per_lang: Vec<(Lang, Shape)> = Vec::new();
+        for lang in [Lang::En, Lang::Pt] {
+            let reference = shape(&spec(lang, &Form { lang, ..Form::defaults() }, &Message::Idle));
+            // Every message, a custom line colour, other opacities, stages and reruns, long names.
+            let mut states: Vec<(Form, Message)> = every_state().into_iter().filter(|(f, _)| f.lang == lang).collect();
+            for form in [
+                Form { lang, line: "#112233".into(), fill_pct: 0.0, stage: StageMode::Dark, rerun: Rerun::New, version: "1.2".into(), status: "Aprovado".into() },
+                Form { lang, fill_pct: f64::NAN, ..Form::defaults() },
+                Form { lang, fill_pct: 12.5, ..Form::defaults() },
+            ] {
+                states.push((form.clone(), Message::Idle));
+                states.push((form, Message::BadOpacity));
+            }
+            assert!(states.len() >= 20);
+            for (form, message) in states {
+                let sp = spec(lang, &form, &message);
+                assert_eq!(shape(&sp), reference, "{lang:?} {message:?} {form:?}");
+                assert_eq!(sp["controls"].as_array().unwrap().len(), 20);
+            }
+            per_lang.push((lang, reference));
+        }
+        // Across languages: the same controls, in the same order, with the same names.
+        let skeleton = |v: &[(String, String, String)]| v.iter().map(|(t, n, _)| (t.clone(), n.clone())).collect::<Vec<_>>();
+        assert_eq!(skeleton(&per_lang[0].1), skeleton(&per_lang[1].1));
+    }
+
+    #[test]
+    fn the_english_line_colour_label_is_padded_to_the_width_of_the_portuguese_column() {
+        let line = |lang: Lang| spec(lang, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap().iter().find(|c| c["name"] == "line").unwrap()["label"].as_str().unwrap().to_string();
+        let (en, pt) = (line(Lang::En), line(Lang::Pt));
+        assert_eq!(en, format!("Line colour{}", "\u{a0}".repeat(8)));
+        assert_eq!(pt, "Cor da linha", "Portuguese needs no padding");
+        assert!(en.chars().count() <= MAX_LABEL);
+        // The padding is non-breaking spaces and nothing else is padded.
+        assert_eq!((t(Lang::En, Key::LabelPad), t(Lang::Pt, Key::LabelPad)), ("8", "0"), "the number of non-breaking spaces, one constant per language");
+        assert_eq!(label_pad(Lang::En), "\u{a0}".repeat(8));
+        assert_eq!(label_pad(Lang::Pt), "");
+        let others: Vec<String> = spec(Lang::En, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap().iter().filter(|c| c["name"] != "line" && c["type"] != "note").map(|c| c["label"].as_str().unwrap().to_string()).collect();
+        assert!(others.iter().all(|l| !l.contains('\u{a0}')));
+    }
+
+    #[test]
+    fn the_blank_hint_never_breaks_inside_the_expression() {
+        assert_eq!(t(Lang::Pt, Key::PanelBlankHint), "Em branco, a documentação mostra “a\u{a0}definir”.");
+        assert_eq!(t(Lang::En, Key::PanelBlankHint), "Left blank, the documentation shows “to\u{a0}be\u{a0}defined”.");
+        // The note keeps those spaces when it is put in the panel.
+        let sp = spec(Lang::Pt, &Form::defaults(), &Message::Idle);
+        assert!(sp["controls"].as_array().unwrap().iter().any(|c| c["label"] == "Em branco, a documentação mostra “a\u{a0}definir”."));
     }
 
     #[test]
@@ -888,13 +970,20 @@ mod tests {
     }
 
     #[test]
-    fn restore_defaults_removes_the_keys_that_are_stored_and_nothing_when_none_is() {
-        let full = st(r##"{"lang":"pt-BR","line":"#112233","fill":"#11223344","on_rerun":"new","stage":"dark","tz":"5.5"}"##);
+    fn restore_defaults_keeps_the_language_and_removes_the_other_keys_that_are_stored() {
+        let full = st(r##"{"lang":"pt-BR","line":"#112233","fill_opacity":45,"fill":"#11223344","on_rerun":"new","stage":"dark","tz":"5.5"}"##);
         let form = Form::from_stored(&full).restore_page_defaults();
-        let cleared: BTreeSet<Field> = Field::PAGE.into_iter().collect();
+        assert_eq!(form.lang, Lang::Pt, "the language stays, or the panel would turn English under the user");
+        assert_eq!((form.fill_valid(), form.stage, form.rerun, form.line.as_str()), (Some(30), StageMode::Light, Rerun::Replace, "#FCA311"));
+        let cleared: BTreeSet<Field> = Field::RESTORABLE.into_iter().collect();
         let p = plan(&full, &form, &cleared).unwrap();
-        assert_eq!(p, Settings::default());
-        assert_eq!(p.to_text(), None, "every key goes: the stored text is removed");
+        assert_eq!(p.to_text().as_deref(), Some(r##"{"lang":"pt-BR"}"##), "only the language is left: old keys (tz, the old fill colour) are dropped");
+        // The language typed in the panel before the restore is the one kept.
+        let en = Form { lang: Lang::En, ..form.clone() };
+        assert_eq!(plan(&full, &en, &cleared).unwrap().to_text().as_deref(), Some(r##"{"lang":"en"}"##));
+        // Nothing stored but a language: nothing to do.
+        let only_lang = st(r##"{"lang":"pt-BR"}"##);
+        assert_eq!(plan(&only_lang, &Form::from_stored(&only_lang), &cleared), None);
         let explicit = st(r##"{"line":"#FCA311","tz":"-3"}"##);
         let f2 = Form::from_stored(&explicit);
         assert_eq!(plan(&explicit, &f2, &none()), None, "unmarked: untouched");
@@ -939,7 +1028,7 @@ mod tests {
         assert_eq!(form.line, "#FCA311");
         assert_eq!(form.fill_valid(), Some(30), "an opacity over 100 reads as the default");
         assert_eq!(plan(&junk, &form, &none()), None);
-        let cleared: BTreeSet<Field> = Field::PAGE.into_iter().collect();
+        let cleared: BTreeSet<Field> = Field::RESTORABLE.into_iter().collect();
         assert_eq!(plan(&junk, &form, &cleared).unwrap().to_text(), None);
     }
 

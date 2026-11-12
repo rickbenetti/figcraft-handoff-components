@@ -51,7 +51,7 @@ Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a
 
 - **This page**, saved on the current page: language (English or Português (Brasil)), line colour, **Fill (%)** (a whole number from 0 to 100, default 30: the fill is always the line colour at that opacity, 0 = no fill; the opacity is absolute, so a line colour with its own alpha does not change it), stage (light, dark or auto) and what a rerun does (replace or new).
 - **Documentation**: **Version** and **Status**. Left blank, the documentation shows “to be defined” (“a definir” in Portuguese): the header always has the line `Version: … · Status: …`. Nothing is remembered: after a documentation is made, both fields are blank again.
-- **Messages**: what happened the last time (`✔` done, `✖` refused) and a fixed warning (`ℹ`) that the screen freezes while the documentation is generated. The buttons come after all the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls, so a button above a field would run before the field's new value arrived.
+- **Messages**, below the buttons (so the buttons never move when a message is longer or shorter): what happened the last time (`✔` done, `✖` refused) and a fixed warning (`ℹ`) that the screen freezes while the documentation is generated. The buttons come after all the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls, so a button above a field would run before the field's new value arrived.
 
 **Generate documentation** works on whatever is selected **at the moment of the click**: a component, a component set (it shows the set's own default variant, else the first one) or a variant. Then it:
 
@@ -62,7 +62,7 @@ Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a
 5. gives the selection back (what was selected before the click stays selected);
 6. empties Version and Status.
 
-If something fails on the way, the app puts everything back as it was and shows the error. **Restore defaults** sets the page's fields to "not defined" (they are saved with the next documentation); **Close** closes the panel. The panel is in the page's language and redraws at once when you change it, keeping what you typed.
+If something fails on the way, the app puts everything back as it was and shows the error. **Restore defaults** puts line colour, Fill (%), stage and “on rerun” back to the defaults and **keeps the language** (they are saved with the next documentation, and old keys the plugin ignores are dropped then); **Close** closes the panel. The panel is in the page's language and redraws at once when you change it, keeping what you typed.
 
 The defaults are: language English; line colour `#FCA311`; fill 30% (the line colour at 30% opacity); stage `light`; on rerun `replace`.
 
@@ -98,7 +98,7 @@ no local time, so a date would be wrong for many people; it will come back when 
 ## Tests and regression
 
 ```sh
-cargo test                      # 130 unit tests + 4 that keep English text out of the code
+cargo test                      # 136 unit tests + 4 that keep English text out of the code
 scripts/regress.sh              # 14 cases against tests/baseline.json: 9 in English (4 fixtures + 5 on the DS Base Demo) and 5 in pt-BR
 scripts/regress.sh --private    # extra cases on files kept out of the repository (tests/private/), if present
 scripts/panel_sequence.py       # the panel driven like the app does: Version and Status, then the button, in one click; refusals; direct mode

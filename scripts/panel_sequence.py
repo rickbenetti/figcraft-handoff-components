@@ -165,6 +165,20 @@ def main():
         err = run(copia, [select(32), generate(direct=True, fill_opacity="101")], tmp, expect_error=True)
         check(err is not None and "0 to 100" in err.get("error", ""), "direct: fill_opacity 101 is refused with the dictionary's message", (err or {}).get("error", "")[:90])
 
+        # 5c. Restore defaults keeps the language (the panel must not turn English), and saves it with the next click.
+        r = run(copia, [select(32), generate(direct=True, lang="pt-BR", line="#112233"), select(32), generate(), event("defaults"), ui(), event("generate"), generate(), ui()], tmp)
+        shown = r[5]["result"]
+        labels = [l for _, l in controls(r[5])]
+        check(shown["values"].get("lang") == "Português (Brasil)" and shown["values"].get("line") == "#FCA311" and "Idioma" in labels, "Restore defaults keeps Portuguese and restores the rest", str(shown["values"].get("lang")))
+        check(any(l.startswith("Cor da linha, preenchimento, palco e “ao rodar de novo” voltaram aos padrões") for l in labels), "the restore note is in Portuguese and says the language was kept")
+        check(r[8]["result"]["values"].get("lang") == "Português (Brasil)", "after the click the language is still Portuguese (the page keeps `lang`)")
+
+        # 5d. The panel has the same controls and labels before and after a documentation and a refusal.
+        r = run(copia, [select(32), generate(), event("generate"), select(), event("generate")], tmp)
+        a, b, c = controls(r[1]), controls(r[2]), controls(r[4])
+        strip = lambda ctl: ctl[:-2] + ctl[-1:]  # without the state note
+        check(len(a) == len(b) == len(c) == 20 and strip(a) == strip(b) == strip(c), "20 controls with the same labels when opened, after a documentation and after a refusal")
+
         # 6. The order of the controls in the real panel, whatever is selected.
         for name, src, ids in [("no selection", copia, []), ("component", copia, [32]), ("variant", copia, [3])]:
             r = run(src, [select(*ids), generate()], tmp)

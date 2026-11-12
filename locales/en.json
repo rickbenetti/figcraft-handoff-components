@@ -191,12 +191,12 @@
   "PanelRerunNew": "New",
   "PanelVersion": "Version",
   "PanelStatus": "Status",
-  "PanelRestored": "Page settings are back to the defaults. They are saved with the next documentation.",
+  "PanelRestored": "Line colour, fill, stage and \u201con rerun\u201d are back to the defaults; the language was kept. The restored settings will be saved with the next documentation.",
   "PanelTitleMessages": "MESSAGES",
   "VersionStatusLine": "Version: {version} · Status: {status}",
   "ToBeDefined": "to be defined",
   "PanelTitleDocumentation": "DOCUMENTATION",
-  "PanelBlankHint": "Left blank, the documentation shows “to be defined”.",
+  "PanelBlankHint": "Left blank, the documentation shows \u201cto\u00a0be\u00a0defined\u201d.",
   "PanelIdle": "Select a component, a component set or a variant and press Generate documentation.",
   "PanelGenerated": "Documentation generated: {name}.",
   "PanelNothingSelected": "Nothing is selected. Select a component, a component set or a variant and press Generate documentation.",
@@ -206,5 +206,6 @@
   "ErrBadOpacity": "fill opacity must be a whole number from 0 to 100, not \"{value}\"",
   "PanelFillOpacity": "Fill (%)",
   "PanelFillHint": "Fill opacity, using the line colour. 0 = no fill.",
-  "PanelBadOpacity": "The fill must be a whole number from 0 to 100. Correct it and press Generate documentation."
+  "PanelBadOpacity": "The fill must be a whole number from 0 to 100. Correct it and press Generate documentation.",
+  "LabelPad": "8"
 }
