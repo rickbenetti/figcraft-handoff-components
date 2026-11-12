@@ -11,7 +11,4 @@ gerar.rs | Bold | the font style passed to the host to draw the report's own tex
 gerar.rs | selection: Input.selection (the `selection` field of the run's input; not a FigCraft command) | only in the JSON a run returns (`id_source`), never drawn
 store.rs | auto | the stage mode typed in Settings and saved (light, dark and auto stay in English, decision P11)
 theme.rs | Inter | the report's font family
-clock.rs | tmp (handoff-components date) | the text of the temporary comment: fixed, so it can be recognised in the file for an instant
-clock.rs | comment.add: no id in the reply | the technical reason inside the date warning (a host diagnostic, like the {reason} of ErrCall): not translated
-clock.rs | comment.list: the new comment (or its `created`) isn't in the list | the technical reason inside the date warning (a host diagnostic): not translated
 audit.rs | Auto | the host's `lineHeight` text, matched here and worded through LineHeightAutoHost

@@ -18,7 +18,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | Anatomy | Anatomy | Anatomia |
 | Collision | Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
 | CollisionOne | Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
-| DateUnavailable | unavailable | indisponível |
 | DefaultLine | Default: {pairs} ({source}) | Variante padrão: {pairs} ({source}) |
 | DeltaContent | Text | Texto |
 | DeltaEffectOnly | No readable differences (visual effect only) | Sem diferenças legíveis (apenas efeito visual) |
@@ -40,7 +39,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ErrBadLang | language must be en or pt-BR, not "{value}" | o idioma deve ser en ou pt-BR, não "{value}" |
 | ErrBadRerun | on rerun must be replace or new, not "{value}" | ao rodar de novo deve ser replace ou new, não "{value}" |
 | ErrBadStage | stage must be light, dark or auto, not "{value}" | o palco deve ser light, dark ou auto, não "{value}" |
-| ErrBadTz | time zone must be a number of hours from UTC between -14 and 14 (for example -3, 0 or 5.5), not "{value}" | o fuso deve ser um número de horas em relação ao UTC entre -14 e 14 (por exemplo -3, 0 ou 5.5), não "{value}" |
 | ErrCall | {cmd}: {reason} | {cmd}: {reason} |
 | ErrDefaultMalformed | "{text}" is not Property=Option (for example Size=Small, State=Enabled) | "{text}" não está no formato Propriedade=Opção (por exemplo Size=Small, State=Enabled) |
 | ErrDefaultNoVariant | No variant is named "{name}" | Nenhuma variante se chama "{name}" |
@@ -57,7 +55,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ErrNotList | page.list: the reply isn't a list | page.list: a resposta não é uma lista |
 | ErrParent | instance.place put the instance in {parent}, not in the stage {stage} | instance.place colocou a instância em {parent}, não no palco {stage} |
 | FrameName | Report — {name} | Relatório — {name} |
-| GeneratedOn | Generated on | Gerado em |
 | InstanceOf | Instance of {name} | Instância de {name} |
 | LayerAnatomyRow | Anatomy layout | Layout da anatomia |
 | LayerAnatomySection | Anatomy section | Seção da anatomia |
@@ -70,7 +67,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | LayerChip | Token chip | Chip de token |
 | LayerDeltas | Differences | Diferenças |
 | LayerDivider | Divider | Divisor |
-| LayerGenerated | Generated on | Gerado em |
 | LayerGroup | Legend: {name} | Legenda: {name} |
 | LayerHeaderBlock | Header | Cabeçalho |
 | LayerKind | Layer kind | Tipo da camada |
@@ -154,8 +150,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ValueFalse | False | Falso |
 | ValueTrue | True | Verdadeiro |
 | Variants | {n} variants; first one shown | {n} variantes; mostrada a primeira |
-| WarnNoDate | The date could not be read from the app's clock ({reason}). | Não foi possível ler a data do relógio do app ({reason}). |
-| WarnTmpComment | A temporary comment (id {id}) made to read the date was not removed. Delete it by hand. | Um comentário temporário (id {id}), criado para ler a data, não foi removido. Apague-o manualmente. |
 | KindFrame | Frame | Quadro |
 | KindGroup | Group | Grupo |
 | KindRectangle | Rectangle | Retângulo |
@@ -219,8 +213,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelRerun | On rerun | Ao rodar de novo |
 | PanelRerunReplace | Replace | Substituir |
 | PanelRerunNew | New | Novo |
-| PanelTz | Time zone (UTC) | Fuso horário (UTC) |
-| PanelTzNote | Offset in hours from UTC (e.g. -3). Fixed: no daylight saving time. | Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão. |
 | PanelTargetComponent | ── Component: {name} ── | ── Componente: {name} ── |
 | PanelTargetSet | ── Component set: {name} ── | ── Conjunto de componentes: {name} ── |
 | PanelTargetVariant | ── Variant of the set: {name} ── | ── Variante do conjunto: {name} ── |

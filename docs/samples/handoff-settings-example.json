@@ -1,12 +1,12 @@
 {
   "where": "pluginData of the current page (node.get {id: page, fields:[\"pluginData\"]})",
   "key": "handoff-settings",
-  "value_is_a_JSON_text": "{\"lang\":\"pt\",\"line\":\"#3B82F6\",\"on_rerun\":\"new\",\"tz\":\"-3\"}",
+  "note": "Files saved by 0.9.6 and before may also hold a \"tz\" key. It is ignored when reading and kept when the settings are saved (Restore defaults removes it).",
+  "value_is_a_JSON_text": "{\"lang\":\"pt\",\"line\":\"#3B82F6\",\"on_rerun\":\"new\"}",
   "as_object": {
     "lang": "pt",
     "line": "#3B82F6",
     "fill": "(optional, e.g. #3B82F633)",
-    "on_rerun": "replace|new",
-    "tz": "(optional) hours from UTC, -14 to 14, e.g. -3 (default) or 5.5"
+    "on_rerun": "replace|new"
   }
 }

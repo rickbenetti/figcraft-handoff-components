@@ -3,7 +3,6 @@
 //! and a table of the numbered properties) and a token audit. Every text it shows comes from
 //! `crate::i18n`.
 
-use crate::clock;
 use crate::audit::{self, Group, Info, Line, Prop, Row, State, Styles, Vars};
 use crate::glyphs;
 use crate::i18n::{Key, Lang, override_name, plural, t, tf};
@@ -1846,11 +1845,6 @@ pub fn generate(input: Input) -> Result<Value> {
     let size = bounds(comp).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
     let variant = target.holder != component;
 
-    // 2b. The date: read from the app's clock, afresh on every run (never from a saved date). It can't
-    // fail the run: without it the report says so.
-    let stamp = clock::read(page.id, &mut |cmd, params| call(cmd, params));
-    let generated = stamp.created.map(|created| clock::date_text(created, page.settings.tz_hours(), lang));
-
     // 3. Where: in place of the report of this component that is on the page (when replacing), else
     // to the right of everything. The old report goes first.
     let rerun = page.settings.rerun();
@@ -1904,14 +1898,6 @@ pub fn generate(input: Input) -> Result<Value> {
     let sub: Vec<&str> = [versao, status].into_iter().filter(|s| !s.is_empty()).collect();
     if !sub.is_empty() {
         text(lang, head, &sub.join(" · "), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
-    }
-    text(lang, head, &clock::generated_line(stamp.created, page.settings.tz_hours(), lang), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerGenerated))?;
-    // What went wrong with the date shows at the top of the report.
-    if let Some(reason) = &stamp.failure {
-        warning_band(lang, head, inner, &tf(lang, Key::WarnNoDate, &[("reason", reason)]), &cor_linha)?;
-    }
-    if let Some(id) = stamp.leftover {
-        warning_band(lang, head, inner, &tf(lang, Key::WarnTmpComment, &[("id", &id.to_string())]), &cor_linha)?;
     }
     // A set says which of its variants the report is about.
     if let Some(sp) = &target.set {
@@ -2092,7 +2078,6 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
         "x": x, "y": y, "replaced": replaced, "rerun": rerun.name(), "top_level_layers": top_level, "id_source": id_source,
         "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill}, "meta": {"version": versao, "status": status},
-        "generated": {"date": generated, "created": stamp.created, "tz": page.settings.tz_hours(), "failure": stamp.failure, "leftover_comment": stamp.leftover},
         "notes": notes, "lang": lang.code(), "selected": selected,
         "instance_size": {"w": ib.w, "h": ib.h}, "stage_size": {"w": stage_w, "h": h1}, "frame_size": {"w": frame_w}, "legend_height": legend_h,
         "audited_layers": audited,

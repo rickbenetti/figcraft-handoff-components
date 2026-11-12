@@ -20,7 +20,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-const FILES: &[&str] = &["audit", "clock", "contrast", "delta", "gerar", "glyphs", "lib", "panel", "settings", "store", "theme", "variants"];
+const FILES: &[&str] = &["audit", "contrast", "delta", "gerar", "glyphs", "lib", "panel", "settings", "store", "theme", "variants"];
 
 /// One-word texts that used to be hard-coded in English (now `ValueNone`, `LineHeightAuto`, `EffectDefault`…).
 const WATCHED: &[&str] = &["none", "auto", "effect", "underline", "strikethrough", "blur", "spread"];

@@ -51,7 +51,7 @@ Select a component or a set, then run **Plugins ▸ Handoff Components ▸ Gener
 
 **Plugins ▸ Handoff Components ▸ Settings…** opens a panel (it needs a FigCraft that supports plugin API 2). The panel has two parts:
 
-- **This page**, saved on the current page: language (English or Português (Brasil)), line colour, fill (a box *Fill: line colour at 30%*; unchecked, a fill colour appears), stage (light, dark or auto), what a rerun does (replace or new) and the time zone of the report's date.
+- **This page**, saved on the current page: language (English or Português (Brasil)), line colour, fill (a box *Fill: line colour at 30%*; unchecked, a fill colour appears), stage (light, dark or auto) and what a rerun does (replace or new).
 - **The selected component**, saved on it (on its set, for a variant): version, status and, for a set, one menu per variant property that makes up the default variant (*(none)* leaves the property out). Without a component selected, only the page part is shown, with a note to select one and press **Reload**.
 
 Nothing is saved until you press **Save changes**; the panel says whether there are unsaved changes, and stays open after saving. **Reload** reads the selection and what is saved again (and discards unsaved changes); **Restore defaults** sets the page's fields to "not defined" (press **Save changes** to remove them); **Close** closes it. Notes:
@@ -62,30 +62,19 @@ Nothing is saved until you press **Save changes**; the panel says whether there 
 - **One undo step.** **Save changes** writes the page and the component together as one undo step, and none when nothing changed. Undoing does not refresh the panel: press **Reload**.
 - The panel is in the page's language and redraws at once when you change it, keeping what you typed.
 
-The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`; time zone `-3`; default variant the component's own default, else the first variant of the set; version and status none (left out of the report).
+The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`; default variant the component's own default, else the first variant of the set; version and status none (left out of the report).
 
-**Scripts** can still set everything without the panel: `plugin.run` with the `settings` command and parameters `lang`, `cor_linha`, `cor_preenchimento`, `on_rerun`, `stage`, `tz`, `versao`, `status` and `default_variant` writes them directly (an empty parameter keeps the saved value, `-` clears it), with the same checks and messages as before; this is what `scripts/regress.sh` uses for its pt-BR cases.
+**Scripts** can still set everything without the panel: `plugin.run` with the `settings` command and parameters `lang`, `cor_linha`, `cor_preenchimento`, `on_rerun`, `stage`, `versao`, `status` and `default_variant` writes them directly (an empty parameter keeps the saved value, `-` clears it), with the same checks and messages as before; this is what `scripts/regress.sh` uses for its pt-BR cases.
 
 ### The report's date
 
-Every report says when it was generated (`Generated on: 2026-11-11` in English, `Gerado em: 11/11/2026` in Portuguese).
-There is no date to type: it is read from the app's clock on each **Generate report**.
+The report does not show a generation date. The plugin host gives a plugin only the instant in UTC, with no time zone and
+no local time, so a date would be wrong for many people; it will come back when the plugin API offers a clock.
 
-- **How.** The plugin host gives a plugin no clock, so the plugin adds a temporary comment (`tmp (handoff-components date)`)
-  to the current page, reads the time the app stamped on it, and deletes the comment. This is why the manifest asks for
-  `comment.add`, `comment.list` and `comment.delete`; the app doesn't ask for permission when you import a manifest that has
-  them. The plugin doesn't count comments before and after, so a comment someone else makes in a live session can't cause a
-  false alarm.
-- **Time zone.** Set in **Settings…** (field *Time zone (UTC)*, per page): hours from UTC, from `-14` to `14`, fractions allowed
-  (`-3`, `0`, `9`, `5.5`). The default is `-3` (São Paulo). The zone is fixed: there is no daylight saving time, so change it
-  by hand if your zone changes. An invalid value is refused with a message and nothing is saved.
-- **When it fails.** If the comment can't be added or read, the report is still made, says `Generated on: unavailable`
-  (`Gerado em: indisponível`) and shows a warning at the top; no old date is used. If the temporary comment can't be deleted
-  (after a second try), the report keeps its date and a warning at the top gives the comment's id, so you can delete it by hand.
-- **Old files.** Earlier versions stored a typed `date` in each component's sheet (`handoff-meta`). It is ignored now, but
-  not erased: it stays in the file as it was.
-- **Not tested.** Shared (collaborative) sessions, and files opened for viewing only (there the comment can't be added, so the
-  report should say `unavailable`). Both are untested in the real app; the failure path is tested only by simulation.
+- **Old settings.** Earlier versions (0.9.6 and before) saved a `tz` (time zone) on the page, and 0.9.5 and before a typed `date` in
+  each component's sheet (`handoff-meta`). Both are ignored, not erased: they stay in the file as they were. **Restore defaults**
+  removes the page's keys, `tz` included.
+- **A script that passes `tz`** to the `settings` command: the parameter is ignored.
 
 ## Demo
 

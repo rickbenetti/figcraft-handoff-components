@@ -27,10 +27,7 @@
       "text.style",
       "component.properties",
       "export.add",
-      "style.list",
-      "comment.list",
-      "comment.add",
-      "comment.delete"
+      "style.list"
     ]
   },
   "commands": [

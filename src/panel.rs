@@ -1,6 +1,6 @@
 //! The Settings panel (plugin API 2): what the "Settings…" command shows when it is run from the menu.
 //!
-//! The page's settings (language, line and fill colours, stage, what to do on a rerun, time zone) and
+//! The page's settings (language, line and fill colours, stage, and what to do on a rerun) and
 //! the selected component's sheet (version, status, default variant) are edited in one panel. Nothing
 //! is written until "Save changes"; every callback compares the form with what is STORED (it is read
 //! again each time) to say whether there are unsaved changes.
@@ -38,11 +38,10 @@ pub enum Field {
     Fill,
     Stage,
     Rerun,
-    Tz,
 }
 
 impl Field {
-    pub const PAGE: [Field; 6] = [Field::Lang, Field::Line, Field::Fill, Field::Stage, Field::Rerun, Field::Tz];
+    pub const PAGE: [Field; 5] = [Field::Lang, Field::Line, Field::Fill, Field::Stage, Field::Rerun];
 
     /// The page setting a control edits, by the control's name.
     pub fn of_control(name: &str) -> Option<Field> {
@@ -52,7 +51,6 @@ impl Field {
             "fill_auto" | "fill" => Some(Field::Fill),
             "stage" => Some(Field::Stage),
             "on_rerun" => Some(Field::Rerun),
-            "tz" => Some(Field::Tz),
             _ => None,
         }
     }
@@ -94,7 +92,6 @@ pub struct Form {
     pub fill: String,
     pub stage: StageMode,
     pub rerun: Rerun,
-    pub tz: f64,
     pub version: String,
     pub status: String,
     /// The default variant chosen: the pairs that are not "(none)", in the set's property order.
@@ -113,10 +110,6 @@ pub fn hex_norm(text: &str) -> Option<String> {
     Some(format!("#{hex}"))
 }
 
-fn norm_tz(hours: f64) -> f64 {
-    if hours == 0.0 { 0.0 } else { hours }
-}
-
 impl Form {
     /// The form of a page with nothing defined and no component.
     pub fn defaults() -> Form {
@@ -128,7 +121,6 @@ impl Form {
             fill_auto: true,
             stage: StageMode::Light,
             rerun: Rerun::Replace,
-            tz: crate::clock::DEFAULT_TZ,
             version: String::new(),
             status: String::new(),
             default: Pairs::new(),
@@ -159,7 +151,6 @@ impl Form {
         }
         f.stage = s.stage_mode();
         f.rerun = s.rerun();
-        f.tz = norm_tz(s.tz_hours());
         if let (Some(meta), Some(target)) = (&stored.meta, target) {
             f.version = meta.version.clone().unwrap_or_default();
             f.status = meta.status.clone().unwrap_or_default();
@@ -190,9 +181,6 @@ impl Form {
         }
         if let Some(r) = text("on_rerun").and_then(parse_rerun_label) {
             f.rerun = r;
-        }
-        if let Some(h) = values.get("tz").and_then(Value::as_f64).filter(|h| h.is_finite()) {
-            f.tz = norm_tz(h.clamp(-14.0, 14.0));
         }
         if target.is_some() {
             if let Some(v) = text("version") {
@@ -228,7 +216,7 @@ impl Form {
     /// The page's part of the form back to "nothing defined".
     pub fn restore_page_defaults(&self) -> Form {
         let d = Form::defaults();
-        Form { lang: d.lang, line: d.line.clone(), fill_auto: true, fill: fill_colour(None, &d.line).to_uppercase(), stage: d.stage, rerun: d.rerun, tz: d.tz, ..self.clone() }
+        Form { lang: d.lang, line: d.line.clone(), fill_auto: true, fill: fill_colour(None, &d.line).to_uppercase(), stage: d.stage, rerun: d.rerun, ..self.clone() }
     }
 }
 
@@ -347,7 +335,8 @@ pub fn plan(stored: &Stored, form: &Form, cleared: &BTreeSet<Field>, target: Opt
         },
         on_rerun: choose(&s.on_rerun, s.on_rerun.as_deref().and_then(Rerun::parse), has(Field::Rerun), form.rerun, Rerun::Replace, |r| r.name().to_string()),
         stage: choose(&s.stage, s.stage.as_deref().and_then(StageMode::parse), has(Field::Stage), form.stage, StageMode::Light, |m| m.name().to_string()),
-        tz: choose(&s.tz, s.tz.as_deref().and_then(crate::clock::parse_tz), has(Field::Tz), form.tz, crate::clock::DEFAULT_TZ, |h| crate::clock::tz_text(*h)),
+        // A leftover `tz` is ignored, not deleted; "Restore defaults" (every page setting cleared) clears it too.
+        other: if Field::PAGE.iter().all(|f| has(*f)) { serde_json::Map::new() } else { s.other.clone() },
     };
     let mut out = Plan { settings: (new != *s).then_some(new), meta: None };
     if let (Some(meta), Some(target)) = (&stored.meta, target) {
@@ -429,8 +418,6 @@ pub fn spec(lang: Lang, form: &Form, target: Option<&Target>, notes: &Notes) -> 
     c.push(json!({"type": "select", "name": "stage", "label": label(Key::PanelStage), "options": stage, "value": t(lang, stage_key(form.stage))}));
     let rerun: Vec<&str> = [Rerun::Replace, Rerun::New].iter().map(|r| t(lang, rerun_key(*r))).collect();
     c.push(json!({"type": "select", "name": "on_rerun", "label": label(Key::PanelRerun), "options": rerun, "value": t(lang, rerun_key(form.rerun))}));
-    c.push(json!({"type": "number", "name": "tz", "label": label(Key::PanelTz), "min": -14, "max": 14, "value": form.tz}));
-    c.push(note(t(lang, Key::PanelTzNote)));
     match target {
         None => c.push(note(t(lang, Key::PanelNoTarget))),
         Some(tg) => {
@@ -467,7 +454,7 @@ pub fn spec(lang: Lang, form: &Form, target: Option<&Target>, notes: &Notes) -> 
 /// Where the values shown came from, in words.
 pub fn loaded_from(lang: Lang, stored: &Stored, target: Option<&Target>) -> String {
     let defaults = t(lang, Key::PanelSourceDefaults);
-    let page = if stored.settings == Settings::default() { defaults.to_string() } else { SETTINGS_KEY.to_string() };
+    let page = if stored.settings.is_default() { defaults.to_string() } else { SETTINGS_KEY.to_string() };
     match (target, &stored.meta) {
         (Some(_), Some(meta)) => {
             let component = if *meta == Meta::default() { defaults.to_string() } else { META_KEY.to_string() };
@@ -791,16 +778,16 @@ mod tests {
         assert_eq!(
             en,
             [
-                "note:All changes are saved", "save", "reload", "note:", "note:── This page ──", "lang", "line", "fill_auto", "stage", "on_rerun", "tz",
-                "note:Offset in hours from UTC (e.g. -3). Fixed: no daylight saving time.", "note:Select a component and press Reload", "note:L", "defaults", "close"
+                "note:All changes are saved", "save", "reload", "note:", "note:── This page ──", "lang", "line", "fill_auto", "stage", "on_rerun",
+                "note:Select a component and press Reload", "note:L", "defaults", "close"
             ]
         );
         let pt = signature(&spec(Lang::Pt, &Form::defaults(), Some(&set_target()), &Notes { loaded_from: "L".into(), ..Notes::default() }));
         assert_eq!(
             pt,
             [
-                "note:Todas as alterações estão salvas", "save", "reload", "note:", "note:── Esta página ──", "lang", "line", "fill_auto", "stage", "on_rerun", "tz",
-                "note:Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão.", "note:", "note:── Conjunto de componentes: Button ──", "version", "status", "dv_0", "dv_1", "note:L", "defaults", "close"
+                "note:Todas as alterações estão salvas", "save", "reload", "note:", "note:── Esta página ──", "lang", "line", "fill_auto", "stage", "on_rerun",
+                "note:", "note:── Conjunto de componentes: Button ──", "version", "status", "dv_0", "dv_1", "note:L", "defaults", "close"
             ]
         );
         let comp = signature(&spec(Lang::En, &Form::defaults(), Some(&component_target()), &Notes::default()));
@@ -839,10 +826,9 @@ mod tests {
     fn the_panel_without_a_component_has_the_page_fields_and_the_note_and_no_component_fields() {
         let sp = spec(Lang::Pt, &Form::defaults(), None, &Notes::default());
         let names: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter_map(|c| c["name"].as_str()).collect();
-        assert_eq!(names, ["save", "reload", "lang", "line", "fill_auto", "stage", "on_rerun", "tz", "defaults", "close"]);
+        assert_eq!(names, ["save", "reload", "lang", "line", "fill_auto", "stage", "on_rerun", "defaults", "close"]);
         let notes: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter(|c| c["type"] == "note").map(|c| c["label"].as_str().unwrap()).collect();
         assert!(notes.contains(&"Selecione um componente e aperte Recarregar"));
-        assert!(notes.contains(&"Diferença em horas em relação ao UTC (ex.: -3). Fixo: sem horário de verão."));
         assert_eq!(sp["title"], "Handoff Components: Configurações");
     }
 
@@ -883,7 +869,6 @@ mod tests {
             fill: "#3B82F633".into(),
             stage: StageMode::Dark,
             rerun: Rerun::New,
-            tz: 5.5,
             version: "1.2.0 beta".into(),
             status: "Em revisão".into(),
             default: vec![("Size".into(), "Large".into()), ("State".into(), "Hover".into())],
@@ -970,7 +955,6 @@ mod tests {
         // The form shows the defaults: choosing them by hand changes nothing either (the edge case).
         let mut by_hand = Form::defaults();
         by_hand.line = "#FCA311".into();
-        by_hand.tz = -3.0;
         by_hand.lang = Lang::En;
         assert_eq!(plan(&s, &by_hand, &none(), None).unwrap(), Plan::default());
     }
@@ -985,7 +969,7 @@ mod tests {
         let mut changed = form.clone();
         changed.stage = StageMode::Auto;
         let p = plan(&s, &changed, &none(), None).unwrap();
-        assert_eq!(p.settings.unwrap().to_text().unwrap(), r##"{"fill":"#3B82F633","lang":"pt","line":"#3b82f6","on_rerun":"new","stage":"auto","tz":"+9"}"##);
+        assert_eq!(p.settings.unwrap().to_text().unwrap(), r##"{"fill":"#3B82F633","lang":"pt","line":"#3b82f6","on_rerun":"new","stage":"auto","tz":"+9"}"##, "a leftover tz is ignored but kept");
     }
 
     #[test]
@@ -996,9 +980,8 @@ mod tests {
         f.line = "#112233".into();
         f.stage = StageMode::Dark;
         f.rerun = Rerun::New;
-        f.tz = 5.5;
         let p = plan(&s, &f, &none(), None).unwrap();
-        assert_eq!(p.settings.unwrap().to_text().unwrap(), r##"{"lang":"pt-BR","line":"#112233","on_rerun":"new","stage":"dark","tz":"5.5"}"##);
+        assert_eq!(p.settings.unwrap().to_text().unwrap(), r##"{"lang":"pt-BR","line":"#112233","on_rerun":"new","stage":"dark"}"##);
         assert!(p.meta.is_none());
     }
 
@@ -1138,18 +1121,18 @@ mod tests {
     fn the_parameters_path_and_the_panel_write_the_same_page_json() {
         let empty = Settings::default();
         // Several fields at once.
-        let legacy = by_params(&empty, &[("lang", "pt-BR"), ("cor_linha", "#3B82F6"), ("cor_preenchimento", "#3B82F633"), ("on_rerun", "new"), ("stage", "dark"), ("tz", "5.5")]);
-        let form = Form { lang: Lang::Pt, line: "#3B82F6".into(), fill_auto: false, fill: "#3B82F633".into(), stage: StageMode::Dark, rerun: Rerun::New, tz: 5.5, ..Form::defaults() };
+        let legacy = by_params(&empty, &[("lang", "pt-BR"), ("cor_linha", "#3B82F6"), ("cor_preenchimento", "#3B82F633"), ("on_rerun", "new"), ("stage", "dark")]);
+        let form = Form { lang: Lang::Pt, line: "#3B82F6".into(), fill_auto: false, fill: "#3B82F633".into(), stage: StageMode::Dark, rerun: Rerun::New, ..Form::defaults() };
         let panel = plan(&no_meta_stored(), &form, &none(), None).unwrap().settings.unwrap();
         assert_eq!(panel.to_text(), legacy.to_text());
-        assert_eq!(panel.to_text().unwrap(), r##"{"fill":"#3B82F633","lang":"pt-BR","line":"#3B82F6","on_rerun":"new","stage":"dark","tz":"5.5"}"##);
+        assert_eq!(panel.to_text().unwrap(), r##"{"fill":"#3B82F633","lang":"pt-BR","line":"#3B82F6","on_rerun":"new","stage":"dark"}"##);
         // One field.
         let legacy = by_params(&empty, &[("stage", "auto")]);
         let panel = plan(&no_meta_stored(), &Form { stage: StageMode::Auto, ..Form::defaults() }, &none(), None).unwrap().settings.unwrap();
         assert_eq!(panel.to_text(), legacy.to_text());
         // Everything cleared: "-" in every field, and "Restore defaults".
-        let full = st(r##"{"lang":"pt-BR","line":"#112233","fill":"#11223344","on_rerun":"new","stage":"dark","tz":"5.5"}"##);
-        let legacy = by_params(&full, &[("lang", "-"), ("cor_linha", "-"), ("cor_preenchimento", "-"), ("on_rerun", "-"), ("stage", "-"), ("tz", "-")]);
+        let full = st(r##"{"lang":"pt-BR","line":"#112233","fill":"#11223344","on_rerun":"new","stage":"dark"}"##);
+        let legacy = by_params(&full, &[("lang", "-"), ("cor_linha", "-"), ("cor_preenchimento", "-"), ("on_rerun", "-"), ("stage", "-")]);
         let cleared: BTreeSet<Field> = Field::PAGE.into_iter().collect();
         let panel = plan(&stored(full.clone(), None), &Form::from_stored(&stored(full, None), None).restore_page_defaults(), &cleared, None).unwrap().settings.unwrap();
         assert_eq!(panel.to_text(), legacy.to_text());
@@ -1159,8 +1142,8 @@ mod tests {
     #[test]
     fn the_two_paths_differ_only_where_the_panel_does_not_write_what_the_user_did_not_change() {
         // Typing the default by hand stores it through the parameters (as always) but not through the panel.
-        let legacy = by_params(&Settings::default(), &[("tz", "-3"), ("stage", "light")]);
-        assert_eq!(legacy.to_text().unwrap(), r#"{"stage":"light","tz":"-3"}"#);
+        let legacy = by_params(&Settings::default(), &[("stage", "light")]);
+        assert_eq!(legacy.to_text().unwrap(), r#"{"stage":"light"}"#);
         let panel = plan(&no_meta_stored(), &Form::defaults(), &none(), None).unwrap();
         assert!(panel.is_empty());
     }
@@ -1189,7 +1172,6 @@ mod tests {
         assert_eq!(safe_text("  a\nb\tc  ", 80), "a b c");
         assert_eq!(safe_text(&"x".repeat(100), 10), format!("{}…", "x".repeat(9)));
         assert_eq!(safe_text("short", 10), "short");
-        assert_eq!(norm_tz(-0.0).to_string(), "0");
     }
 
     #[test]

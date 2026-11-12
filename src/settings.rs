@@ -1,10 +1,9 @@
 //! The "settings" command: a form of text fields that keeps what the report uses, so "generate"
 //! needs no parameters. A field left empty keeps the stored value; "-" clears it.
 //!
-//! Language, colours, what to do on a rerun and the time zone go to the current page; version and
+//! Language, colours, and what to do on a rerun go to the current page; version and
 //! status go to the selected component (its set, for a variant) and need a selection.
 
-use crate::clock;
 use crate::gerar::{host, load_set, page_info, resolve};
 use crate::i18n::{Key, Lang, t, tf};
 use crate::store::{META_KEY, Meta, Rerun, SETTINGS_KEY, Settings, StageMode, is_hex_colour, update};
@@ -67,19 +66,9 @@ fn canonical_lang(stored: &Option<String>) -> Option<String> {
     stored.as_ref().map(|s| Lang::strict(s).map_or_else(|| s.clone(), |l| l.code().to_string()))
 }
 
-/// The new value of the time zone field: empty keeps it, "-" goes back to the default, anything else
-/// must be a number of hours from -14 to 14 (and is stored as such, so `+9` becomes `9`).
-fn tz_field(lang: Lang, current: &Option<String>, field: &str) -> Result<Option<String>> {
-    match field.trim() {
-        "" => Ok(current.clone()),
-        "-" => Ok(None),
-        typed => clock::parse_tz(typed).map(|h| Some(clock::tz_text(h))).ok_or_else(|| tf(lang, Key::ErrBadTz, &[("value", typed)])),
-    }
-}
-
-/// The names of the nine parameters the form had before the panel. A script that passes any of them
+/// The names of the eight parameters the form had before the panel. A script that passes any of them
 /// gets the old behaviour: written straight, with no panel.
-const LEGACY_PARAMS: [&str; 9] = ["lang", "cor_linha", "cor_preenchimento", "on_rerun", "stage", "tz", "versao", "status", "default_variant"];
+const LEGACY_PARAMS: [&str; 8] = ["lang", "cor_linha", "cor_preenchimento", "on_rerun", "stage", "versao", "status", "default_variant"];
 
 /// The page's settings after the old form's fields (`field(name)` is a field's trimmed text): empty
 /// keeps, "-" clears, anything else must be valid. Nothing is written here.
@@ -106,10 +95,6 @@ pub(crate) fn page_from_params(lang: Lang, stored: &Settings, asked_lang: Option
     } else {
         Some(StageMode::parse(&stage).ok_or_else(|| tf(lang, Key::ErrBadStage, &[("value", &stage)]))?.name().to_string())
     };
-
-    // The time zone of the report's date: empty keeps it, "-" goes back to the default (-3). An invalid
-    // value is refused here, before anything is written.
-    new.tz = tz_field(lang, &stored.tz, &field("tz"))?;
     Ok(new)
 }
 
@@ -174,7 +159,7 @@ pub fn settings_by_params(input: Input) -> Result<Value> {
     notify(t(lang, if settings_written || meta_written { Key::SettingsSaved } else { Key::SettingsKept }));
     Ok(json!({
         "page": page.id,
-        "settings": {"lang": new.lang, "line": new.line, "fill": new.fill, "on_rerun": new.on_rerun, "stage": new.stage, "tz": new.tz, "written": settings_written, "key": SETTINGS_KEY},
+        "settings": {"lang": new.lang, "line": new.line, "fill": new.fill, "on_rerun": new.on_rerun, "stage": new.stage, "written": settings_written, "key": SETTINGS_KEY},
         "meta": meta_out, "meta_holder": holder_out, "meta_written": meta_written, "meta_key": META_KEY,
         "stored_json": new.to_text()
     }))
@@ -195,31 +180,6 @@ mod tests {
         // What the form types is saved by its code.
         for typed in ["pt", "pt-BR", "PT_br"] {
             assert_eq!(Lang::strict(typed).map(Lang::code), Some("pt-BR"), "{typed}");
-        }
-    }
-
-    #[test]
-    fn the_time_zone_field_keeps_clears_or_replaces() {
-        let cur = Some("5.5".to_string());
-        assert_eq!(tz_field(Lang::En, &cur, "").ok(), Some(cur.clone()));
-        assert_eq!(tz_field(Lang::En, &cur, "  ").ok(), Some(cur.clone()));
-        assert_eq!(tz_field(Lang::En, &cur, "-").ok(), Some(None));
-        assert_eq!(tz_field(Lang::En, &None, "-3").ok(), Some(Some("-3".to_string())));
-        // Fractions, signs and the limits.
-        assert_eq!(tz_field(Lang::En, &None, " +9 ").ok(), Some(Some("9".to_string())));
-        assert_eq!(tz_field(Lang::En, &None, "5.5").ok(), Some(Some("5.5".to_string())));
-        assert_eq!(tz_field(Lang::En, &None, "-14").ok(), Some(Some("-14".to_string())));
-        assert_eq!(tz_field(Lang::En, &None, "14").ok(), Some(Some("14".to_string())));
-        assert_eq!(tz_field(Lang::En, &None, "-0").ok(), Some(Some("0".to_string())));
-    }
-
-    #[test]
-    fn a_bad_time_zone_is_an_error_that_says_what_is_valid() {
-        for bad in ["abc", "15", "-14.5", "UTC-3", "5,5", "--3"] {
-            let en = tz_field(Lang::En, &Some("-3".into()), bad).err().unwrap_or_default();
-            assert!(en.contains(&format!("\"{bad}\"")) && en.contains("-14 and 14"), "{bad}: {en:?}");
-            let pt = tz_field(Lang::Pt, &None, bad).err().unwrap_or_default();
-            assert!(pt.contains(&format!("\"{bad}\"")) && pt.contains("fuso"), "{bad}: {pt:?}");
         }
     }
 }
