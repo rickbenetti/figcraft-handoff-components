@@ -136,6 +136,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | TypeVariant | Variant | Variante |
 | Unnumbered | +{n} layers without a number | +{n} camadas sem número |
 | UnnumberedOne | +{n} layer without a number | +{n} camada sem número |
+| ValueEmpty | (empty) | (vazio) |
 | ValueFalse | False | Falso |
 | ValueTrue | True | Verdadeiro |
 | Variants | {n} variants; first one shown | {n} variantes; mostrada a primeira |

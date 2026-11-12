@@ -1525,20 +1525,31 @@ fn clean_name(name: &str) -> &str {
 /// of the default variant, which say the default option of each variant property.
 fn property_views(lang: Lang, defs: &Value, default: Option<&Pairs>) -> Vec<PropView> {
     let list = defs.get("properties").and_then(Value::as_array).cloned().unwrap_or_default();
+    let base_names: Vec<String> = list.iter().filter_map(|p| p.get("name").and_then(Value::as_str)).map(|n| clean_name(n).to_string()).collect();
+    // A base name that several definitions share (whatever their types and "#id" suffixes) is numbered 1, 2, ...
+    // in the order the host gives them; a name that is alone stays as it is.
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     list.iter()
         .filter_map(|p| {
-            let name = clean_name(p.get("name").and_then(Value::as_str)?).to_string();
+            let base = clean_name(p.get("name").and_then(Value::as_str)?).to_string();
+            let name = if base_names.iter().filter(|n| **n == base).count() > 1 {
+                let n = seen.entry(base.clone()).and_modify(|n| *n += 1).or_insert(1);
+                format!("{base} {n}")
+            } else {
+                base.clone()
+            };
             let kind = p.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
             let options: Vec<(String, bool)> = match kind.as_str() {
                 "variant" => {
-                    let chosen = default.and_then(|d| d.iter().find(|(k, _)| *k == name).map(|(_, v)| v.clone())).or_else(|| p.get("default").and_then(Value::as_str).map(ToString::to_string));
+                    let chosen = default.and_then(|d| d.iter().find(|(k, _)| *k == base).map(|(_, v)| v.clone())).or_else(|| p.get("default").and_then(Value::as_str).map(ToString::to_string));
                     p.get("options").and_then(Value::as_array).map(|o| o.iter().filter_map(Value::as_str).map(|o| (o.to_string(), chosen.as_deref() == Some(o))).collect()).unwrap_or_default()
                 }
                 "boolean" => {
                     let on = p.get("default").and_then(Value::as_bool).unwrap_or(false);
                     vec![(t(lang, Key::ValueTrue).to_string(), on), (t(lang, Key::ValueFalse).to_string(), !on)]
                 }
-                _ => p.get("default").and_then(Value::as_str).map(|d| vec![(d.to_string(), true)]).unwrap_or_default(),
+                // A text whose default is empty would be a pill with nothing in it: it says so.
+                _ => p.get("default").and_then(Value::as_str).map(|d| vec![(if d.is_empty() { t(lang, Key::ValueEmpty).to_string() } else { d.to_string() }, true)]).unwrap_or_default(),
             };
             Some(PropView { name, kind, options })
         })
@@ -2099,6 +2110,45 @@ pub fn generate(input: Input) -> Result<Value> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    fn defs(list: Value) -> Value {
+        json!({"properties": list})
+    }
+
+    fn names(lang: Lang, d: &Value) -> Vec<String> {
+        property_views(lang, d, None).into_iter().map(|v| v.name).collect()
+    }
+
+    #[test]
+    fn repeated_property_names_are_numbered_in_the_hosts_order_and_unique_ones_are_not() {
+        let d = defs(json!([
+            {"name": "Status", "type": "variant", "options": ["a", "b"], "default": "a"},
+            {"name": "Message#12:0", "type": "boolean", "default": true},
+            {"name": "Message#12:1", "type": "text", "default": "Hi"},
+            {"name": "Show link#3:0", "type": "boolean", "default": false},
+            {"name": "Show link#3:1", "type": "boolean", "default": true},
+            {"name": "Title#595:0", "type": "boolean", "default": true},
+            {"name": "Title#595:1", "type": "text", "default": ""},
+            {"name": "Icon#7:0", "type": "boolean", "default": true}
+        ]));
+        let want = ["Status", "Message 1", "Message 2", "Show link 1", "Show link 2", "Title 1", "Title 2", "Icon"];
+        assert_eq!(names(Lang::En, &d), want, "booleans and texts count together; the #id differs and is not shown");
+        assert_eq!(names(Lang::Pt, &d), want);
+        // Alone, a name keeps its text exactly (suffix cut, nothing added).
+        let one = defs(json!([{"name": "Label#3257:0", "type": "boolean", "default": true}]));
+        assert_eq!(names(Lang::En, &one), ["Label"]);
+        // Same name with no suffix at all also counts.
+        let bare = defs(json!([{"name": "A", "type": "text", "default": "x"}, {"name": "A#1:2", "type": "text", "default": "y"}]));
+        assert_eq!(names(Lang::En, &bare), ["A 1", "A 2"]);
+    }
+
+    #[test]
+    fn an_empty_text_default_is_said_and_any_other_default_is_kept() {
+        let d = defs(json!([{"name": "Title#1:0", "type": "text", "default": ""}, {"name": "Body#1:1", "type": "text", "default": "Hello"}]));
+        let chips = |lang| property_views(lang, &d, None).into_iter().map(|v| v.options).collect::<Vec<_>>();
+        assert_eq!(chips(Lang::En), vec![vec![("(empty)".to_string(), true)], vec![("Hello".to_string(), true)]]);
+        assert_eq!(chips(Lang::Pt), vec![vec![("(vazio)".to_string(), true)], vec![("Hello".to_string(), true)]]);
+    }
+
     #[test]
     fn the_version_and_status_line_is_always_there_and_says_to_be_defined_when_empty() {
         assert_eq!(version_line(Lang::En, "", ""), "Version: to be defined · Status: to be defined");

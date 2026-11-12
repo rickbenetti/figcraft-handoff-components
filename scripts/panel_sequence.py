@@ -182,6 +182,15 @@ def main():
         err = run(copia, [select(32), generate(direct=True, fill_opacity="101")], tmp, expect_error=True)
         check(err is not None and "0 to 100" in err.get("error", ""), "direct: fill_opacity 101 is refused with the dictionary's message", (err or {}).get("error", "")[:90])
 
+        # 5b3. A synthetic component whose properties repeat their names (Title/Title, Message/Message, Show link/Show link,
+        # with a text whose default is empty): the rows are numbered, in both languages, and a name that is alone is not.
+        props = FIX + "/fixture-propriedades.figcraft"
+        for lang, word, closable in (("en", "Property", "Closable"), ("pt-BR", "Propriedade", "Closable")):
+            wanted = [f"{word}: {n}" for n in ("Title 1", "Title 2", "Message 1", "Message 2", "Show link 1", "Show link 2", closable)]
+            rr = run(props, [select(2), generate(direct=True, lang=lang)] + [{"command": "node.find", "params": {"type": "frame", "name": w, "limit": 5}} for w in wanted] + [{"command": "node.find", "params": {"type": "frame", "name": f"{word}: Closable 1", "limit": 5}}], tmp)
+            totals = [x["result"]["total"] for x in rr[2:]]
+            check(totals[:-1] == [1] * 7 and totals[-1] == 0, f"repeated property names are numbered ({lang}): 6 numbered rows and Closable alone", str(totals))
+
         # 5c. Restore defaults keeps the language (the panel must not turn English), and saves it with the next click.
         r = run(copia, [select(32), generate(direct=True, lang="pt-BR", line="#112233"), select(32), generate(), event("defaults"), ui(), event("generate"), generate(), ui()], tmp)
         shown = r[5]["result"]
