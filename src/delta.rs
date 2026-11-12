@@ -448,15 +448,24 @@ impl Listing {
     }
 }
 
-fn show_side(s: &Side, label: Label, lang: Lang) -> String {
-    if let Some(token) = &s.token {
-        return token.clone();
-    }
+/// A side's value as the line words it: the sizing words, "none" for a fill, stroke or effects that a layer lacks (it is
+/// worded here); anything else as it is.
+fn show_value(value: &str, label: Label, lang: Lang) -> String {
     match label {
-        Label::HSizing | Label::VSizing => sizing_word(lang, &s.value),
-        // "none" stands inside for a fill, stroke or effects that a layer lacks; it is worded here.
-        Label::Prop(Prop::Fill | Prop::Stroke) | Label::Effects if s.value == "none" => t(lang, Key::ValueNone).to_string(),
-        _ => s.value.clone(),
+        Label::HSizing | Label::VSizing => sizing_word(lang, value),
+        Label::Prop(Prop::Fill | Prop::Stroke) | Label::Effects if value == "none" => t(lang, Key::ValueNone).to_string(),
+        _ => value.to_string(),
+    }
+}
+
+/// One side of the arrow: a side with a token is "token (value)"; one with none is its value. A token whose value is
+/// empty, a dash or the token's own text is shown alone, without empty or repeated parentheses.
+fn show_side(s: &Side, label: Label, lang: Lang) -> String {
+    let value = show_value(&s.value, label, lang);
+    match &s.token {
+        Some(token) if value.trim().is_empty() || value == "—" || value == *token => token.clone(),
+        Some(token) => format!("{token} ({value})"),
+        None => value,
     }
 }
 
@@ -482,7 +491,7 @@ fn windows(a: &str, b: &str) -> (String, String) {
     (cut(&a), cut(&b))
 }
 
-/// "Label : from → to", with the values in parentheses after the names of a token.
+/// "Label : from → to", each side with its value in parentheses after the name of its token (see [`show_side`]).
 fn change_text(lang: Lang, label: Label, from: &Side, to: &Side) -> String {
     let (a, b) = if label == Label::Content {
         let (a, b) = windows(&from.value, &to.value);
@@ -490,12 +499,7 @@ fn change_text(lang: Lang, label: Label, from: &Side, to: &Side) -> String {
     } else {
         (show_side(from, label, lang), show_side(to, label, lang))
     };
-    let mut out = format!("{} : {a} → {b}", t(lang, label.key()));
-    if from.token.is_some() || to.token.is_some() {
-        let (va, vb) = (show_side(&Side { token: None, ..from.clone() }, label, lang), show_side(&Side { token: None, ..to.clone() }, label, lang));
-        out.push_str(&format!(" ({va} → {vb})"));
-    }
-    out
+    format!("{} : {a} → {b}", t(lang, label.key()))
 }
 
 /// A layer's path as a title: "Left icon / Cube".
@@ -707,6 +711,69 @@ mod tests {
         );
     }
 
+    fn side(token: Option<&str>, value: &str) -> Side {
+        Side { token: token.map(ToString::to_string), value: value.to_string() }
+    }
+
+    fn said(lang: Lang, label: Label, from: Side, to: Side) -> String {
+        change_text(lang, label, &from, &to)
+    }
+
+    #[test]
+    fn each_side_carries_its_value_after_its_token() {
+        let typo = Label::Prop(Prop::Typography);
+        // token -> value
+        assert_eq!(
+            said(Lang::En, typo, side(Some("text/label-m"), "Inter 14/20 Medium"), side(None, "Inter 12/16 Medium")),
+            "Typography : text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
+        );
+        assert_eq!(
+            said(Lang::En, typo, side(Some("text/h3"), "Inter 24/32 SemiBold, letter spacing -1%"), side(None, "Inter 24/32 SemiBold, letter spacing -1%")),
+            "Typography : text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%"
+        );
+        // token -> token
+        assert_eq!(
+            said(Lang::En, typo, side(Some("text/label-m"), "Inter 14/20 Medium"), side(Some("text/label-l"), "Inter 16/24 Medium")),
+            "Typography : text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
+        );
+        // value -> token, and the other labels
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Stroke), side(None, "none"), side(Some("Colors/color/border"), "#E3E7E8")), "Stroke : none → Colors/color/border (#E3E7E8)");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Radius), side(Some("Radius/radius/default"), "10"), side(None, "8")), "Radius : Radius/radius/default (10) → 8");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Fill), side(Some("Colors/color/primary"), "#C6005C"), side(None, "none")), "Fill : Colors/color/primary (#C6005C) → none");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Gap), side(Some("Spacing/space/8"), "8"), side(None, "6")), "Gap : Spacing/space/8 (8) → 6");
+        // Words stay translated.
+        assert_eq!(
+            said(Lang::Pt, typo, side(Some("text/h3"), "Inter 24/32 SemiBold, espaçamento entre letras -1%"), side(None, "Inter 24/32 SemiBold, espaçamento entre letras -1%")),
+            "Tipografia : text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%"
+        );
+        assert_eq!(said(Lang::Pt, Label::Prop(Prop::Fill), side(Some("Colors/color/primary"), "#C6005C"), side(None, "none")), "Preenchimento : Colors/color/primary (#C6005C) → nenhum");
+    }
+
+    #[test]
+    fn a_line_with_no_token_is_what_it_was_and_effects_carry_their_description() {
+        // value -> value
+        assert_eq!(said(Lang::En, Label::Width, side(None, "100"), side(None, "120")), "Width : 100 → 120");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Fill), side(None, "#3B5BDB"), side(None, "#2F4AB5")), "Fill : #3B5BDB → #2F4AB5");
+        assert_eq!(said(Lang::En, Label::Content, side(None, "Hi"), side(None, "Bye")), "Text : \"Hi\" → \"Bye\"");
+        // Effects: none on one side, a style on the other.
+        assert_eq!(
+            said(Lang::En, Label::Effects, side(None, "none"), side(Some("shadow/sm"), "Drop shadow 0 1 blur 2 #000000 at 5%")),
+            "Effects : none → shadow/sm (Drop shadow 0 1 blur 2 #000000 at 5%)"
+        );
+        assert_eq!(
+            said(Lang::Pt, Label::Effects, side(None, "none"), side(Some("shadow/sm"), "Sombra projetada 0 1 desfoque 2 #000000 a 5%")),
+            "Efeitos : nenhum → shadow/sm (Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
+        );
+    }
+
+    #[test]
+    fn a_token_with_an_empty_or_dash_value_or_its_own_text_is_shown_alone() {
+        let fill = Label::Prop(Prop::Fill);
+        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), ""), side(None, "#FFF")), "Fill : Colors/a → #FFF");
+        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), "  "), side(Some("Colors/b"), "—")), "Fill : Colors/a → Colors/b");
+        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), "Colors/a"), side(None, "#FFF")), "Fill : Colors/a → #FFF");
+    }
+
     #[test]
     fn a_token_is_named_before_its_value() {
         let vars = Vars::parse(&json!({
@@ -722,7 +789,7 @@ mod tests {
         a[0].0["boundVariables"] = json!({"fill": "V1"});
         b[0].0["boundVariables"] = json!({"fill": "V2"});
         let d = compare(&snapshot(Lang::En, &a, &vars, &styles), &snapshot(Lang::En, &b, &vars, &styles));
-        assert_eq!(texts(&d), vec!["Fill : color/primary/500 → color/primary/700 (#3B5BDB → #2F4AB5)"]);
+        assert_eq!(texts(&d), vec!["Fill : color/primary/500 (#3B5BDB) → color/primary/700 (#2F4AB5)"]);
     }
 
     #[test]
