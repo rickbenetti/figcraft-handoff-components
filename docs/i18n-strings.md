@@ -34,7 +34,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | DirGrid | Grid | Grade |
 | DirHorizontal | Horizontal | Horizontal |
 | DirVertical | Vertical | Vertical |
-| Done | Report generated: {name} | Relatório gerado: {name} |
+| Done | Documentation generated: {name} | Documentação gerada: {name} |
 | ErrBadColour | "{value}" is not a hex colour like #FF4D6D | "{value}" não é uma cor hexadecimal como #FF4D6D |
 | ErrBadLang | language must be en or pt-BR, not "{value}" | o idioma deve ser en ou pt-BR, não "{value}" |
 | ErrBadRerun | on rerun must be replace or new, not "{value}" | ao rodar de novo deve ser replace ou new, não "{value}" |
@@ -54,7 +54,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ErrNotComponent | layer {id} is a {kind}, not a component or an instance | a camada {id} é {kind}, não um componente nem uma instância |
 | ErrNotList | page.list: the reply isn't a list | page.list: a resposta não é uma lista |
 | ErrParent | instance.place put the instance in {parent}, not in the stage {stage} | instance.place colocou a instância em {parent}, não no palco {stage} |
-| FrameName | Report — {name} | Relatório — {name} |
+| FrameName | Documentation — {name} | Documentação — {name} |
 | InstanceOf | Instance of {name} | Instância de {name} |
 | LayerAnatomyRow | Anatomy layout | Layout da anatomia |
 | LayerAnatomySection | Anatomy section | Seção da anatomia |
@@ -98,7 +98,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | MoreVariants | +{n} variants not shown | +{n} variantes não exibidas |
 | MoreVariantsOne | +{n} variant not shown | +{n} variante não exibida |
 | NotDefined | Not defined: {list} | Não definido: {list} |
-| NoteExport1x | This report is taller than 8,000 px, so its PNG export is set to 1x (at 2x it would pass 16,384 px). | Este relatório tem mais de 8.000 px de altura, então a exportação em PNG está em 1x (em 2x passaria de 16.384 px). |
+| NoteExport1x | This documentation is taller than 8,000 px, so its PNG export is set to 1x (at 2x it would pass 16,384 px). | Esta documentação tem mais de 8.000 px de altura, então a exportação em PNG está em 1x (em 2x passaria de 16.384 px). |
 | NoteLineNoCoords | measure.padding line {i} has no coordinates | a linha {i} do measure.padding não tem coordenadas |
 | NoteLineOblique | measure.padding line {i} ("{label}") is neither horizontal nor vertical | a linha {i} ("{label}") do measure.padding não é horizontal nem vertical |
 | OvCorners | corners | cantos |

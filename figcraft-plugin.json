@@ -33,7 +33,7 @@
   "commands": [
     {
       "id": "generate",
-      "label": "Generate report"
+      "label": "Generate documentation"
     },
     {
       "id": "settings",

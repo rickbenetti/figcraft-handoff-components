@@ -1,7 +1,7 @@
 [package]
 name = "handoff-components"
 version = "0.9.6"
-description = "FigCraft plugin that generates a handoff report for a component: anatomy, properties and tokens, spacing and variant differences."
+description = "FigCraft plugin that generates handoff documentation for a component: anatomy, properties and tokens, spacing and variant differences."
 license = "MIT"
 edition = "2024"
 rust-version = "1.95"

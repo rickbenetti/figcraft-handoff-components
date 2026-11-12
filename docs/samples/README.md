@@ -2,18 +2,18 @@
 
 The demo file for Handoff Components is the **DS Base Demo**, in [`../../demo/`](../../demo/README.md)
 (`demo/ds-base-demo.figcraft`, a small neutral design system built from scratch; MIT).
-Sample report images made from it (Button, Card, Accordion, Code) are in this folder: `report-*.png`.
+Sample documentation images made from it (Button, Card, Accordion, Code) are in this folder: `report-*.png`.
 
 This folder also holds the recorded outputs of the probes and commands the plugin was built on, taken from
 the test fixtures in `tests/fixtures/` (`fixture-copia`, `fixture-copia-2`, `fixture-carga-v2`;
 see `LEIA-ME.md`, in Portuguese). They are kept as reference for the host's command formats.
 
-## Generating a report
+## Generating the documentation
 
 1. Build the plugin with `scripts/build.sh`. It prints the absolute path of the manifest to import.
 2. In FigCraft: **Plugins ▸ Development ▸ Import plugin from manifest…**, pick `dist/figcraft-plugin.json`.
-3. Open `demo/ds-base-demo.figcraft`, select a component or a set, and run **Plugins ▸ Handoff Components ▸ Generate report**.
-   Each report goes to the right of everything on the page, at the same height.
+3. Open `demo/ds-base-demo.figcraft`, select a component or a set, and run **Plugins ▸ Handoff Components ▸ Generate documentation**.
+   The documentation goes to the right of everything on the page, at the same height.
 
 From a terminal (always write to another file, never over the original):
 

@@ -4,7 +4,7 @@
   "value_is_a_JSON_text": "{\"status\":\"Aprovado\",\"version\":\"1.2.0\"}",
   "note": "Files saved by 0.9.5 and before may also hold a \"date\" key. It is ignored when reading and kept when the sheet is saved.",
   "report_mark": {
-    "where": "pluginData of the report frame",
+    "where": "pluginData of the documentation frame (the key keeps its old name, so documentation made by earlier versions is still found on a rerun)",
     "key": "handoff-report",
     "value": "32 (the id of the component, as text)"
   }

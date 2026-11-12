@@ -1,7 +1,7 @@
 # The auto stage
 
 `stage = light` (the default) and `stage = dark` are fixed. `stage = auto` picks the stage for each
-picture of the report (the Anatomy and every row of the variant axes) with this rule:
+picture of the documentation (the Anatomy and every row of the variant axes) with this rule:
 
 1. **Effective background.** The solid fill of the component's root; if it has none (or it is not a
    solid), the first ancestor that has one; if none does, the component is transparent.
