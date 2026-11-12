@@ -47,16 +47,21 @@ impl Rerun {
     }
 }
 
+/// The fill's opacity when nothing is stored, in percent.
+pub const DEFAULT_FILL_OPACITY: u8 = 30;
+
 /// The page's settings; a field that is `None` takes its default.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Settings {
     pub lang: Option<String>,
     pub line: Option<String>,
-    pub fill: Option<String>,
+    /// How opaque the fill is, in percent (0 = no fill): the fill is always the line colour at this opacity.
+    pub fill_opacity: Option<u8>,
     pub on_rerun: Option<String>,
     /// `light`, `dark` or `auto`.
     pub stage: Option<String>,
-    /// The keys of the stored object that this version doesn't know (a `tz` from 0.9.6 and before):
+    /// The keys of the stored object that this version doesn't know (a `tz`, or a `fill` colour, from 0.9.6 and
+    /// before; a `fill_opacity` that is not a whole number from 0 to 100):
     /// ignored when reading, written back when the settings are saved.
     pub other: serde_json::Map<String, Value>,
 }
@@ -114,12 +119,24 @@ impl Settings {
     /// The settings in a node's `pluginData` (the `pluginData` object of `node.get`).
     pub fn from_plugin_data(plugin_data: &Value) -> Settings {
         let o = stored(plugin_data, SETTINGS_KEY);
-        let other = o.as_object().map(|m| m.iter().filter(|(k, _)| !matches!(k.as_str(), "lang" | "line" | "fill" | "on_rerun" | "stage")).map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default();
-        Settings { lang: text_of(&o, "lang"), line: text_of(&o, "line"), fill: text_of(&o, "fill"), on_rerun: text_of(&o, "on_rerun"), stage: text_of(&o, "stage"), other }
+        let fill_opacity = o.get("fill_opacity").and_then(Value::as_u64).filter(|n| *n <= 100).and_then(|n| u8::try_from(n).ok());
+        // A `fill_opacity` that can't be read stays in `other`, untouched, like any other key this version doesn't know.
+        let known = |k: &str| matches!(k, "lang" | "line" | "on_rerun" | "stage") || (k == "fill_opacity" && fill_opacity.is_some());
+        let other = o.as_object().map(|m| m.iter().filter(|(k, _)| !known(k)).map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default();
+        Settings { lang: text_of(&o, "lang"), line: text_of(&o, "line"), fill_opacity, on_rerun: text_of(&o, "on_rerun"), stage: text_of(&o, "stage"), other }
     }
 
     pub fn to_text(&self) -> Option<String> {
-        to_text(&[("lang", &self.lang), ("line", &self.line), ("fill", &self.fill), ("on_rerun", &self.on_rerun), ("stage", &self.stage)], &self.other)
+        let mut other = self.other.clone();
+        if let Some(n) = self.fill_opacity {
+            other.insert("fill_opacity".to_string(), Value::from(n));
+        }
+        to_text(&[("lang", &self.lang), ("line", &self.line), ("on_rerun", &self.on_rerun), ("stage", &self.stage)], &other)
+    }
+
+    /// The fill's opacity in percent: the stored one, or 30.
+    pub fn fill_percent(&self) -> u8 {
+        self.fill_opacity.unwrap_or(DEFAULT_FILL_OPACITY)
     }
 
     /// The stage mode: the stored one, or light.
@@ -155,9 +172,9 @@ mod tests {
 
     #[test]
     fn settings_round_trip_through_plugin_data() {
-        let s = Settings { lang: Some("pt".into()), line: Some("#3B82F6".into()), fill: None, on_rerun: Some("new".into()), stage: None, other: serde_json::Map::new() };
+        let s = Settings { lang: Some("pt".into()), line: Some("#3B82F6".into()), fill_opacity: Some(45), on_rerun: Some("new".into()), stage: None, other: serde_json::Map::new() };
         let text = s.to_text().unwrap();
-        assert_eq!(text, r##"{"lang":"pt","line":"#3B82F6","on_rerun":"new"}"##);
+        assert_eq!(text, r##"{"fill_opacity":45,"lang":"pt","line":"#3B82F6","on_rerun":"new"}"##);
         let back = Settings::from_plugin_data(&json!({SETTINGS_KEY: text}));
         assert_eq!(back, s);
         assert_eq!(back.rerun(), Rerun::New);
@@ -170,6 +187,17 @@ mod tests {
         assert_eq!(back.to_text().unwrap(), r##"{"lang":"pt","tz":"5.5"}"##);
         let only_tz = Settings::from_plugin_data(&json!({SETTINGS_KEY: r##"{"tz":"-3"}"##}));
         assert_eq!(only_tz.to_text().unwrap(), r##"{"tz":"-3"}"##);
+    }
+
+    #[test]
+    fn an_unreadable_opacity_is_kept_as_it_was_and_the_default_is_used() {
+        for bad in [r#"{"fill_opacity":150}"#, r#"{"fill_opacity":"30"}"#, r#"{"fill_opacity":-1}"#, r#"{"fill_opacity":12.5}"#] {
+            let s = Settings::from_plugin_data(&json!({SETTINGS_KEY: bad}));
+            assert_eq!((s.fill_opacity, s.fill_percent()), (None, 30), "{bad}");
+            assert_eq!(s.to_text().as_deref(), Some(bad), "{bad}");
+        }
+        let ok = Settings::from_plugin_data(&json!({SETTINGS_KEY: r#"{"fill_opacity":0}"#}));
+        assert_eq!((ok.fill_opacity, ok.fill_percent()), (Some(0), 0));
     }
 
     #[test]

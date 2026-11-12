@@ -14,8 +14,6 @@ pub const MUTED: &str = "#E5E5E5";
 pub const MUTED_70: &str = "#E5E5E5B3";
 /// The redlines (markers, guides, measures, overlay) unless the settings say otherwise.
 pub const REDLINE: &str = "#FCA311";
-/// The overlay's fill unless the settings say otherwise: the redline at 30% opacity.
-pub const REDLINE_FILL: &str = "#FCA3114D";
 /// The number inside a marker or badge (white on orange is 2.0:1).
 pub const ON_REDLINE: &str = "#232323";
 /// The warning band behind the collision notice: the redline at 12% opacity.

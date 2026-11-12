@@ -189,8 +189,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelLangEn | English | English |
 | PanelLangPt | Português (Brasil) | Português (Brasil) |
 | PanelLineColour | Line colour | Cor da linha |
-| PanelFillAuto | Fill: line colour at 30% | Preenchimento: cor da linha a 30% |
-| PanelFillColour | Fill colour | Cor do preenchimento |
 | PanelStage | Stage | Palco |
 | PanelStageLight | Light | Claro |
 | PanelStageDark | Dark | Escuro |
@@ -212,3 +210,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e aperte Gerar documentação. |
 | PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
 | PanelGenerate | Generate documentation | Gerar documentação |
+| ErrBadOpacity | fill opacity must be a whole number from 0 to 100, not "{value}" | a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não "{value}" |
+| PanelFillOpacity | Fill (%) | Preenchimento (%) |
+| PanelFillHint | Fill opacity, using the line colour. 0 = no fill. | Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento. |
+| PanelBadOpacity | The fill must be a whole number from 0 to 100. Correct it and press Generate documentation. | O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação. |

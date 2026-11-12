@@ -11,7 +11,8 @@ a field's event comes first, so the button already sees the new value. This scri
      selection is what it was, and the screen is at the start of the documentation.
   3. Nothing selected: refused with a note, nothing in the document.
   4. A selection that is not a component (the documentation itself): refused with a note, nothing new.
-  5. The line colour typed, then the button: saved on the page on the first click.
+  5. The line colour (and Fill %) typed, then the button: saved on the page on the first click; a Fill (%)
+     that is not a whole number from 0 to 100 is refused with a note; the fill's alpha is absolute.
   6. A forced error (an instruction budget too small for the callback): everything is rolled back.
 
 `--states` prints the ordered controls (type and label) of the panel in each state, in pt-BR, as Markdown.
@@ -150,6 +151,19 @@ def main():
         check(reopened.get("line") == "#112233", "line colour typed, then one click: saved on the page (a reopened panel shows it)", str(reopened.get("line")))
         r = run(copia, [select(32), generate(), event("line", "#112233"), event("generate"), select(32), generate(), event("defaults"), event("generate"), generate(), ui()], tmp)
         check(r[9]["result"]["values"].get("line") == "#FCA311", "Restore defaults, then the button: the page's settings are cleared", str(r[9]["result"]["values"].get("line")))
+
+        # 5b. Fill (%): 50 typed, then one click: saved; 12.5 typed: refused with a note, nothing made.
+        r = run(copia, [select(32), generate(), event("fill_opacity", 50), event("generate"), generate(), ui()], tmp)
+        check(r[5]["result"]["values"].get("fill_opacity") == 50, "Fill (%) = 50 typed, then one click: saved on the page (a reopened panel shows 50)", str(r[5]["result"]["values"].get("fill_opacity")))
+        r = run(copia, [select(32), generate(), event("fill_opacity", 12.5), event("generate"), find("Documentation")], tmp)
+        labels = [l for _, l in controls(r[3])]
+        check(output(r[3])["refused"] and r[4]["result"]["total"] == 0 and any(l.startswith("✖ The fill must be a whole number from 0 to 100") for l in labels), "Fill (%) = 12.5: refused with a ✖ note, nothing made, the field kept")
+        r = run(copia, [select(32), generate(direct=True, fill_opacity=50, line="#11F2FC5B")], tmp)
+        check(output(r[1])["settings"]["fill"] == "#11F2FC80", "direct: fill_opacity 50 on a line with its own alpha gives the absolute alpha 80", output(r[1])["settings"]["fill"])
+        r = run(copia, [select(32), generate(direct=True, line="#11F2FC5B")], tmp)
+        check(output(r[1])["settings"]["fill"] == "#11F2FC4D", "direct: the default 30 on #11F2FC5B gives #11F2FC4D")
+        err = run(copia, [select(32), generate(direct=True, fill_opacity="101")], tmp, expect_error=True)
+        check(err is not None and "0 to 100" in err.get("error", ""), "direct: fill_opacity 101 is refused with the dictionary's message", (err or {}).get("error", "")[:90])
 
         # 6. The order of the controls in the real panel, whatever is selected.
         for name, src, ids in [("no selection", copia, []), ("component", copia, [32]), ("variant", copia, [3])]:

@@ -132,22 +132,21 @@ fn line_colour(text: Option<&str>) -> String {
     }
 }
 
-/// The fill colour: the one given, or the line colour at 30% (0x4D).
-pub(crate) fn fill_colour(text: Option<&str>, line: &str) -> String {
-    if let Some(t) = text.map(str::trim).filter(|t| !t.is_empty()) {
-        return t.to_string();
-    }
-    // `#RRGGBB` (or `#RRGGBBAA`: its alpha is replaced) at 30% (0x4D).
-    match line.get(..7) {
-        Some(rgb) if line.starts_with('#') && line.len() >= 7 => format!("{rgb}4D"),
+/// The fill colour: the line colour at `percent` opacity. The alpha is ABSOLUTE: the one the line colour may
+/// carry (`#RRGGBBAA`) is replaced, not multiplied. 30% is `4D`, 0% is `00` (nothing shows), 100% is `FF`.
+pub(crate) fn fill_colour(percent: u8, line: &str) -> String {
+    let alpha = (u32::from(percent.min(100)) * 255 + 50) / 100;
+    let rgb = match line.get(..7) {
+        Some(rgb) if line.starts_with('#') && line.len() >= 7 => rgb.to_string(),
         _ => match line.strip_prefix('#').filter(|h| h.len() == 3) {
             Some(h) => h.chars().flat_map(|c| [c, c]).fold(String::from("#"), |mut s, c| {
                 s.push(c);
                 s
-            }) + "4D",
-            None => theme::REDLINE_FILL.to_string(),
+            }),
+            None => theme::REDLINE.to_string(),
         },
-    }
+    };
+    format!("{rgb}{alpha:02X}")
 }
 
 /// Make a text layer inside `parent` (page position given when the parent has no auto layout).
@@ -1845,7 +1844,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let versao = meta_text(input.str("version"));
     let status = meta_text(input.str("status"));
     let cor_linha = line_colour(page.settings.line.as_deref());
-    let cor_fill = fill_colour(page.settings.fill.as_deref(), &cor_linha);
+    let cor_fill = fill_colour(page.settings.fill_percent(), &cor_linha);
     let comp = &target.node;
     let name = target.title.clone();
     let size = bounds(comp).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
@@ -2079,7 +2078,7 @@ pub fn generate(input: Input) -> Result<Value> {
     Ok(json!({
         "name": name, "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
         "x": x, "y": y, "replaced": replaced, "rerun": rerun.name(), "top_level_layers": top_level, "id_source": id_source,
-        "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill}, "meta": {"version": versao, "status": status},
+        "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill, "fill_opacity": page.settings.fill_percent()}, "meta": {"version": versao, "status": status},
         "notes": notes, "lang": lang.code(), "selected": selected,
         "instance_size": {"w": ib.w, "h": ib.h}, "stage_size": {"w": stage_w, "h": h1}, "frame_size": {"w": frame_w}, "legend_height": legend_h,
         "audited_layers": audited,
@@ -2132,11 +2131,17 @@ mod tests {
     }
 
     #[test]
-    fn fill_colour_is_the_line_colour_at_thirty_percent() {
-        assert_eq!(fill_colour(None, "#FF4D6D"), "#FF4D6D4D");
-        assert_eq!(fill_colour(Some(""), "#3B5BDB"), "#3B5BDB4D");
-        assert_eq!(fill_colour(Some("#00FF0080"), "#3B5BDB"), "#00FF0080");
-        assert_eq!(fill_colour(None, "#F0A"), "#FF00AA4D");
+    fn fill_colour_is_the_line_colour_at_the_chosen_opacity_with_an_absolute_alpha() {
+        assert_eq!(fill_colour(30, "#FF4D6D"), "#FF4D6D4D");
+        assert_eq!(fill_colour(30, "#F0A"), "#FF00AA4D");
+        // The line's own alpha does not count: the alpha is the chosen one, absolute.
+        assert_eq!(fill_colour(30, "#11F2FC5B"), "#11F2FC4D");
+        assert_eq!(fill_colour(100, "#11F2FC5B"), "#11F2FCFF");
+        assert_eq!(fill_colour(0, "#3B5BDB"), "#3B5BDB00");
+        assert_eq!(fill_colour(50, "#3B5BDB"), "#3B5BDB80");
+        assert_eq!(fill_colour(1, "#3B5BDB"), "#3B5BDB03");
+        // Not a colour: the default line's.
+        assert_eq!(fill_colour(30, "nope"), "#FCA3114D");
     }
 
     fn node(id: u64, x: f64, y: f64, w: f64, h: f64, children: &[u64]) -> Value {

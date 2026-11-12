@@ -182,8 +182,6 @@
   "PanelLangEn": "English",
   "PanelLangPt": "Português (Brasil)",
   "PanelLineColour": "Cor da linha",
-  "PanelFillAuto": "Preenchimento: cor da linha a 30%",
-  "PanelFillColour": "Cor do preenchimento",
   "PanelStage": "Palco",
   "PanelStageLight": "Claro",
   "PanelStageDark": "Escuro",
@@ -204,5 +202,9 @@
   "PanelNothingSelected": "Nada selecionado. Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação.",
   "PanelWrongKind": "A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e aperte Gerar documentação.",
   "PanelFreezeNote": "A tela fica travada enquanto a documentação é gerada.",
-  "PanelGenerate": "Gerar documentação"
+  "PanelGenerate": "Gerar documentação",
+  "ErrBadOpacity": "a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não \"{value}\"",
+  "PanelFillOpacity": "Preenchimento (%)",
+  "PanelFillHint": "Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.",
+  "PanelBadOpacity": "O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação."
 }

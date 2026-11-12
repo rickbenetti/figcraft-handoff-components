@@ -152,14 +152,15 @@ keys! {
     AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft, AlignBottomCenter,
     AlignBottomRight, AlignCompose, PanelTitle,
     PanelDefaults, PanelClose, PanelTitlePage,
-    PanelLang, PanelLangEn, PanelLangPt, PanelLineColour, PanelFillAuto,
-    PanelFillColour, PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
+    PanelLang, PanelLangEn, PanelLangPt, PanelLineColour,
+    PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
     PanelRerun, PanelRerunReplace, PanelRerunNew,
     PanelVersion,
     PanelStatus,
     PanelRestored, PanelTitleMessages,
     VersionStatusLine, ToBeDefined,
     PanelTitleDocumentation, PanelBlankHint, PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelFreezeNote, PanelGenerate,
+    ErrBadOpacity, PanelFillOpacity, PanelFillHint, PanelBadOpacity,
 }
 
 /// The text of `key` in `lang` (English when the language has none).

@@ -1,7 +1,7 @@
 //! The direct way to run "generate": no panel. A script (or the regression net) passes `direct: true`
 //! and, if it wants, the page's settings and the version and status as parameters:
 //!
-//! `lang`, `line`, `fill`, `stage`, `on_rerun` go to the current page's settings (an empty one keeps
+//! `lang`, `line`, `fill_opacity`, `stage`, `on_rerun` go to the current page's settings (an empty one keeps
 //! what is stored, `-` clears it, anything else must be valid, with the messages of the dictionary);
 //! `version` and `status` go to the documentation's header, nothing is remembered.
 
@@ -18,7 +18,7 @@ pub(crate) fn write_data(lang: Lang, id: u64, key: &str, text: Option<String>) -
 }
 
 /// The parameters that set the page's settings.
-const SETTING_PARAMS: [&str; 5] = ["lang", "line", "fill", "stage", "on_rerun"];
+const SETTING_PARAMS: [&str; 5] = ["lang", "line", "fill_opacity", "stage", "on_rerun"];
 
 /// Whether the run asked for no panel.
 pub fn wanted(input: &Input) -> bool {
@@ -34,6 +34,25 @@ fn colour_field(lang: Lang, current: &Option<String>, field: &str) -> Result<Opt
     }
 }
 
+/// The new fill opacity: empty keeps it, `-` goes back to the default (nothing stored), anything else must be a
+/// whole number from 0 to 100.
+fn opacity_field(lang: Lang, current: Option<u8>, field: &str) -> Result<Option<u8>> {
+    match field {
+        "" => Ok(current),
+        "-" => Ok(None),
+        typed => match parse_opacity(typed) {
+            Some(n) => Ok(Some(n)),
+            None => Err(tf(lang, Key::ErrBadOpacity, &[("value", typed)])),
+        },
+    }
+}
+
+/// A fill opacity as typed: a whole number from 0 to 100, nothing else (no sign, no fraction, no unit).
+pub(crate) fn parse_opacity(text: &str) -> Option<u8> {
+    let t = text.trim();
+    (!t.is_empty() && t.len() <= 3 && t.bytes().all(|b| b.is_ascii_digit())).then(|| t.parse::<u8>().ok()).flatten().filter(|n| *n <= 100)
+}
+
 /// A stored language as it is saved from now on: `pt` (0.9.5 and before) becomes `pt-BR`.
 /// A value that names no language is kept as it is.
 fn canonical_lang(stored: &Option<String>) -> Option<String> {
@@ -47,7 +66,7 @@ pub(crate) fn page_from_params(lang: Lang, stored: &Settings, asked_lang: Option
     let mut new = stored.clone();
     new.lang = if asked == "-" { None } else { asked_lang.map(|l| l.code().to_string()).or_else(|| canonical_lang(&stored.lang)) };
     new.line = colour_field(lang, &stored.line, &field("line"))?;
-    new.fill = colour_field(lang, &stored.fill, &field("fill"))?;
+    new.fill_opacity = opacity_field(lang, stored.fill_opacity, &field("fill_opacity"))?;
     let rerun = field("on_rerun");
     new.on_rerun = if rerun.is_empty() {
         stored.on_rerun.clone()
@@ -75,7 +94,12 @@ pub fn run(input: Input) -> Result<Value> {
     }
     let page = page_info()?;
     let stored = page.settings.clone();
-    let field = |name: &str| input.str(name).unwrap_or_default().trim().to_string();
+    // A parameter is text; a number (`"fill_opacity": 50`) is read as its text.
+    let field = |name: &str| match input.params.get(name) {
+        Some(Value::String(s)) => s.trim().to_string(),
+        Some(Value::Number(n)) => n.to_string(),
+        _ => String::new(),
+    };
 
     // The language of the messages: the one being set, else the stored one.
     let asked = field("lang");
@@ -122,12 +146,12 @@ mod tests {
     #[test]
     fn the_parameters_write_the_page_settings_like_the_old_form_did() {
         let empty = Settings::default();
-        let s = by_params(&empty, &[("lang", "pt-BR"), ("line", "#3B82F6"), ("fill", "#3B82F633"), ("on_rerun", "new"), ("stage", "dark")]).unwrap_or_default();
-        assert_eq!(s.to_text().unwrap_or_default(), r##"{"fill":"#3B82F633","lang":"pt-BR","line":"#3B82F6","on_rerun":"new","stage":"dark"}"##);
+        let s = by_params(&empty, &[("lang", "pt-BR"), ("line", "#3B82F6"), ("fill_opacity", "45"), ("on_rerun", "new"), ("stage", "dark")]).unwrap_or_default();
+        assert_eq!(s.to_text().unwrap_or_default(), r##"{"fill_opacity":45,"lang":"pt-BR","line":"#3B82F6","on_rerun":"new","stage":"dark"}"##);
         // Empty keeps, "-" clears.
         let kept = by_params(&s, &[]).unwrap_or_default();
         assert_eq!(kept, s);
-        let cleared = by_params(&s, &[("lang", "-"), ("line", "-"), ("fill", "-"), ("on_rerun", "-"), ("stage", "-")]).unwrap_or_default();
+        let cleared = by_params(&s, &[("lang", "-"), ("line", "-"), ("fill_opacity", "-"), ("on_rerun", "-"), ("stage", "-")]).unwrap_or_default();
         assert_eq!(cleared.to_text(), None);
     }
 
@@ -142,7 +166,13 @@ mod tests {
     fn a_bad_value_is_refused_with_the_dictionarys_message_in_the_language_of_the_page() {
         let err = |p: &[(&str, &str)]| by_params(&Settings::default(), p).err().unwrap_or_default();
         assert!(err(&[("line", "red")]).contains("\"red\""));
-        assert!(err(&[("fill", "nope")]).contains("#FF4D6D"));
+        for bad in ["nope", "101", "-5", "12.5", "30%", " ", "1e1", "300", "+5"] {
+            let e = err(&[("fill_opacity", bad)]);
+            if bad.trim().is_empty() {
+                continue; // empty keeps the stored value: not an error
+            }
+            assert!(e.contains(&format!("\"{bad}\"")) && e.contains("0 to 100"), "{bad}: {e}");
+        }
         assert!(err(&[("on_rerun", "twice")]).contains("replace or new"));
         assert!(err(&[("stage", "loud")]).contains("light, dark or auto"));
         let pt = Settings::from_plugin_data(&json!({SETTINGS_KEY: r##"{"lang":"pt-BR"}"##}));

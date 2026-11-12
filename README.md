@@ -49,13 +49,13 @@ It writes `dist/` and prints the absolute path of the manifest to import. In Fig
 
 Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a panel (it needs a FigCraft that supports plugin API 2) that stays open until you close it:
 
-- **This page**, saved on the current page: language (English or Português (Brasil)), line colour, fill (a box *Fill: line colour at 30%*; unchecked, a fill colour appears), stage (light, dark or auto) and what a rerun does (replace or new).
+- **This page**, saved on the current page: language (English or Português (Brasil)), line colour, **Fill (%)** (a whole number from 0 to 100, default 30: the fill is always the line colour at that opacity, 0 = no fill; the opacity is absolute, so a line colour with its own alpha does not change it), stage (light, dark or auto) and what a rerun does (replace or new).
 - **Documentation**: **Version** and **Status**. Left blank, the documentation shows “to be defined” (“a definir” in Portuguese): the header always has the line `Version: … · Status: …`. Nothing is remembered: after a documentation is made, both fields are blank again.
 - **Messages**: what happened the last time (`✔` done, `✖` refused) and a fixed warning (`ℹ`) that the screen freezes while the documentation is generated. The buttons come after all the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls, so a button above a field would run before the field's new value arrived.
 
 **Generate documentation** works on whatever is selected **at the moment of the click**: a component, a component set (it shows the set's own default variant, else the first one) or a variant. Then it:
 
-1. refuses, with a note and without touching the file, when nothing is selected or the selection is not a component, a set or a variant;
+1. refuses, with a note and without touching the file, when nothing is selected, the selection is not a component, a set or a variant, or Fill (%) is not a whole number from 0 to 100;
 2. saves the page's settings as the panel shows them (only what you changed is written);
 3. makes the documentation, as one undo step;
 4. takes the screen to the **start** of the documentation, as wide as the screen allows (zoom 100% at most);
@@ -64,16 +64,16 @@ Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a
 
 If something fails on the way, the app puts everything back as it was and shows the error. **Restore defaults** sets the page's fields to "not defined" (they are saved with the next documentation); **Close** closes the panel. The panel is in the page's language and redraws at once when you change it, keeping what you typed.
 
-The defaults are: language English; line colour `#FCA311`; fill colour the line colour at 30%; stage `light`; on rerun `replace`.
+The defaults are: language English; line colour `#FCA311`; fill 30% (the line colour at 30% opacity); stage `light`; on rerun `replace`.
 
-**Scripts** make the documentation with no panel by passing `direct: true` (the menu sends no parameters, and opens the panel): `plugin.run` with the `generate` command and the parameters `direct`, and optionally `lang`, `line`, `fill`, `stage`, `on_rerun` (they set the page's settings: an empty one keeps what is saved, `-` clears it, anything else is checked, with the same messages as the panel) and `version`, `status` (the header's texts; absent means “to be defined”). The selection is the one at the time of the call. This is what `scripts/regress.sh` uses.
+**Scripts** make the documentation with no panel by passing `direct: true` (the menu sends no parameters, and opens the panel): `plugin.run` with the `generate` command and the parameters `direct`, and optionally `lang`, `line`, `fill_opacity` (a whole number, 0 to 100), `stage`, `on_rerun` (they set the page's settings: an empty one keeps what is saved, `-` clears it, anything else is checked, with the same messages as the panel) and `version`, `status` (the header's texts; absent means “to be defined”). The selection is the one at the time of the call. This is what `scripts/regress.sh` uses.
 
 ### The documentation's date, and what older versions saved
 
 The documentation does not show a generation date. The plugin host gives a plugin only the instant in UTC, with no time zone and
 no local time, so a date would be wrong for many people; it will come back when the plugin API offers a clock.
 
-- **Old files.** Earlier versions saved a `tz` (time zone) on the page, and a `handoff-meta` sheet on each component (version, status, default variant, and a typed `date` before 0.9.6). The plugin ignores them and does not erase them: they stay in the file as they were. **Restore defaults** removes the page's keys, `tz` included.
+- **Old files.** Earlier versions saved a `tz` (time zone) and a `fill` colour on the page, and a `handoff-meta` sheet on each component (version, status, default variant, and a typed `date` before 0.9.6). The plugin ignores them and does not erase them: they stay in the file as they were. **Restore defaults** removes the page's keys, `tz` included.
 
 ## Demo
 

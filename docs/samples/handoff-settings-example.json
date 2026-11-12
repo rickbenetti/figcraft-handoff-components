@@ -1,12 +1,12 @@
 {
   "where": "pluginData of the current page (node.get {id: page, fields:[\"pluginData\"]})",
   "key": "handoff-settings",
-  "note": "Files saved by 0.9.6 and before may also hold a \"tz\" key. It is ignored when reading and kept when the settings are saved (Restore defaults removes it).",
-  "value_is_a_JSON_text": "{\"lang\":\"pt\",\"line\":\"#3B82F6\",\"on_rerun\":\"new\"}",
+  "note": "Files saved by 0.9.6 and before may also hold a \"tz\" key, and a \"fill\" colour (replaced by fill_opacity). They are ignored when reading and kept when the settings are saved (Restore defaults removes it).",
+  "value_is_a_JSON_text": "{\"fill_opacity\":45,\"lang\":\"pt\",\"line\":\"#3B82F6\",\"on_rerun\":\"new\"}",
   "as_object": {
     "lang": "pt",
     "line": "#3B82F6",
-    "fill": "(optional, e.g. #3B82F633)",
+    "fill_opacity": "(optional) a whole number from 0 to 100; the fill is the line colour at this opacity (default 30, 0 = no fill)",
     "on_rerun": "replace|new"
   }
 }
