@@ -11,7 +11,7 @@
   "Anatomy": "Anatomia",
   "Collision": "Atenção: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
   "CollisionOne": "Atenção: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
-  "DefaultLine": "Variante padrão: {pairs} ({source})",
+  "VariantShown": "Variante mostrada: {name}",
   "DeltaContent": "Texto",
   "DeltaEffectOnly": "Sem diferenças legíveis (apenas efeito visual)",
   "DeltaEffects": "Efeitos",
@@ -116,9 +116,6 @@
   "ResizeHug": "Ajustar ao conteúdo",
   "SettingsKept": "Nada a alterar",
   "SettingsSaved": "Configurações salvas",
-  "SourceComponent": "padrão do componente",
-  "SourceFirst": "primeira variante do conjunto",
-  "SourceSaved": "salva",
   "SpAlignment": "Alinhamento",
   "SpDirection": "Direção",
   "SpHResizing": "Redimensionamento horizontal",
@@ -220,5 +217,7 @@
   "PanelReloadedDiscarded": "Recarregado do que está salvo; as alterações não salvas foram descartadas.",
   "PanelNoComponent": "Nenhum componente carregado. Selecione um componente no canvas e aperte Recarregar.",
   "PanelRestored": "As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar.",
-  "PanelTitleMessages": "MENSAGENS"
+  "PanelTitleMessages": "MENSAGENS",
+  "VersionStatusLine": "Versão: {version} · Status: {status}",
+  "ToBeDefined": "a definir"
 }

@@ -114,7 +114,7 @@ macro_rules! keys {
 keys! {
     AlignBottom, AlignCenter, AlignLeft, AlignMiddle, AlignRight,
     AlignSpaceAround, AlignSpaceBetween, AlignSpaceEvenly, AlignTop, Anatomy,
-    Collision, CollisionOne, DefaultLine, DeltaContent,
+    Collision, CollisionOne, VariantShown, DeltaContent,
     DeltaEffectOnly, DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore,
     DeltaMoreOne, DeltaNone, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
     DeltaWidth, DirGrid, DirHorizontal, DirVertical, Done,
@@ -136,7 +136,7 @@ keys! {
     OvStrokes, OvTextStyle, OverrideNote, PropFill, PropGap,
     PropPadH, PropPadV, PropRadius, PropStroke, PropTypography,
     PropertiesTitle, ResizeFill, ResizeFixed, ResizeHug, SettingsKept,
-    SettingsSaved, SourceComponent, SourceFirst, SourceSaved, SpAlignment,
+    SettingsSaved, SpAlignment,
     SpDirection, SpHResizing, SpVResizing, SpacingTitle, Summary,
     SummaryChecks, SummaryStyles, SummaryStylesChecks, NounVariable, NounVariables,
     NounStyle, NounStyles, NounProperty, NounProperties, TypeBoolean,
@@ -158,6 +158,7 @@ keys! {
     PanelTitleComponent, PanelTitleSet, PanelTitleVariant, PanelVersion,
     PanelStatus, PanelDefaultVariant, PanelNone, PanelMoreProps, PanelSelectionMoved,
     PanelSelectionRefused, PanelReloaded, PanelReloadedDiscarded, PanelNoComponent, PanelRestored, PanelTitleMessages,
+    VersionStatusLine, ToBeDefined,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
@@ -388,7 +389,8 @@ mod tests {
     fn replaces_placeholders() {
         assert_eq!(tf(Lang::En, Key::Unnumbered, &[("n", "3")]), "+3 layers without a number");
         assert_eq!(tf(Lang::Pt, Key::Unnumbered, &[("n", "3")]), "+3 camadas sem número");
-        assert_eq!(tf(Lang::Pt, Key::DefaultLine, &[("pairs", "Size=Small"), ("source", "salva")]), "Variante padrão: Size=Small (salva)");
+        assert_eq!(tf(Lang::Pt, Key::VariantShown, &[("name", "Size=Small")]), "Variante mostrada: Size=Small");
+        assert_eq!(tf(Lang::En, Key::VariantShown, &[("name", "Size=Small")]), "Variant shown: Size=Small");
     }
 
     #[test]

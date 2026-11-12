@@ -18,7 +18,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | Anatomy | Anatomy | Anatomia |
 | Collision | Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
 | CollisionOne | Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
-| DefaultLine | Default: {pairs} ({source}) | Variante padrão: {pairs} ({source}) |
+| VariantShown | Variant shown: {name} | Variante mostrada: {name} |
 | DeltaContent | Text | Texto |
 | DeltaEffectOnly | No readable differences (visual effect only) | Sem diferenças legíveis (apenas efeito visual) |
 | DeltaEffects | Effects | Efeitos |
@@ -123,9 +123,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ResizeHug | Hug | Ajustar ao conteúdo |
 | SettingsKept | Nothing to change | Nada a alterar |
 | SettingsSaved | Settings saved | Configurações salvas |
-| SourceComponent | component default | padrão do componente |
-| SourceFirst | first variant in the set | primeira variante do conjunto |
-| SourceSaved | saved | salva |
 | SpAlignment | Alignment | Alinhamento |
 | SpDirection | Direction | Direção |
 | SpHResizing | Horizontal resizing | Redimensionamento horizontal |
@@ -228,3 +225,5 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelNoComponent | No component loaded. Select a component on the canvas and press Reload. | Nenhum componente carregado. Selecione um componente no canvas e aperte Recarregar. |
 | PanelRestored | Page settings are back to the defaults. Press Save changes to apply. | As configurações da página voltaram aos padrões. Aperte Salvar alterações para aplicar. |
 | PanelTitleMessages | MESSAGES | MENSAGENS |
+| VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
+| ToBeDefined | to be defined | a definir |

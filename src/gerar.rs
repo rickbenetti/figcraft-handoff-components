@@ -1115,11 +1115,9 @@ pub struct SetPick {
     pub source: DefaultSource,
 }
 
-/// Where the default variant of a report comes from.
+/// Where the variant a set's documentation shows comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DefaultSource {
-    /// The one saved in the settings.
-    Saved,
     /// The one the component itself says (`component.properties`).
     Component,
     /// The first variant of the set.
@@ -1193,16 +1191,10 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
         if info.variants.is_empty() {
             return Err(tf(lang, Key::ErrEmptySet, &[("id", &id.to_string())]));
         }
-        // The saved default, when it still names a variant; else the first one.
-        let saved = Meta::from_plugin_data(node.get("pluginData").unwrap_or(&Value::Null)).default;
-        let from_saved = saved.as_deref().and_then(|t| variants::parse_default(t).ok()).and_then(|typed| variants::complete(&info, &typed).ok());
-        // Saved default, then the component's own, then the first variant.
-        let (pairs, source) = match from_saved {
-            Some(p) => (p, DefaultSource::Saved),
-            None => match component_default(lang, id, &info) {
-                Some(p) => (p, DefaultSource::Component),
-                None => (info.first_pairs(), DefaultSource::First),
-            },
+        // The variant shown: the set's own default, else the first variant.
+        let (pairs, source) = match component_default(lang, id, &info) {
+            Some(p) => (p, DefaultSource::Component),
+            None => (info.first_pairs(), DefaultSource::First),
         };
         let chosen = info.find(&pairs).or(info.variants.first()).cloned();
         let chosen = chosen.ok_or_else(|| tf(lang, Key::ErrEmptySet, &[("id", &id.to_string())]))?;
@@ -1821,6 +1813,28 @@ fn warning_band(lang: Lang, parent: u64, inner: f64, message: &str, line: &str) 
     Ok(())
 }
 
+/// The longest version or status text taken from a parameter, in characters (the host's own limit for a text field).
+const MAX_META_TEXT: usize = 10_000;
+
+/// A version or status as typed: control characters become spaces, the ends are trimmed and it is cut at
+/// [`MAX_META_TEXT`]. Empty when it was not given.
+fn meta_text(raw: Option<&str>) -> String {
+    let cleaned: String = raw.unwrap_or_default().chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
+    cleaned.trim().chars().take(MAX_META_TEXT).collect()
+}
+
+/// The header's line "Version: 1.2 · Status: Approved"; an empty one reads "to be defined". The text is put in
+/// in one pass, so a `{status}` typed in the version is not taken for a placeholder.
+fn version_line(lang: Lang, version: &str, status: &str) -> String {
+    let tbd = t(lang, Key::ToBeDefined);
+    let (version, status) = (if version.is_empty() { tbd } else { version }, if status.is_empty() { tbd } else { status });
+    let template = t(lang, Key::VersionStatusLine);
+    match template.split_once("{version}").and_then(|(a, rest)| rest.split_once("{status}").map(|(b, c)| (a, b, c))) {
+        Some((a, b, c)) => format!("{a}{version}{b}{status}{c}"),
+        None => format!("{version} {status}"),
+    }
+}
+
 pub fn generate(input: Input) -> Result<Value> {
     // 1. The page's settings come first: they give the language, even for an error.
     let page = page_info()?;
@@ -1834,10 +1848,10 @@ pub fn generate(input: Input) -> Result<Value> {
     let target = resolve(lang, &input.selection)?;
     let component = target.component;
     let mut notes = target.notes.clone();
-    let sheet = host(lang, "node.get", &json!({"id": target.holder, "fields": ["pluginData"]}))?;
-    let meta = Meta::from_plugin_data(sheet.get("pluginData").unwrap_or(&Value::Null));
-    let versao = meta.version.as_deref().unwrap_or_default();
-    let status = meta.status.as_deref().unwrap_or_default();
+    // Version and status come from the run's parameters (the panel's two fields, or a script); nothing is
+    // remembered, and a sheet an older version saved on the component is not read.
+    let versao = meta_text(input.str("version"));
+    let status = meta_text(input.str("status"));
     let cor_linha = line_colour(page.settings.line.as_deref());
     let cor_fill = fill_colour(page.settings.fill.as_deref(), &cor_linha);
     let comp = &target.node;
@@ -1895,14 +1909,10 @@ pub fn generate(input: Input) -> Result<Value> {
     hd.gap = 8.0;
     let head = flow_frame(lang, frame, hd)?;
     text(lang, head, &name, 0.0, 0.0, theme::TITLE_SIZE, theme::TEXT, Some(inner), t(lang, Key::LayerTitle))?;
-    let sub: Vec<&str> = [versao, status].into_iter().filter(|s| !s.is_empty()).collect();
-    if !sub.is_empty() {
-        text(lang, head, &sub.join(" · "), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
-    }
+    text(lang, head, &version_line(lang, &versao, &status), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
     // A set says which of its variants the report is about.
     if let Some(sp) = &target.set {
-        let source = t(lang, match sp.source { DefaultSource::Saved => Key::SourceSaved, DefaultSource::Component => Key::SourceComponent, DefaultSource::First => Key::SourceFirst });
-        text(lang, head, &tf(lang, Key::DefaultLine, &[("pairs", &variants::join(&sp.default)), ("source", source)]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
+        text(lang, head, &tf(lang, Key::VariantShown, &[("name", &variants::join(&sp.default))]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
     }
     // The Properties section follows the header, before the anatomy.
     if !views.is_empty() {
@@ -2097,6 +2107,24 @@ pub fn generate(input: Input) -> Result<Value> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    #[test]
+    fn the_version_and_status_line_is_always_there_and_says_to_be_defined_when_empty() {
+        assert_eq!(version_line(Lang::En, "", ""), "Version: to be defined · Status: to be defined");
+        assert_eq!(version_line(Lang::Pt, "", ""), "Versão: a definir · Status: a definir");
+        assert_eq!(version_line(Lang::Pt, "1.2", "Aprovado"), "Versão: 1.2 · Status: Aprovado");
+        assert_eq!(version_line(Lang::En, "1.2", ""), "Version: 1.2 · Status: to be defined");
+        // Text typed in a field is never taken for a placeholder.
+        assert_eq!(version_line(Lang::En, "{status}", "x"), "Version: {status} · Status: x");
+    }
+
+    #[test]
+    fn a_version_or_status_is_trimmed_cleaned_and_cut() {
+        assert_eq!(meta_text(None), "");
+        assert_eq!(meta_text(Some("  1.2.0\n beta\t ")), "1.2.0  beta");
+        assert_eq!(meta_text(Some("   ")), "");
+        assert_eq!(meta_text(Some(&"x".repeat(MAX_META_TEXT + 5))).chars().count(), MAX_META_TEXT);
+    }
+
     use super::*;
 
     #[test]

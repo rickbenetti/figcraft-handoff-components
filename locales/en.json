@@ -11,7 +11,7 @@
   "Anatomy": "Anatomy",
   "Collision": "Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
   "CollisionOne": "Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
-  "DefaultLine": "Default: {pairs} ({source})",
+  "VariantShown": "Variant shown: {name}",
   "DeltaContent": "Text",
   "DeltaEffectOnly": "No readable differences (visual effect only)",
   "DeltaEffects": "Effects",
@@ -116,9 +116,6 @@
   "ResizeHug": "Hug",
   "SettingsKept": "Nothing to change",
   "SettingsSaved": "Settings saved",
-  "SourceComponent": "component default",
-  "SourceFirst": "first variant in the set",
-  "SourceSaved": "saved",
   "SpAlignment": "Alignment",
   "SpDirection": "Direction",
   "SpHResizing": "Horizontal resizing",
@@ -220,5 +217,7 @@
   "PanelReloadedDiscarded": "Reloaded from what is saved; unsaved changes were discarded.",
   "PanelNoComponent": "No component loaded. Select a component on the canvas and press Reload.",
   "PanelRestored": "Page settings are back to the defaults. Press Save changes to apply.",
-  "PanelTitleMessages": "MESSAGES"
+  "PanelTitleMessages": "MESSAGES",
+  "VersionStatusLine": "Version: {version} · Status: {status}",
+  "ToBeDefined": "to be defined"
 }
