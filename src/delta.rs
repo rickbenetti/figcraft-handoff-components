@@ -153,6 +153,8 @@ fn describe_effect(lang: Lang, e: &Value) -> String {
     }
     if let Some(c) = e.get("color").filter(|c| c.is_object()) {
         let ch = |k: &str| float(c, k).unwrap_or(0.0);
+        // A colour's alpha comes from hex, in steps of 1/255 (#0000000D is 5.098%): whole percents, because one
+        // decimal would show noise the design tool does not. Layer and paint opacity are typed as percentages: `percent()`.
         let alpha = float(c, "a").unwrap_or(1.0);
         let hex = audit::hex(ch("r"), ch("g"), ch("b"), 1.0);
         out.push(' ');
@@ -161,6 +163,7 @@ fn describe_effect(lang: Lang, e: &Value) -> String {
     out
 }
 
+/// A layer's or a paint's opacity (typed as a percentage) in percent, to one decimal; a colour's alpha is whole (see `describe_effect`).
 fn percent(opacity: f64) -> f64 {
     (opacity * 100.0 * 10.0).round() / 10.0
 }
@@ -1069,6 +1072,42 @@ mod tests {
         let fill = |lang: Lang| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &c, &Vars::default(), &Styles::default()))).texts(lang);
         assert_eq!(fill(Lang::En), vec!["Fill : #3B5BDB → #3B5BDB at 50%"]);
         assert_eq!(fill(Lang::Pt), vec!["Preenchimento : #3B5BDB → #3B5BDB a 50%"]);
+    }
+
+    #[test]
+    fn colour_alpha_is_whole_percent_and_layer_and_paint_opacity_keep_one_decimal() {
+        let a = button(8.0, 16.0, "#3B5BDB", 14.0);
+        let say = |lang: Lang, b: &[(Value, usize)]| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, b, &Vars::default(), &Styles::default()))).texts(lang);
+        let shadow = |alpha: f64| {
+            let mut b = a.clone();
+            b[0].0["effects"] = json!([{"type": "dropShadow", "offset": [0.0, 1.0], "radius": 2.0, "visible": true, "color": {"r": 0.0, "g": 0.0, "b": 0.0, "a": alpha}}]);
+            b
+        };
+        // An effect colour's alpha: whole percents (13/255 is 5.098%, written 5%).
+        for (alpha, text) in [(13.0 / 255.0, "5%"), (0.05098, "5%"), (0.333, "33%"), (0.3, "30%"), (0.5, "50%")] {
+            assert_eq!(say(Lang::En, &shadow(alpha)), vec![format!("Effects : none → Drop shadow 0 1 blur 2 #000000 at {text}")], "{alpha}");
+            assert_eq!(say(Lang::Pt, &shadow(alpha)), vec![format!("Efeitos : nenhum → Sombra projetada 0 1 desfoque 2 #000000 a {text}")], "{alpha}");
+        }
+        // The limit of the suffix: from 0.998 up the colour is written alone; 0.997 and 0.0004 are below it.
+        assert_eq!(say(Lang::En, &shadow(0.9996)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000"]);
+        assert_eq!(say(Lang::En, &shadow(0.998)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000"]);
+        assert_eq!(say(Lang::En, &shadow(0.997)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000 at 100%"]);
+        assert_eq!(say(Lang::En, &shadow(0.0004)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000 at 0%"]);
+        // A paint: one decimal, the limit stays at 0.995.
+        let paint = |opacity: f64| {
+            let mut b = a.clone();
+            b[0].0["fills"] = json!([{"type": "solid", "color": "#3B5BDB", "opacity": opacity}]);
+            b
+        };
+        assert_eq!(say(Lang::En, &paint(0.333)), vec!["Fill : #3B5BDB → #3B5BDB at 33.3%"]);
+        assert_eq!(say(Lang::Pt, &paint(0.333)), vec!["Preenchimento : #3B5BDB → #3B5BDB a 33.3%"], "the decimal point is not localised");
+        assert_eq!(say(Lang::En, &paint(0.9949)), vec!["Fill : #3B5BDB → #3B5BDB at 99.5%"]);
+        assert_eq!(say(Lang::En, &paint(0.995)), vec!["No differences from default"], "0.995 is written as no opacity at all");
+        // The layer: one decimal.
+        let mut layer = a.clone();
+        layer[0].0["opacity"] = json!(0.333);
+        assert_eq!(say(Lang::En, &layer), vec!["Opacity : 100% → 33.3%"]);
+        assert_eq!(say(Lang::Pt, &layer), vec!["Opacidade : 100% → 33.3%"]);
     }
 
     #[test]
