@@ -68,6 +68,12 @@ const PROP_TYPE_W: f64 = 120.0;
 const MAX_AXIS_ROWS: usize = 24;
 /// Axis rows: room around the instance (in all) and least stage height.
 const AXIS_ROOM: f64 = 64.0;
+/// The most a stage grows for the effects of its instance, in px per side (a shadow or blur that reaches further is cut by the
+/// stage's clip). The tallest stage this allows is the instance plus 2 x (400 + 8). Figma's own blur radius goes to 500; a
+/// shadow of a design system seldom passes 100, so 400 keeps every real effect whole and stops an absurd one.
+const EFFECT_CAP: f64 = 400.0;
+/// Room kept beyond the reach of an effect, in px, so that its faint end is not on the stage's edge.
+const EFFECT_SLACK: f64 = 8.0;
 const AXIS_MIN_H: f64 = 120.0;
 const STAGE_MAX_LEGEND_H: f64 = 480.0;
 /// How far below the anatomy stage the spacing stage is built.
@@ -606,6 +612,65 @@ fn blocks<'a>(groups: &'a [Group], keep: impl Fn(&Line) -> bool, parts: bool) ->
             (!lines.is_empty() || is_part).then(|| Block { node: g.node, nodes: g.nodes.clone(), lines, sub: if parts { g.sub.clone() } else { None }, badge: None })
         })
         .collect()
+}
+
+/// How far one effect reaches beyond the box of its layer, per side: (left, right, top, bottom). A drop shadow reaches its blur
+/// radius plus its spread, moved by its offset (a positive x offset reaches further to the right and less to the left); a
+/// layer blur reaches its radius all round. An inner shadow and a background blur stay inside the box. A hidden effect, or
+/// one with a type this version doesn't know, reaches nothing.
+fn effect_sides(e: &Value) -> [f64; 4] {
+    if e.get("visible").and_then(Value::as_bool) == Some(false) {
+        return [0.0; 4];
+    }
+    let n = |k: &str| e.get(k).and_then(Value::as_f64).filter(|v| v.is_finite()).unwrap_or(0.0);
+    match e.get("type").and_then(Value::as_str) {
+        Some("dropShadow") => {
+            let reach = n("radius") + n("spread");
+            let (ox, oy) = match e.get("offset").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<_>>()).as_deref() {
+                Some([x, y]) => (*x, *y),
+                _ => (0.0, 0.0),
+            };
+            [reach - ox, reach + ox, reach - oy, reach + oy].map(|v| v.max(0.0))
+        }
+        Some("layerBlur") => [n("radius").max(0.0); 4],
+        _ => [0.0; 4],
+    }
+}
+
+/// How far the effects of the visible layers of an instance reach beyond the instance's own box, per side (left, right, top,
+/// bottom): the effects of a layer inside count only for what passes the box of the instance (a shadow that stays inside
+/// it needs no room). `drawn` says which layers are drawn (a hidden layer, or one under a hidden one, has no effect on the
+/// stage). Nothing is asked of the host: the effects and boxes are the ones the audit already read.
+fn effect_overflow(walked: &[(Value, usize)], drawn: &[bool]) -> [f64; 4] {
+    let Some(root) = walked.first().and_then(|(n, _)| bounds(n)) else { return [0.0; 4] };
+    let mut out = [0.0_f64; 4];
+    for (i, (node, _)) in walked.iter().enumerate() {
+        if !drawn.get(i).copied().unwrap_or(false) {
+            continue;
+        }
+        let (Some(effects), Some(b)) = (node.get("effects").and_then(Value::as_array), bounds(node)) else { continue };
+        // How far the layer's box is inside the instance's box on each side (0 for the root itself).
+        let inside = [b.x - root.x, root.right() - b.right(), b.y - root.y, root.bottom() - b.bottom()];
+        for e in effects {
+            let sides = effect_sides(e);
+            for k in 0..4 {
+                out[k] = out[k].max(sides[k] - inside[k].max(0.0));
+            }
+        }
+    }
+    out
+}
+
+/// The room a stage gives an effect on each side, from its overflow: the largest side (the instance stays in the middle), at
+/// most `EFFECT_CAP`; 0 when nothing reaches out.
+fn effect_reach(overflow: [f64; 4]) -> f64 {
+    overflow.into_iter().fold(0.0_f64, f64::max).min(EFFECT_CAP)
+}
+
+/// The least height of a stage for an instance `h` tall whose effects reach `reach` px: the instance, the reach and the slack
+/// on both sides. 0 when nothing reaches out (the stage keeps the room it has always had).
+fn stage_height_for_effects(h: f64, reach: f64) -> f64 {
+    if reach > 0.0 { h + 2.0 * (reach + EFFECT_SLACK) } else { 0.0 }
 }
 
 /// For each layer of the walk: whether it is drawn (it and everything it sits in are visible).
@@ -1628,6 +1693,8 @@ fn draw_properties(lang: Lang, frame: u64, inner: f64, views: &[PropView]) -> Re
 
 /// What the axes drew.
 struct AxesDrawn {
+    /// Rows whose stage is narrower than the instance plus the reach of its effects on both sides: (row name, width needed).
+    narrow: Vec<(String, f64)>,
     rows: usize,
     skipped: usize,
     undefined: Vec<String>,
@@ -1688,10 +1755,11 @@ fn draw_axes(
     base_walked: &[(Value, usize)],
     caches: &mut Caches,
 ) -> Result<AxesDrawn> {
-    let mut drawn = AxesDrawn { rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new() };
+    let mut drawn = AxesDrawn { narrow: Vec::new(), rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new() };
     let mut last_section: Option<u64> = None;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
     let base_snap = delta::snapshot(lang, base_walked, &caches.vars, &caches.styles);
+    let base_reach = effect_reach(effect_overflow(base_walked, &rendered(base_walked)));
     for axis in axes {
         let mut section: Option<u64> = None;
         let mut missing: Vec<String> = Vec::new();
@@ -1729,9 +1797,9 @@ fn draw_axes(
             let (instance, _) = place_instance(lang, variant.id, stage, sb, Rect { x: 0.0, y: 0.0, w: variant.w, h: variant.h })?;
             let mut listed: Vec<String> = Vec::new();
             let mut h = h0;
-            let nodes: Vec<Value> = if opt.is_default {
+            let (nodes, reach): (Vec<Value>, f64) = if opt.is_default {
                 text_with(lang, legend, t(lang, Key::LegendDefault), LINE_SIZE, theme::MUTED, &rname, json!({}))?;
-                base_nodes.clone()
+                (base_nodes.clone(), base_reach)
             } else {
                 let walked = walk_layers(lang, instance)?;
                 caches.load_for(lang, &walked)?;
@@ -1754,13 +1822,24 @@ fn draw_axes(
                     host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h}}))?;
                     host(lang, "node.set", &json!({"ids": [instance], "props": {"y": (h - variant.h) / 2.0}}))?;
                 }
-                walked.into_iter().map(|(n, _)| n).collect()
+                // The effects of this variant itself: its stage grows when they would be cut by the clip.
+                let reach = effect_reach(effect_overflow(&walked, &rendered(&walked)));
+                (walked.into_iter().map(|(n, _)| n).collect(), reach)
             };
+            let needed = stage_height_for_effects(variant.h, reach);
+            if needed > h + 0.5 {
+                h = needed;
+                host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h}}))?;
+                host(lang, "node.set", &json!({"ids": [instance], "props": {"y": (h - variant.h) / 2.0}}))?;
+            }
+            if reach > 0.0 && stage_w < variant.w + 2.0 * reach {
+                drawn.narrow.push((opt.name.clone(), variant.w + 2.0 * reach));
+            }
             let (dark, lowest) = is_dark(mode, &nodes, ancestor);
             if dark && mode == StageMode::Auto {
                 host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": theme::PANEL, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}))?;
             }
-            drawn.info.push(json!({"name": opt.name, "lowest_contrast": lowest, "dark": dark, "height": h, "deltas": listed}));
+            drawn.info.push(json!({"name": opt.name, "lowest_contrast": lowest, "dark": dark, "height": h, "effect_reach": reach, "deltas": listed}));
             host(lang, "node.reparent", &json!({"ids": [stage], "parent": row}))?;
             drawn.rows += 1;
         }
@@ -1960,6 +2039,9 @@ pub fn generate(input: Input) -> Result<Value> {
     }
     // Only what is drawn counts: a hidden layer (or one under a hidden ancestor) has no block in the legend.
     let drawn = rendered(&walked);
+    // How far the effects (shadows, blurs) of the instance reach out of it: the stages keep room for them.
+    let reach = effect_reach(effect_overflow(&walked, &drawn));
+    let mut narrow: Vec<(String, f64)> = if reach > 0.0 && stage_w < size.w + 2.0 * reach { vec![(name.clone(), size.w + 2.0 * reach)] } else { Vec::new() };
     let all_rows = audit::keep_shown(all_rows, &drawn);
     let all_count = all_rows.len();
     let mut rows = audit::drop_zero_unbound(all_rows);
@@ -2012,7 +2094,7 @@ pub fn generate(input: Input) -> Result<Value> {
 
     // The stage is as tall as the instance needs and, up to a limit, as the legend: when it grows,
     // the instance moves down to stay in the middle (so do the audited boxes).
-    let h1 = h0.max(legend_h.min(STAGE_MAX_LEGEND_H));
+    let h1 = h0.max(legend_h.min(STAGE_MAX_LEGEND_H)).max(stage_height_for_effects(size.h, reach));
     let (sb, ib, dy) = if (h1 - h0).abs() > 0.5 {
         let dy = (h1 - h0) / 2.0;
         host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h1}}))?;
@@ -2055,7 +2137,7 @@ pub fn generate(input: Input) -> Result<Value> {
             draw_block(lang, legend2, &walked, variant, &b, &extra, pal.spacing)?;
         }
         let legend2_h = height_of(lang, legend2)?;
-        let h2 = h0.max(legend2_h.min(STAGE_MAX_LEGEND_H));
+        let h2 = h0.max(legend2_h.min(STAGE_MAX_LEGEND_H)).max(stage_height_for_effects(size.h, reach));
         let sb2 = Rect { x: stage_x, y: STAGING_Y + SPACING_STAGING_DY, w: stage_w, h: h2 };
         let stage2 = make_stage(lang, sb2, anatomy_dark)?;
         let (instance2, ib2) = place_instance(lang, component, stage2, sb2, size)?;
@@ -2078,6 +2160,9 @@ pub fn generate(input: Input) -> Result<Value> {
     // The variant axes close the report.
     let mut caches = Caches { vars, vars_loaded, styles, styles_loaded };
     let axes_drawn = if axes_list.is_empty() { None } else { Some(draw_axes(lang, frame, inner, stage_w, x, &axes_list, MAX_AXIS_ROWS, mode, set_fill, &walked, &mut caches)?) };
+    if let Some(a) = &axes_drawn {
+        narrow.extend(a.narrow.iter().cloned());
+    }
 
     // The report is born with one export setting: SVG at 1x with no suffix (the scale is ignored for SVG). It is
     // always SVG, whatever the height: a PNG fails above 16,384 px and SVG does not have that limit.
@@ -2112,7 +2197,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "properties": views.iter().map(|v| json!({"name": v.name, "type": v.kind, "options": v.options.iter().map(|(o, d)| json!({"option": o, "default": d})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
         "default_variant": target.set.as_ref().map(|sp| json!({"pairs": variants::join(&sp.default), "source": format!("{:?}", sp.source)})),
         "axes": axes_drawn.as_ref().map(|a| json!({"rows": a.rows, "skipped": a.skipped, "undefined": a.undefined, "planned": variants::within_limit(&axes_list, MAX_AXIS_ROWS).0, "stages": a.info})),
-        "stage_mode": mode.name(), "anatomy_stage": {"dark": anatomy_dark, "lowest_contrast": anatomy_ratio}, "host_calls": HOST_CALLS.load(Ordering::Relaxed), "badge_info": badges.info, "badges_dropped": badges.dropped, "unnumbered_layers": unnumbered,
+        "effects": {"reach": reach, "cap": EFFECT_CAP, "slack": EFFECT_SLACK, "narrow": narrow.iter().map(|(n, w)| json!({"name": n, "needed_width": w, "stage_width": stage_w})).collect::<Vec<_>>()}, "stage_mode": mode.name(), "anatomy_stage": {"dark": anatomy_dark, "lowest_contrast": anatomy_ratio}, "host_calls": HOST_CALLS.load(Ordering::Relaxed), "badge_info": badges.info, "badges_dropped": badges.dropped, "unnumbered_layers": unnumbered,
         "anatomy_blocks": anatomy_blocks.iter().map(|b| json!({"title": block_name(&walked, b), "badge": b.badge, "count": b.nodes.len()})).collect::<Vec<_>>(),
         "hidden_paints": nodes.iter().map(audit::hidden_paints).sum::<usize>(),
         "summary": summary, "warning": warning, "table": table
@@ -2764,6 +2849,82 @@ mod tests {
         for colour in [theme::LIGHT_ANATOMY, theme::LIGHT_SPACING, theme::DARK_ANATOMY, theme::DARK_SPACING] {
             assert!(contrast::ratio(c(on_accent(colour)), c(colour)) >= 4.5, "{colour}");
         }
+    }
+
+    fn fx_node(x: f64, y: f64, w: f64, h: f64, effects: Value) -> Value {
+        json!({"absoluteBounds": {"x": x, "y": y, "width": w, "height": h}, "effects": effects})
+    }
+
+    fn shadow(radius: f64, spread: f64, ox: f64, oy: f64) -> Value {
+        json!({"type": "dropShadow", "visible": true, "radius": radius, "spread": spread, "offset": [ox, oy], "color": {"r": 0, "g": 0, "b": 0, "a": 0.7}})
+    }
+
+    #[test]
+    fn a_drop_shadow_reaches_its_radius_plus_spread_moved_by_its_offset() {
+        // The test of the investigation: blur 40, offset (0, 12): 52 below, 28 above, 40 at the sides.
+        assert_eq!(effect_sides(&shadow(40.0, 0.0, 0.0, 12.0)), [40.0, 40.0, 28.0, 52.0]);
+        assert_eq!(effect_sides(&shadow(10.0, 4.0, 6.0, -2.0)), [8.0, 20.0, 16.0, 12.0]);
+        // An offset bigger than the blur leaves the far side with nothing, never a negative reach.
+        assert_eq!(effect_sides(&shadow(2.0, 0.0, 10.0, 0.0)), [0.0, 12.0, 2.0, 2.0]);
+        // A negative spread shrinks the shadow.
+        assert_eq!(effect_sides(&shadow(8.0, -3.0, 0.0, 0.0)), [5.0, 5.0, 5.0, 5.0]);
+    }
+
+    #[test]
+    fn the_other_effects_reach_nothing_but_a_layer_blur_reaches_its_radius_all_round() {
+        assert_eq!(effect_sides(&json!({"type": "layerBlur", "visible": true, "radius": 12.0})), [12.0; 4]);
+        assert_eq!(effect_sides(&json!({"type": "innerShadow", "visible": true, "radius": 30.0, "offset": [4.0, 4.0]})), [0.0; 4]);
+        assert_eq!(effect_sides(&json!({"type": "backgroundBlur", "visible": true, "radius": 30.0})), [0.0; 4]);
+        assert_eq!(effect_sides(&json!({"type": "somethingNew", "radius": 30.0})), [0.0; 4], "a type this version doesn't know");
+        // A hidden effect counts for nothing; one with no `visible` is visible.
+        let mut hidden = shadow(40.0, 0.0, 0.0, 0.0);
+        hidden["visible"] = json!(false);
+        assert_eq!(effect_sides(&hidden), [0.0; 4]);
+        let mut unmarked = shadow(5.0, 0.0, 0.0, 0.0);
+        unmarked.as_object_mut().unwrap().remove("visible");
+        assert_eq!(effect_sides(&unmarked), [5.0; 4]);
+    }
+
+    #[test]
+    fn the_instance_reach_is_the_largest_of_its_effects_and_no_effect_keeps_the_stage_as_it_was() {
+        let walked = |effects: Value| vec![(fx_node(0.0, 0.0, 100.0, 40.0, effects), 0usize)];
+        let all = |w: &[(Value, usize)]| effect_overflow(w, &vec![true; w.len()]);
+        // No effect: nothing reaches out, and the stage has no least height beyond the one it always had.
+        let none = walked(json!([]));
+        assert_eq!(effect_reach(all(&none)), 0.0);
+        assert_eq!(stage_height_for_effects(40.0, 0.0), 0.0);
+        // Several effects: the largest side of any of them.
+        let many = walked(json!([shadow(2.0, 0.0, 0.0, 1.0), shadow(40.0, 0.0, 0.0, 12.0), json!({"type": "layerBlur", "visible": true, "radius": 6.0})]));
+        assert_eq!(all(&many), [40.0, 40.0, 28.0, 52.0]);
+        assert_eq!(effect_reach(all(&many)), 52.0);
+        // The stage then holds the instance, the reach and the slack on both sides.
+        assert_eq!(stage_height_for_effects(40.0, 52.0), 40.0 + 2.0 * (52.0 + EFFECT_SLACK));
+        // A hidden effect does not count.
+        let mut off = shadow(60.0, 0.0, 0.0, 0.0);
+        off["visible"] = json!(false);
+        assert_eq!(effect_reach(all(&walked(json!([off])))), 0.0);
+    }
+
+    #[test]
+    fn a_layer_inside_the_instance_counts_only_for_what_passes_the_instances_box() {
+        // A card 200 x 100 with a child 20 px from the left and 10 from the top with a blur-30 shadow: the shadow
+        // passes the box by 10 on the left and 20 on the top, and by 0 on the right and the bottom (the child is far from them).
+        let walked = vec![(fx_node(0.0, 0.0, 200.0, 100.0, json!([])), 0), (fx_node(20.0, 10.0, 160.0, 80.0, json!([shadow(30.0, 0.0, 0.0, 0.0)])), 1)];
+        assert_eq!(effect_overflow(&walked, &[true, true]), [10.0, 10.0, 20.0, 20.0]);
+        // A child that sits at the very edge counts in full.
+        let edge = vec![(fx_node(0.0, 0.0, 200.0, 100.0, json!([])), 0), (fx_node(0.0, 0.0, 200.0, 100.0, json!([shadow(30.0, 0.0, 0.0, 0.0)])), 1)];
+        assert_eq!(effect_overflow(&edge, &[true, true]), [30.0; 4]);
+        // A hidden layer (or one under a hidden ancestor) has no effect on the stage.
+        assert_eq!(effect_overflow(&edge, &[true, false]), [0.0; 4]);
+    }
+
+    #[test]
+    fn an_absurd_reach_is_cut_at_the_cap() {
+        let walked = vec![(fx_node(0.0, 0.0, 100.0, 40.0, json!([shadow(900.0, 0.0, 0.0, 0.0)])), 0)];
+        assert_eq!(effect_reach(effect_overflow(&walked, &[true])), EFFECT_CAP);
+        assert_eq!(EFFECT_CAP, 400.0);
+        // The stage for it is the instance plus 2 x (cap + slack).
+        assert_eq!(stage_height_for_effects(40.0, EFFECT_CAP), 40.0 + 816.0);
     }
 
     #[test]

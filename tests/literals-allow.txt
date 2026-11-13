@@ -12,3 +12,4 @@ gerar.rs | selection: Input.selection (the `selection` field of the run's input;
 store.rs | auto | the stage mode saved from the panel or a script (light, dark and auto stay in English, decision P11)
 theme.rs | Inter | the report's font family
 audit.rs | Auto | the host's `lineHeight` text, matched here and worded through LineHeightAutoHost
+gerar.rs | spread | the host's field name of an effect (`spread`), read to work out how far a shadow reaches
