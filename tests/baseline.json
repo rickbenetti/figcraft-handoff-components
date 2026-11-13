@@ -570,14 +570,12 @@
     "lines": 8,
     "sections": 7,
     "instances": 14,
-    "fuel": 154202819,
+    "fuel": 154452852,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
         "Fill : Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
-        "↳ Leading icon / plus",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)",
-        "↳ Label / Text",
+        "↳ Leading icon / plus · Label / Text",
         "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
       ],
       "Type=Outline, Size=Medium, State=Enabled": [
@@ -586,16 +584,12 @@
         "Height : 36 → 38",
         "Stroke : none → Colors/color/border (#E3E7E8)",
         "Stroke weight : 0 → 1",
-        "↳ Leading icon / plus",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
-        "↳ Label / Text",
+        "↳ Leading icon / plus · Label / Text",
         "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
       ],
       "Type=Destructive, Size=Medium, State=Enabled": [
         "Fill : Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
-        "↳ Leading icon / plus",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)",
-        "↳ Label / Text",
+        "↳ Leading icon / plus · Label / Text",
         "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
       ],
       "Type=Primary, Size=Small, State=Enabled": [
@@ -1026,14 +1020,12 @@
     "lines": 8,
     "sections": 0,
     "instances": 14,
-    "fuel": 157661729,
+    "fuel": 157860687,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
         "Preenchimento : Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
-        "↳ Leading icon / plus",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)",
-        "↳ Label / Text",
+        "↳ Leading icon / plus, Label / Text",
         "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
       ],
       "Type=Outline, Size=Medium, State=Enabled": [
@@ -1042,16 +1034,12 @@
         "Altura : 36 → 38",
         "Traço : nenhum → Colors/color/border (#E3E7E8)",
         "Espessura do traço : 0 → 1",
-        "↳ Leading icon / plus",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
-        "↳ Label / Text",
+        "↳ Leading icon / plus, Label / Text",
         "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
       ],
       "Type=Destructive, Size=Medium, State=Enabled": [
         "Preenchimento : Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
-        "↳ Leading icon / plus",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)",
-        "↳ Label / Text",
+        "↳ Leading icon / plus, Label / Text",
         "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
       ],
       "Type=Primary, Size=Small, State=Enabled": [

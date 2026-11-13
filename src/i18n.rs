@@ -114,7 +114,7 @@ macro_rules! keys {
 keys! {
     AlignBottom, AlignCenter, AlignLeft, AlignMiddle, AlignRight,
     AlignSpaceAround, AlignSpaceBetween, AlignSpaceEvenly, AlignTop, Anatomy,
-    Collision, CollisionOne, VariantShown, DeltaContent, DeltaWhitespaceOnly,
+    Collision, CollisionOne, VariantShown, DeltaContent, DeltaWhitespaceOnly, DeltaNameSeparator,
     DeltaEffectOnly, DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore,
     DeltaMoreOne, DeltaNone, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
     DeltaWidth, DirGrid, DirHorizontal, DirVertical, Done,

@@ -554,9 +554,35 @@ fn title(path: &str) -> String {
     path.trim_start_matches('/').split('/').collect::<Vec<_>>().join(" / ")
 }
 
+/// Most layer names a grouped title lists; the others are counted ("+2").
+const MAX_GROUP_NAMES: usize = 3;
+
+/// What a change says, apart from the layer it is on: two layers whose changes have the same signatures, in the same order,
+/// are the same change. A long text counts with its whole text, not with the part a line quotes.
+fn signature(c: &Change, lang: Lang) -> String {
+    let kind = match &c.kind {
+        Kind::Changed { label: Label::Content, from, to } => format!("content|{}|{}", from.value, to.value),
+        Kind::Changed { label, from, to } => format!("changed|{}", change_text(lang, *label, from, to)),
+        Kind::Shown(on) => format!("shown|{on}"),
+        Kind::Swapped(text) => format!("swapped|{text}"),
+    };
+    format!("{kind}|{}", c.minor)
+}
+
+/// The title of a group: the names of its layers, at most [`MAX_GROUP_NAMES`], then "+N" for the rest.
+fn group_name(lang: Lang, paths: &[&String]) -> String {
+    let names: Vec<String> = paths.iter().take(MAX_GROUP_NAMES).map(|p| title(p)).collect();
+    let mut out = names.join(t(lang, Key::DeltaNameSeparator));
+    if paths.len() > MAX_GROUP_NAMES {
+        out.push_str(&format!(" +{}", paths.len() - MAX_GROUP_NAMES));
+    }
+    out
+}
+
 /// The list of a variant's changes, at most [`MAX_LINES`] lines. Changes come grouped by layer, the
 /// root first (no heading); a layer with several changes has a "↳ name" heading, one with a single
-/// switch of visibility is one line.
+/// switch of visibility is one line. Layers with the same changes, in the same order, are one group under a title with
+/// all their names, at the place of the first of them (see [`signature`]); the lines count after that.
 pub fn list(lang: Lang, diff: &Diff) -> Listing {
     if diff.changes.is_empty() {
         let none = t(lang, if diff.unreadable_effect { Key::DeltaEffectOnly } else { Key::DeltaNone }).to_string();
@@ -569,19 +595,33 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
             order.push(c.layer.as_ref());
         }
     }
+    // The layers (not the root) with the same changes are one: the first stands for the others.
+    let signatures: Vec<(Option<&String>, Vec<String>)> =
+        order.iter().map(|l| (*l, diff.changes.iter().filter(|c| c.layer.as_ref() == *l).map(|c| signature(c, lang)).collect())).collect();
+    let mut groups: Vec<(Option<&String>, Vec<&String>)> = Vec::new();
+    for (layer, sig) in &signatures {
+        let twin = layer.and_then(|_| groups.iter().position(|(rep, _)| rep.is_some() && signatures.iter().any(|(l, s)| l == rep && s == sig)));
+        match (twin, layer) {
+            (Some(i), Some(path)) => groups[i].1.push(path),
+            (_, Some(path)) => groups.push((*layer, vec![path])),
+            (_, None) => groups.push((None, Vec::new())),
+        }
+    }
+    let order: Vec<Option<&String>> = groups.iter().map(|(rep, _)| *rep).collect();
+    let changes: Vec<&Change> = diff.changes.iter().filter(|c| order.contains(&c.layer.as_ref())).collect();
     // A layer with a single switch of visibility is one line; so is a swapped instance, whose line names the layer for
     // its other changes too; any other gets a heading (the root none).
     let headed = |layer: Option<&String>| {
-        let mut own = diff.changes.iter().filter(|c| c.layer.as_ref() == layer);
+        let mut own = changes.iter().filter(|c| c.layer.as_ref() == layer);
         let swapped = own.clone().any(|c| matches!(c.kind, Kind::Swapped(_)));
         layer.is_some() && !swapped && !(own.next().is_some_and(|c| matches!(c.kind, Kind::Shown(_))) && own.next().is_none())
     };
     // The budget goes to the main changes first and then to the minor ones (sizes), in tree order.
-    let mut picked = vec![false; diff.changes.len()];
+    let mut picked = vec![false; changes.len()];
     let mut with_heading: Vec<Option<&String>> = Vec::new();
     let mut used = 0usize;
     for minor in [false, true] {
-        for (i, c) in diff.changes.iter().enumerate().filter(|(_, c)| c.minor == minor) {
+        for (i, c) in changes.iter().enumerate().filter(|(_, c)| c.minor == minor) {
             let layer = c.layer.as_ref();
             let heading = headed(layer) && !with_heading.contains(&layer);
             let cost = 1 + usize::from(heading);
@@ -597,11 +637,11 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
     }
     let mut lines: Vec<Line> = Vec::new();
     let mut shown = 0usize;
-    for layer in order {
-        let name = layer.map(|p| title(p)).unwrap_or_default();
+    for (layer, paths) in &groups {
+        let name = if layer.is_some() { group_name(lang, paths) } else { String::new() };
         let mut first = true;
-        for c in diff.changes.iter().zip(&picked).filter(|(c, p)| **p && c.layer.as_ref() == layer).map(|(c, _)| c) {
-            if first && headed(layer) {
+        for c in changes.iter().zip(&picked).filter(|(c, p)| **p && c.layer.as_ref() == *layer).map(|(c, _)| c) {
+            if first && headed(*layer) {
                 lines.push(Line { text: format!("↳ {name}"), heading: true });
             }
             first = false;
@@ -614,7 +654,7 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
             shown += 1;
         }
     }
-    Listing { lines, more: diff.changes.len() - shown, none: None }
+    Listing { lines, more: changes.len() - shown, none: None }
 }
 
 #[cfg(test)]
@@ -740,8 +780,139 @@ mod tests {
         assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &hidden)), vec!["↳ Chevron : hidden"]);
         let without = vec![with_instance("Name=up", "up", 16.0).remove(0)];
         // (the sibling "Label" of the helper comes and goes with it)
-        assert_eq!(texts(&diff_of(&without, &with_instance("Name=up", "up", 16.0))), vec!["↳ Chevron : visible", "↳ Label : visible"]);
-        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &without)), vec!["↳ Chevron : hidden", "↳ Label : hidden"]);
+        // (the two layers say the same, so they are one group)
+        assert_eq!(texts(&diff_of(&without, &with_instance("Name=up", "up", 16.0))), vec!["↳ Chevron · Label : visible"]);
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &without)), vec!["↳ Chevron · Label : hidden"]);
+    }
+
+    /// A component with `rows` text layers; `to(i)` is the text of row `i` in the variant (every row says "a" in the default).
+    fn rows_of(rows: &[&str], texts: &[&str]) -> Vec<(Value, usize)> {
+        let mut v = vec![(json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0)];
+        for (name, text) in rows.iter().zip(texts) {
+            v.push((json!({"name": name, "type": "TEXT", "characters": text, "fontFamily": "W", "fontSize": 14.0, "fontStyle": "R", "lineHeight": "150%", "letterSpacing": "0%"}), 1));
+        }
+        v
+    }
+
+    fn grouped(lang: Lang, names: &[&str], from: &[&str], to: &[&str]) -> Vec<String> {
+        list(lang, &diff_of(&rows_of(names, from), &rows_of(names, to))).texts(lang)
+    }
+
+    #[test]
+    fn layers_with_the_same_changes_are_one_group_under_all_their_names() {
+        // Two, three.
+        assert_eq!(grouped(Lang::En, &["A", "B"], &["a", "a"], &["b", "b"]), vec!["↳ A · B", "Text : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B", "C"], &["a", "a", "a"], &["b", "b", "b"]), vec!["↳ A · B · C", "Text : \"a\" → \"b\""]);
+        // Four, five: three names, then "+N".
+        assert_eq!(grouped(Lang::En, &["A", "B", "C", "D"], &["a"; 4], &["b"; 4]), vec!["↳ A · B · C +1", "Text : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B", "C", "D", "E"], &["a"; 5], &["b"; 5]), vec!["↳ A · B · C +2", "Text : \"a\" → \"b\""]);
+    }
+
+    #[test]
+    fn the_separator_is_the_languages_and_a_layer_alone_is_as_it_was() {
+        assert_eq!(grouped(Lang::Pt, &["A", "B", "C", "D", "E"], &["a"; 5], &["b"; 5]), vec!["↳ A, B, C +2", "Texto : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::Pt, &["A", "B"], &["a", "a"], &["b", "b"]), vec!["↳ A, B", "Texto : \"a\" → \"b\""]);
+        // One layer: the heading, the line, nothing else.
+        assert_eq!(grouped(Lang::En, &["A"], &["a"], &["b"]), vec!["↳ A", "Text : \"a\" → \"b\""]);
+        assert_eq!((t(Lang::En, Key::DeltaNameSeparator), t(Lang::Pt, Key::DeltaNameSeparator)), (" · ", ", "));
+    }
+
+    #[test]
+    fn the_group_takes_the_place_of_its_first_layer_and_the_others_keep_their_order() {
+        // A and C say the same; B says something else in between: A·C comes first, then B.
+        assert_eq!(grouped(Lang::En, &["A", "B", "C"], &["a", "a", "a"], &["b", "x", "b"]), vec!["↳ A · C", "Text : \"a\" → \"b\"", "↳ B", "Text : \"a\" → \"x\""]);
+        // A different change first: B and D group at B's place, after A and C stay as they were.
+        assert_eq!(
+            grouped(Lang::En, &["A", "B", "C", "D"], &["a"; 4], &["p", "q", "r", "q"]),
+            vec!["↳ A", "Text : \"a\" → \"p\"", "↳ B · D", "Text : \"a\" → \"q\"", "↳ C", "Text : \"a\" → \"r\""]
+        );
+    }
+
+    #[test]
+    fn different_lists_do_not_group_not_even_with_the_same_label_or_token() {
+        // The same label with another value.
+        assert_eq!(grouped(Lang::En, &["A", "B"], &["a", "a"], &["b", "c"]), vec!["↳ A", "Text : \"a\" → \"b\"", "↳ B", "Text : \"a\" → \"c\""]);
+        // The same token, another value: two lines that read differently.
+        let vars = Vars::parse(&json!({
+            "collections": [{"id": "C", "name": "color", "modes": [{"id": "m", "name": "A"}]}],
+            "variables": [{"id": "V1", "collection": "C", "name": "primary/500", "resolvedType": "color", "values": {"m": {"type": "color", "value": {"a": 1.0, "r": 0.231, "g": 0.357, "b": 0.859}}}}]
+        }));
+        let styles = Styles::default();
+        let with_fill = |c1: &str, c2: &str| {
+            let mut v = vec![(json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0)];
+            for (name, c) in [("A", c1), ("B", c2)] {
+                v.push((json!({"name": name, "type": "FRAME", "fills": [{"type": "solid", "color": c}], "boundVariables": {"fill": "V1"}, "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0}}), 1));
+            }
+            v
+        };
+        let a = with_fill("#3B5BDB", "#3B5BDB");
+        let b = with_fill("#2F4AB5", "#111111");
+        let d = compare(&snapshot(Lang::En, &a, &vars, &styles), &snapshot(Lang::En, &b, &vars, &styles));
+        let said = list(Lang::En, &d).texts(Lang::En);
+        assert!(said.iter().any(|l| l == "↳ A") && said.iter().any(|l| l == "↳ B") && !said.iter().any(|l| l.contains(" · ")), "{said:?}");
+    }
+
+    #[test]
+    fn shown_and_swapped_changes_group_like_any_other() {
+        let frame = |main_a: &str, main_b: &str, vis: bool| {
+            vec![
+                (json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0),
+                (json!({"name": "Left", "type": "INSTANCE", "mainComponentName": main_a, "visible": vis}), 1),
+                (json!({"name": "Right", "type": "INSTANCE", "mainComponentName": main_b, "visible": vis}), 1),
+            ]
+        };
+        // Two instances that become another component the same way: one line.
+        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=b", "Name=b", true))), vec!["↳ Left · Right : Name: a → b"]);
+        // The same swap to different components: two lines.
+        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=b", "Name=c", true))), vec!["↳ Left : Name: a → b", "↳ Right : Name: a → c"]);
+        // Both hidden: one line.
+        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=a", "Name=a", false))), vec!["↳ Left · Right : hidden"]);
+    }
+
+    #[test]
+    fn a_long_text_groups_only_when_the_whole_text_is_the_same() {
+        // The two texts differ at the end, far from the first difference: the quoted window is the same, the texts are not.
+        let long = |tail: &str| format!("Alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon {tail}");
+        let (x, y) = (long("one"), long("two"));
+        let from = [long("same").as_str().to_string(), long("same")];
+        let from: Vec<&str> = from.iter().map(String::as_str).collect();
+        let a = rows_of(&["A", "B"], &from);
+        let mut to = [x.replace("Alpha", "ALPHA"), y.replace("Alpha", "ALPHA")];
+        let (wa, wb) = (windows(from[0], &to[0]), windows(from[1], &to[1]));
+        assert_eq!(wa.1, wb.1, "the quoted window of the new text is the same for both");
+        let said = texts(&diff_of(&a, &rows_of(&["A", "B"], &to.iter().map(String::as_str).collect::<Vec<_>>())));
+        assert!(said.iter().any(|l| l == "↳ A") && said.iter().any(|l| l == "↳ B"), "{said:?}");
+        // The whole text equal: one group.
+        to[1] = to[0].clone();
+        let said = texts(&diff_of(&a, &rows_of(&["A", "B"], &to.iter().map(String::as_str).collect::<Vec<_>>())));
+        assert_eq!(said[0], "↳ A · B", "{said:?}");
+    }
+
+    #[test]
+    fn the_twelve_lines_count_after_grouping_and_the_rest_is_counted_right() {
+        // Thirty layers, ten each of three texts: three groups of two lines, nothing left out.
+        let names: Vec<String> = (0..30).map(|i| format!("L{i:02}")).collect();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        let to: Vec<&str> = (0..30).map(|i| ["p", "q", "r"][i % 3]).collect();
+        let l = list(Lang::En, &diff_of(&rows_of(&names, &["a"; 30]), &rows_of(&names, &to)));
+        assert_eq!((l.lines.len(), l.more), (6, 0));
+        assert_eq!(l.lines[0].text, "↳ L00 · L03 · L06 +7");
+        // Twenty distinct layers: as before, 6 groups of heading + line, and the 14 left are counted.
+        let names: Vec<String> = (0..20).map(|i| format!("L{i:02}")).collect();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        let to: Vec<String> = (0..20).map(|i| format!("t{i}")).collect();
+        let to: Vec<&str> = to.iter().map(String::as_str).collect();
+        let l = list(Lang::En, &diff_of(&rows_of(&names, &["a"; 20]), &rows_of(&names, &to)));
+        assert_eq!((l.lines.len(), l.more), (12, 14));
+        assert_eq!(l.texts(Lang::En).last().unwrap(), "+14 more differences");
+        // A group of ten layers and eight distinct ones: the group is 2 lines, each distinct layer 2 more.
+        let names: Vec<String> = (0..18).map(|i| format!("L{i:02}")).collect();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        let to: Vec<String> = (0..18).map(|i| if i < 10 { "same".to_string() } else { format!("t{i}") }).collect();
+        let to: Vec<&str> = to.iter().map(String::as_str).collect();
+        let l = list(Lang::En, &diff_of(&rows_of(&names, &["a"; 18]), &rows_of(&names, &to)));
+        assert_eq!(l.lines[0].text, "↳ L00 · L01 · L02 +7");
+        assert_eq!((l.lines.len(), l.more), (12, 3), "the group and 5 of the 8 distinct layers fill 2 + 5×2 = 12 lines; 3 changes are left out");
     }
 
     #[test]
@@ -916,13 +1087,13 @@ mod tests {
     #[test]
     fn a_list_stops_at_twelve_lines_and_counts_the_rest() {
         let a = button(8.0, 16.0, "#3B5BDB", 14.0);
-        // Twenty layers whose text changes: a heading and a line each.
+        // Twenty layers whose text changes, each to its own text: a heading and a line each (the same change would be one group).
         let mut base = a.clone();
         let mut var = a.clone();
         for i in 0..20 {
             let n = json!({"name": format!("Row {i}"), "type": "TEXT", "characters": "a", "fontFamily": "W", "fontSize": 14.0, "fontStyle": "R", "lineHeight": "150%", "letterSpacing": "0%"});
             let mut m = n.clone();
-            m["characters"] = json!("b");
+            m["characters"] = json!(format!("b{i}"));
             base.push((n, 1));
             var.push((m, 1));
         }

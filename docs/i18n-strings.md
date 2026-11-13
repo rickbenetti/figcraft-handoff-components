@@ -21,6 +21,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | VariantShown | Variant shown: {name} | Variante mostrada: {name} |
 | DeltaContent | Text | Texto |
 | DeltaWhitespaceOnly | whitespace or line breaks only | só espaços ou quebras de linha |
+| DeltaNameSeparator |  ·  | ,  |
 | DeltaEffectOnly | No readable differences (visual effect only) | Sem diferenças legíveis (apenas efeito visual) |
 | DeltaEffects | Effects | Efeitos |
 | DeltaHeight | Height | Altura |
