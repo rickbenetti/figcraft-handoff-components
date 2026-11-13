@@ -2,7 +2,7 @@
 
 The demo file for Handoff Components is the **DS Base Demo**, in [`../../demo/`](../../demo/README.md)
 (`demo/ds-base-demo.figcraft`, a small neutral design system built from scratch; MIT).
-Sample documentation images made from it (Button, Card, Accordion, Code) are in this folder: `report-*.png`.
+Sample documentation images made from it (Button, Card, Accordion, Code) are in this folder: `report-*.png`. These images were made before the fixed palette, the instance effects margin and the `Label: value` separator (the lines are the old orange); they have not been regenerated yet.
 
 This folder also holds the recorded outputs of the probes and commands the plugin was built on, taken from
 the test fixtures in `tests/fixtures/` (`fixture-copia`, `fixture-copia-2`, `fixture-carga-v2`;
