@@ -13,6 +13,10 @@ use std::collections::HashMap;
 
 /// Most lines a variant's list may take (headings included); the rest is counted.
 pub const MAX_LINES: usize = 12;
+
+/// What stands between a label and its value in every line of the documentation ("Radius: 8 → 12", "Fill: #FFF"): the
+/// same in both languages, and the only place it is written (`gerar.rs` uses it too). Nothing reads it back.
+pub const LABEL_SEP: &str = ": ";
 /// Pixels (and percentage points) below which two numbers are the same.
 const TOLERANCE: f64 = 0.5;
 /// Longest text content quoted in a line, in characters.
@@ -537,19 +541,19 @@ fn plain_whitespace(text: &str) -> String {
     text.split([' ', '\n', '\r', '\t']).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
-/// "Label : from → to", each side with its value in parentheses after the name of its token (see [`show_side`]).
+/// "Label: from → to", each side with its value in parentheses after the name of its token (see [`show_side`]).
 fn change_text(lang: Lang, label: Label, from: &Side, to: &Side) -> String {
     let (a, b) = if label == Label::Content {
         // The two texts differ, but only in how they are spaced: say so rather than show two texts that look the same.
         if plain_whitespace(&from.value) == plain_whitespace(&to.value) {
-            return format!("{} : {}", t(lang, label.key()), t(lang, Key::DeltaWhitespaceOnly));
+            return format!("{}{LABEL_SEP}{}", t(lang, label.key()), t(lang, Key::DeltaWhitespaceOnly));
         }
         let (a, b) = windows(&from.value, &to.value);
         (format!("\"{a}\""), format!("\"{b}\""))
     } else {
         (show_side(from, label, lang), show_side(to, label, lang))
     };
-    format!("{} : {a} → {b}", t(lang, label.key()))
+    format!("{}{LABEL_SEP}{a} → {b}", t(lang, label.key()))
 }
 
 /// A layer's path as a title: "Left icon / Cube".
@@ -650,8 +654,8 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
             first = false;
             let text = match &c.kind {
                 Kind::Changed { label, from, to } => change_text(lang, *label, from, to),
-                Kind::Shown(on) => format!("↳ {name} : {}", t(lang, if *on { Key::DeltaVisible } else { Key::DeltaHidden })),
-                Kind::Swapped(text) => format!("↳ {name} : {text}"),
+                Kind::Shown(on) => format!("↳ {name}{LABEL_SEP}{}", t(lang, if *on { Key::DeltaVisible } else { Key::DeltaHidden })),
+                Kind::Swapped(text) => format!("↳ {name}{LABEL_SEP}{text}"),
             };
             lines.push(Line { text, heading: false });
             shown += 1;
@@ -714,35 +718,35 @@ mod tests {
     #[test]
     fn a_swapped_instance_says_only_the_keys_that_change() {
         // (a) one key differs.
-        assert_eq!(swap("Name=caret-up, Size=16", "Name=caret-down, Size=16"), vec!["↳ Chevron : Name: caret-up → caret-down"]);
+        assert_eq!(swap("Name=caret-up, Size=16", "Name=caret-down, Size=16"), vec!["↳ Chevron: Name: caret-up → caret-down"]);
         // (b) two keys differ, in the order of the first name.
-        assert_eq!(swap("Name=a, Size=16", "Name=b, Size=24"), vec!["↳ Chevron : Name: a → b, Size: 16 → 24"]);
+        assert_eq!(swap("Name=a, Size=16", "Name=b, Size=24"), vec!["↳ Chevron: Name: a → b, Size: 16 → 24"]);
         // The order of the keys in the second name does not matter.
-        assert_eq!(swap("Name=a, Size=16", "Size=24, Name=a"), vec!["↳ Chevron : Size: 16 → 24"]);
+        assert_eq!(swap("Name=a, Size=16", "Size=24, Name=a"), vec!["↳ Chevron: Size: 16 → 24"]);
     }
 
     #[test]
     fn a_swap_that_is_not_a_clean_variant_change_says_both_names() {
         // (c) other keys, a key more, a name that is not a variant name.
-        assert_eq!(swap("Name=a, Size=16", "Kind=a, Size=16"), vec!["↳ Chevron : Name=a, Size=16 → Kind=a, Size=16"]);
-        assert_eq!(swap("Name=a", "Name=a, Size=16"), vec!["↳ Chevron : Name=a → Name=a, Size=16"]);
-        assert_eq!(swap("Icon / Plus", "Icon / Minus"), vec!["↳ Chevron : Icon / Plus → Icon / Minus"]);
-        assert_eq!(swap("Name=a", "Icon"), vec!["↳ Chevron : Name=a → Icon"]);
+        assert_eq!(swap("Name=a, Size=16", "Kind=a, Size=16"), vec!["↳ Chevron: Name=a, Size=16 → Kind=a, Size=16"]);
+        assert_eq!(swap("Name=a", "Name=a, Size=16"), vec!["↳ Chevron: Name=a → Name=a, Size=16"]);
+        assert_eq!(swap("Icon / Plus", "Icon / Minus"), vec!["↳ Chevron: Icon / Plus → Icon / Minus"]);
+        assert_eq!(swap("Name=a", "Icon"), vec!["↳ Chevron: Name=a → Icon"]);
         // (d) a value with a comma is ambiguous: whole names. So is a repeated key, and names that differ only in order.
-        assert_eq!(swap("Name=a,b, Size=16", "Name=c, Size=16"), vec!["↳ Chevron : Name=a,b, Size=16 → Name=c, Size=16"]);
-        assert_eq!(swap("Name=a, Name=b", "Name=a, Name=c"), vec!["↳ Chevron : Name=a, Name=b → Name=a, Name=c"]);
-        assert_eq!(swap("Name=a, Size=1", "Size=1, Name=a"), vec!["↳ Chevron : Name=a, Size=1 → Size=1, Name=a"]);
+        assert_eq!(swap("Name=a,b, Size=16", "Name=c, Size=16"), vec!["↳ Chevron: Name=a,b, Size=16 → Name=c, Size=16"]);
+        assert_eq!(swap("Name=a, Name=b", "Name=a, Name=c"), vec!["↳ Chevron: Name=a, Name=b → Name=a, Name=c"]);
+        assert_eq!(swap("Name=a, Size=1", "Size=1, Name=a"), vec!["↳ Chevron: Name=a, Size=1 → Size=1, Name=a"]);
     }
 
     #[test]
     fn what_is_inside_a_swapped_instance_is_not_listed_but_its_own_changes_and_its_siblings_are() {
         // (e) the vector inside changes name ("up" gone, "down" new): no lines for it. (f) the instance keeps its own size change.
         let d = diff_of(&with_instance("Name=up", "up", 16.0), &with_instance("Name=down", "down", 24.0));
-        assert_eq!(texts(&d), vec!["↳ Chevron : Name: up → down", "Width : 16 → 24"]);
+        assert_eq!(texts(&d), vec!["↳ Chevron: Name: up → down", "Width: 16 → 24"]);
         // A change outside the instance is still listed, in the tree's order.
         let mut b = with_instance("Name=down", "down", 16.0);
         b[3].0 = json!({"name": "Label", "type": "TEXT", "characters": "Bye"});
-        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &b)), vec!["↳ Chevron : Name: up → down", "↳ Label", "Text : \"Hi\" → \"Bye\""]);
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &b)), vec!["↳ Chevron: Name: up → down", "↳ Label", "Text: \"Hi\" → \"Bye\""]);
     }
 
     #[test]
@@ -751,7 +755,7 @@ mod tests {
         let a = with_instance("Name=up", "up", 16.0);
         let mut b = with_instance("Name=up", "down", 16.0);
         b[2].0 = json!({"name": "down", "type": "VECTOR", "visible": true, "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 8.0, "height": 8.0}});
-        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Chevron / down : visible", "↳ Chevron / up : hidden"]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Chevron / down: visible", "↳ Chevron / up: hidden"]);
         // No main component name on either side (the host gave none): nothing to compare.
         let mut no_main_a = with_instance("", "up", 16.0);
         no_main_a[1].0 = json!({"name": "Chevron", "type": "INSTANCE", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 16.0, "height": 16.0}});
@@ -763,7 +767,7 @@ mod tests {
         // The walk's root is the variant placed on the stage: an instance of a different main component for each variant.
         let root = |main: &str, w: f64| (json!({"name": "Row", "type": "INSTANCE", "mainComponentName": main, "absoluteBounds": {"x": 0.0, "y": 0.0, "width": w, "height": 40.0}, "sizing": {"horizontal": "fixed", "vertical": "fixed"}}), 0);
         let d = diff_of(&[root("Size=Small", 100.0)], &[root("Size=Large", 120.0)]);
-        assert_eq!(texts(&d), vec!["Width : 100 → 120"]);
+        assert_eq!(texts(&d), vec!["Width: 100 → 120"]);
     }
 
     #[test]
@@ -776,16 +780,16 @@ mod tests {
                 (json!({"name": inner, "type": "VECTOR", "visible": true}), 2),
             ]
         };
-        assert_eq!(texts(&diff_of(&frame("up"), &frame("down"))), vec!["↳ Chevron / down : visible", "↳ Chevron / up : hidden"]);
+        assert_eq!(texts(&diff_of(&frame("up"), &frame("down"))), vec!["↳ Chevron / down: visible", "↳ Chevron / up: hidden"]);
         // (i) an instance that is hidden in one variant and shown in the other, or that only one has: visible / hidden.
         let mut hidden = with_instance("Name=up", "up", 16.0);
         hidden[1].0 = json!({"name": "Chevron", "type": "INSTANCE", "mainComponentName": "Name=up", "visible": false});
-        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &hidden)), vec!["↳ Chevron : hidden"]);
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &hidden)), vec!["↳ Chevron: hidden"]);
         let without = vec![with_instance("Name=up", "up", 16.0).remove(0)];
         // (the sibling "Label" of the helper comes and goes with it)
         // (the two layers say the same, so they are one group)
-        assert_eq!(texts(&diff_of(&without, &with_instance("Name=up", "up", 16.0))), vec!["↳ Chevron · Label : visible"]);
-        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &without)), vec!["↳ Chevron · Label : hidden"]);
+        assert_eq!(texts(&diff_of(&without, &with_instance("Name=up", "up", 16.0))), vec!["↳ Chevron · Label: visible"]);
+        assert_eq!(texts(&diff_of(&with_instance("Name=up", "up", 16.0), &without)), vec!["↳ Chevron · Label: hidden"]);
     }
 
     /// A component with `rows` text layers; `to(i)` is the text of row `i` in the variant (every row says "a" in the default).
@@ -804,37 +808,37 @@ mod tests {
     #[test]
     fn layers_with_the_same_changes_are_one_group_under_all_their_names() {
         // Two, three.
-        assert_eq!(grouped(Lang::En, &["A", "B"], &["a", "a"], &["b", "b"]), vec!["↳ A · B", "Text : \"a\" → \"b\""]);
-        assert_eq!(grouped(Lang::En, &["A", "B", "C"], &["a", "a", "a"], &["b", "b", "b"]), vec!["↳ A · B · C", "Text : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B"], &["a", "a"], &["b", "b"]), vec!["↳ A · B", "Text: \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B", "C"], &["a", "a", "a"], &["b", "b", "b"]), vec!["↳ A · B · C", "Text: \"a\" → \"b\""]);
         // Four, five: three names, then "+N".
-        assert_eq!(grouped(Lang::En, &["A", "B", "C", "D"], &["a"; 4], &["b"; 4]), vec!["↳ A · B · C +1", "Text : \"a\" → \"b\""]);
-        assert_eq!(grouped(Lang::En, &["A", "B", "C", "D", "E"], &["a"; 5], &["b"; 5]), vec!["↳ A · B · C +2", "Text : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B", "C", "D"], &["a"; 4], &["b"; 4]), vec!["↳ A · B · C +1", "Text: \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B", "C", "D", "E"], &["a"; 5], &["b"; 5]), vec!["↳ A · B · C +2", "Text: \"a\" → \"b\""]);
     }
 
     #[test]
     fn the_separator_is_the_languages_and_a_layer_alone_is_as_it_was() {
-        assert_eq!(grouped(Lang::Pt, &["A", "B", "C", "D", "E"], &["a"; 5], &["b"; 5]), vec!["↳ A, B, C +2", "Texto : \"a\" → \"b\""]);
-        assert_eq!(grouped(Lang::Pt, &["A", "B"], &["a", "a"], &["b", "b"]), vec!["↳ A, B", "Texto : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::Pt, &["A", "B", "C", "D", "E"], &["a"; 5], &["b"; 5]), vec!["↳ A, B, C +2", "Texto: \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::Pt, &["A", "B"], &["a", "a"], &["b", "b"]), vec!["↳ A, B", "Texto: \"a\" → \"b\""]);
         // One layer: the heading, the line, nothing else.
-        assert_eq!(grouped(Lang::En, &["A"], &["a"], &["b"]), vec!["↳ A", "Text : \"a\" → \"b\""]);
+        assert_eq!(grouped(Lang::En, &["A"], &["a"], &["b"]), vec!["↳ A", "Text: \"a\" → \"b\""]);
         assert_eq!((t(Lang::En, Key::DeltaNameSeparator), t(Lang::Pt, Key::DeltaNameSeparator)), (" · ", ", "));
     }
 
     #[test]
     fn the_group_takes_the_place_of_its_first_layer_and_the_others_keep_their_order() {
         // A and C say the same; B says something else in between: A·C comes first, then B.
-        assert_eq!(grouped(Lang::En, &["A", "B", "C"], &["a", "a", "a"], &["b", "x", "b"]), vec!["↳ A · C", "Text : \"a\" → \"b\"", "↳ B", "Text : \"a\" → \"x\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B", "C"], &["a", "a", "a"], &["b", "x", "b"]), vec!["↳ A · C", "Text: \"a\" → \"b\"", "↳ B", "Text: \"a\" → \"x\""]);
         // A different change first: B and D group at B's place, after A and C stay as they were.
         assert_eq!(
             grouped(Lang::En, &["A", "B", "C", "D"], &["a"; 4], &["p", "q", "r", "q"]),
-            vec!["↳ A", "Text : \"a\" → \"p\"", "↳ B · D", "Text : \"a\" → \"q\"", "↳ C", "Text : \"a\" → \"r\""]
+            vec!["↳ A", "Text: \"a\" → \"p\"", "↳ B · D", "Text: \"a\" → \"q\"", "↳ C", "Text: \"a\" → \"r\""]
         );
     }
 
     #[test]
     fn different_lists_do_not_group_not_even_with_the_same_label_or_token() {
         // The same label with another value.
-        assert_eq!(grouped(Lang::En, &["A", "B"], &["a", "a"], &["b", "c"]), vec!["↳ A", "Text : \"a\" → \"b\"", "↳ B", "Text : \"a\" → \"c\""]);
+        assert_eq!(grouped(Lang::En, &["A", "B"], &["a", "a"], &["b", "c"]), vec!["↳ A", "Text: \"a\" → \"b\"", "↳ B", "Text: \"a\" → \"c\""]);
         // The same token, another value: two lines that read differently.
         let vars = Vars::parse(&json!({
             "collections": [{"id": "C", "name": "color", "modes": [{"id": "m", "name": "A"}]}],
@@ -865,11 +869,11 @@ mod tests {
             ]
         };
         // Two instances that become another component the same way: one line.
-        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=b", "Name=b", true))), vec!["↳ Left · Right : Name: a → b"]);
+        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=b", "Name=b", true))), vec!["↳ Left · Right: Name: a → b"]);
         // The same swap to different components: two lines.
-        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=b", "Name=c", true))), vec!["↳ Left : Name: a → b", "↳ Right : Name: a → c"]);
+        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=b", "Name=c", true))), vec!["↳ Left: Name: a → b", "↳ Right: Name: a → c"]);
         // Both hidden: one line.
-        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=a", "Name=a", false))), vec!["↳ Left · Right : hidden"]);
+        assert_eq!(texts(&diff_of(&frame("Name=a", "Name=a", true), &frame("Name=a", "Name=a", false))), vec!["↳ Left · Right: hidden"]);
     }
 
     #[test]
@@ -924,10 +928,10 @@ mod tests {
         assert_eq!(
             texts(&d),
             vec![
-                "Radius : 8 → 12",
-                "Horizontal padding : 16 → 20",
+                "Radius: 8 → 12",
+                "Horizontal padding: 16 → 20",
                 "↳ Label / Text",
-                "Typography : Work Sans 14/150% Medium → Work Sans 16/150% Medium",
+                "Typography: Work Sans 14/150% Medium → Work Sans 16/150% Medium",
             ]
         );
     }
@@ -946,53 +950,53 @@ mod tests {
         // token -> value
         assert_eq!(
             said(Lang::En, typo, side(Some("text/label-m"), "Inter 14/20 Medium"), side(None, "Inter 12/16 Medium")),
-            "Typography : text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
+            "Typography: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
         );
         assert_eq!(
             said(Lang::En, typo, side(Some("text/h3"), "Inter 24/32 SemiBold, letter spacing -1%"), side(None, "Inter 24/32 SemiBold, letter spacing -1%")),
-            "Typography : text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%"
+            "Typography: text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%"
         );
         // token -> token
         assert_eq!(
             said(Lang::En, typo, side(Some("text/label-m"), "Inter 14/20 Medium"), side(Some("text/label-l"), "Inter 16/24 Medium")),
-            "Typography : text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
+            "Typography: text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
         );
         // value -> token, and the other labels
-        assert_eq!(said(Lang::En, Label::Prop(Prop::Stroke), side(None, "none"), side(Some("Colors/color/border"), "#E3E7E8")), "Stroke : none → Colors/color/border (#E3E7E8)");
-        assert_eq!(said(Lang::En, Label::Prop(Prop::Radius), side(Some("Radius/radius/default"), "10"), side(None, "8")), "Radius : Radius/radius/default (10) → 8");
-        assert_eq!(said(Lang::En, Label::Prop(Prop::Fill), side(Some("Colors/color/primary"), "#C6005C"), side(None, "none")), "Fill : Colors/color/primary (#C6005C) → none");
-        assert_eq!(said(Lang::En, Label::Prop(Prop::Gap), side(Some("Spacing/space/8"), "8"), side(None, "6")), "Gap : Spacing/space/8 (8) → 6");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Stroke), side(None, "none"), side(Some("Colors/color/border"), "#E3E7E8")), "Stroke: none → Colors/color/border (#E3E7E8)");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Radius), side(Some("Radius/radius/default"), "10"), side(None, "8")), "Radius: Radius/radius/default (10) → 8");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Fill), side(Some("Colors/color/primary"), "#C6005C"), side(None, "none")), "Fill: Colors/color/primary (#C6005C) → none");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Gap), side(Some("Spacing/space/8"), "8"), side(None, "6")), "Gap: Spacing/space/8 (8) → 6");
         // Words stay translated.
         assert_eq!(
             said(Lang::Pt, typo, side(Some("text/h3"), "Inter 24/32 SemiBold, espaçamento entre letras -1%"), side(None, "Inter 24/32 SemiBold, espaçamento entre letras -1%")),
-            "Tipografia : text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%"
+            "Tipografia: text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%"
         );
-        assert_eq!(said(Lang::Pt, Label::Prop(Prop::Fill), side(Some("Colors/color/primary"), "#C6005C"), side(None, "none")), "Preenchimento : Colors/color/primary (#C6005C) → nenhum");
+        assert_eq!(said(Lang::Pt, Label::Prop(Prop::Fill), side(Some("Colors/color/primary"), "#C6005C"), side(None, "none")), "Preenchimento: Colors/color/primary (#C6005C) → nenhum");
     }
 
     #[test]
     fn a_line_with_no_token_is_what_it_was_and_effects_carry_their_description() {
         // value -> value
-        assert_eq!(said(Lang::En, Label::Width, side(None, "100"), side(None, "120")), "Width : 100 → 120");
-        assert_eq!(said(Lang::En, Label::Prop(Prop::Fill), side(None, "#3B5BDB"), side(None, "#2F4AB5")), "Fill : #3B5BDB → #2F4AB5");
-        assert_eq!(said(Lang::En, Label::Content, side(None, "Hi"), side(None, "Bye")), "Text : \"Hi\" → \"Bye\"");
+        assert_eq!(said(Lang::En, Label::Width, side(None, "100"), side(None, "120")), "Width: 100 → 120");
+        assert_eq!(said(Lang::En, Label::Prop(Prop::Fill), side(None, "#3B5BDB"), side(None, "#2F4AB5")), "Fill: #3B5BDB → #2F4AB5");
+        assert_eq!(said(Lang::En, Label::Content, side(None, "Hi"), side(None, "Bye")), "Text: \"Hi\" → \"Bye\"");
         // Effects: none on one side, a style on the other.
         assert_eq!(
             said(Lang::En, Label::Effects, side(None, "none"), side(Some("shadow/sm"), "Drop shadow 0 1 blur 2 #000000 at 5%")),
-            "Effects : none → shadow/sm (Drop shadow 0 1 blur 2 #000000 at 5%)"
+            "Effects: none → shadow/sm (Drop shadow 0 1 blur 2 #000000 at 5%)"
         );
         assert_eq!(
             said(Lang::Pt, Label::Effects, side(None, "none"), side(Some("shadow/sm"), "Sombra projetada 0 1 desfoque 2 #000000 a 5%")),
-            "Efeitos : nenhum → shadow/sm (Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
+            "Efeitos: nenhum → shadow/sm (Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
         );
     }
 
     #[test]
     fn a_token_with_an_empty_or_dash_value_or_its_own_text_is_shown_alone() {
         let fill = Label::Prop(Prop::Fill);
-        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), ""), side(None, "#FFF")), "Fill : Colors/a → #FFF");
-        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), "  "), side(Some("Colors/b"), "—")), "Fill : Colors/a → Colors/b");
-        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), "Colors/a"), side(None, "#FFF")), "Fill : Colors/a → #FFF");
+        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), ""), side(None, "#FFF")), "Fill: Colors/a → #FFF");
+        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), "  "), side(Some("Colors/b"), "—")), "Fill: Colors/a → Colors/b");
+        assert_eq!(said(Lang::En, fill, side(Some("Colors/a"), "Colors/a"), side(None, "#FFF")), "Fill: Colors/a → #FFF");
     }
 
     #[test]
@@ -1010,7 +1014,7 @@ mod tests {
         a[0].0["boundVariables"] = json!({"fill": "V1"});
         b[0].0["boundVariables"] = json!({"fill": "V2"});
         let d = compare(&snapshot(Lang::En, &a, &vars, &styles), &snapshot(Lang::En, &b, &vars, &styles));
-        assert_eq!(texts(&d), vec!["Fill : color/primary/500 (#3B5BDB) → color/primary/700 (#2F4AB5)"]);
+        assert_eq!(texts(&d), vec!["Fill: color/primary/500 (#3B5BDB) → color/primary/700 (#2F4AB5)"]);
     }
 
     #[test]
@@ -1018,8 +1022,8 @@ mod tests {
         let a = button(8.0, 16.0, "#3B5BDB", 14.0);
         let mut b = a.clone();
         b[1].0["visible"] = json!(false);
-        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Icon : hidden"]);
-        assert_eq!(texts(&diff_of(&b, &a)), vec!["↳ Icon : visible"]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Icon: hidden"]);
+        assert_eq!(texts(&diff_of(&b, &a)), vec!["↳ Icon: visible"]);
     }
 
     #[test]
@@ -1027,7 +1031,7 @@ mod tests {
         let a = button(8.0, 16.0, "#3B5BDB", 14.0);
         let mut b = button(8.0, 16.0, "#3B5BDB", 18.0);
         b[2].0["visible"] = json!(false);
-        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Label : hidden"]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Label: hidden"]);
     }
 
     #[test]
@@ -1036,7 +1040,7 @@ mod tests {
         let b = button(8.3, 16.4, "#3B5BDB", 14.0);
         assert!(diff_of(&a, &b).changes.is_empty());
         let c = button(8.6, 16.0, "#3B5BDB", 14.0);
-        assert_eq!(texts(&diff_of(&a, &c)), vec!["Radius : 8 → 8.6"]);
+        assert_eq!(texts(&diff_of(&a, &c)), vec!["Radius: 8 → 8.6"]);
         assert_eq!(texts(&diff_of(&a, &a)), vec!["No differences from default"]);
     }
 
@@ -1045,7 +1049,7 @@ mod tests {
         let a = button(8.0, 16.0, "#3B5BDB", 14.0);
         let mut b = a.clone();
         b[0].0["effects"] = json!([{"type": "dropShadow", "offset": [0.0, 8.0], "radius": 8.0, "spread": 0.0, "visible": true, "color": {"r": 0.231, "g": 0.357, "b": 0.859, "a": 0.3}}]);
-        assert_eq!(texts(&diff_of(&a, &b)), vec!["Effects : none → Drop shadow 0 8 blur 8 #3B5BDB at 30%"]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["Effects: none → Drop shadow 0 8 blur 8 #3B5BDB at 30%"]);
         let mut c = a.clone();
         let mut d = a.clone();
         c[0].0["effects"] = json!([{"type": "noise", "density": 0.2, "visible": true}]);
@@ -1064,14 +1068,14 @@ mod tests {
             {"type": "backgroundBlur", "radius": 12.0, "visible": true}
         ]);
         let say = |lang: Lang| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &b, &Vars::default(), &Styles::default()))).texts(lang);
-        assert_eq!(say(Lang::En), vec!["Effects : none → Drop shadow 0 8 blur 8 spread 2 #3B5BDB at 30%; Inner shadow 1 1 blur 4 #000000; Layer blur 6; Background blur 12"]);
-        assert_eq!(say(Lang::Pt), vec!["Efeitos : nenhum → Sombra projetada 0 8 desfoque 8 expansão 2 #3B5BDB a 30%; Sombra interna 1 1 desfoque 4 #000000; Desfoque de camada 6; Desfoque de fundo 12"]);
+        assert_eq!(say(Lang::En), vec!["Effects: none → Drop shadow 0 8 blur 8 spread 2 #3B5BDB at 30%; Inner shadow 1 1 blur 4 #000000; Layer blur 6; Background blur 12"]);
+        assert_eq!(say(Lang::Pt), vec!["Efeitos: nenhum → Sombra projetada 0 8 desfoque 8 expansão 2 #3B5BDB a 30%; Sombra interna 1 1 desfoque 4 #000000; Desfoque de camada 6; Desfoque de fundo 12"]);
         // Opacity of a fill: "… at 50%" / "… a 50%".
         let mut c = a.clone();
         c[0].0["fills"] = json!([{"type": "solid", "color": "#3B5BDB", "opacity": 0.5}]);
         let fill = |lang: Lang| list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &c, &Vars::default(), &Styles::default()))).texts(lang);
-        assert_eq!(fill(Lang::En), vec!["Fill : #3B5BDB → #3B5BDB at 50%"]);
-        assert_eq!(fill(Lang::Pt), vec!["Preenchimento : #3B5BDB → #3B5BDB a 50%"]);
+        assert_eq!(fill(Lang::En), vec!["Fill: #3B5BDB → #3B5BDB at 50%"]);
+        assert_eq!(fill(Lang::Pt), vec!["Preenchimento: #3B5BDB → #3B5BDB a 50%"]);
     }
 
     #[test]
@@ -1085,29 +1089,29 @@ mod tests {
         };
         // An effect colour's alpha: whole percents (13/255 is 5.098%, written 5%).
         for (alpha, text) in [(13.0 / 255.0, "5%"), (0.05098, "5%"), (0.333, "33%"), (0.3, "30%"), (0.5, "50%")] {
-            assert_eq!(say(Lang::En, &shadow(alpha)), vec![format!("Effects : none → Drop shadow 0 1 blur 2 #000000 at {text}")], "{alpha}");
-            assert_eq!(say(Lang::Pt, &shadow(alpha)), vec![format!("Efeitos : nenhum → Sombra projetada 0 1 desfoque 2 #000000 a {text}")], "{alpha}");
+            assert_eq!(say(Lang::En, &shadow(alpha)), vec![format!("Effects: none → Drop shadow 0 1 blur 2 #000000 at {text}")], "{alpha}");
+            assert_eq!(say(Lang::Pt, &shadow(alpha)), vec![format!("Efeitos: nenhum → Sombra projetada 0 1 desfoque 2 #000000 a {text}")], "{alpha}");
         }
         // The limit of the suffix: from 0.998 up the colour is written alone; 0.997 and 0.0004 are below it.
-        assert_eq!(say(Lang::En, &shadow(0.9996)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000"]);
-        assert_eq!(say(Lang::En, &shadow(0.998)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000"]);
-        assert_eq!(say(Lang::En, &shadow(0.997)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000 at 100%"]);
-        assert_eq!(say(Lang::En, &shadow(0.0004)), vec!["Effects : none → Drop shadow 0 1 blur 2 #000000 at 0%"]);
+        assert_eq!(say(Lang::En, &shadow(0.9996)), vec!["Effects: none → Drop shadow 0 1 blur 2 #000000"]);
+        assert_eq!(say(Lang::En, &shadow(0.998)), vec!["Effects: none → Drop shadow 0 1 blur 2 #000000"]);
+        assert_eq!(say(Lang::En, &shadow(0.997)), vec!["Effects: none → Drop shadow 0 1 blur 2 #000000 at 100%"]);
+        assert_eq!(say(Lang::En, &shadow(0.0004)), vec!["Effects: none → Drop shadow 0 1 blur 2 #000000 at 0%"]);
         // A paint: one decimal, the limit stays at 0.995.
         let paint = |opacity: f64| {
             let mut b = a.clone();
             b[0].0["fills"] = json!([{"type": "solid", "color": "#3B5BDB", "opacity": opacity}]);
             b
         };
-        assert_eq!(say(Lang::En, &paint(0.333)), vec!["Fill : #3B5BDB → #3B5BDB at 33.3%"]);
-        assert_eq!(say(Lang::Pt, &paint(0.333)), vec!["Preenchimento : #3B5BDB → #3B5BDB a 33.3%"], "the decimal point is not localised");
-        assert_eq!(say(Lang::En, &paint(0.9949)), vec!["Fill : #3B5BDB → #3B5BDB at 99.5%"]);
+        assert_eq!(say(Lang::En, &paint(0.333)), vec!["Fill: #3B5BDB → #3B5BDB at 33.3%"]);
+        assert_eq!(say(Lang::Pt, &paint(0.333)), vec!["Preenchimento: #3B5BDB → #3B5BDB a 33.3%"], "the decimal point is not localised");
+        assert_eq!(say(Lang::En, &paint(0.9949)), vec!["Fill: #3B5BDB → #3B5BDB at 99.5%"]);
         assert_eq!(say(Lang::En, &paint(0.995)), vec!["No differences from default"], "0.995 is written as no opacity at all");
         // The layer: one decimal.
         let mut layer = a.clone();
         layer[0].0["opacity"] = json!(0.333);
-        assert_eq!(say(Lang::En, &layer), vec!["Opacity : 100% → 33.3%"]);
-        assert_eq!(say(Lang::Pt, &layer), vec!["Opacidade : 100% → 33.3%"]);
+        assert_eq!(say(Lang::En, &layer), vec!["Opacity: 100% → 33.3%"]);
+        assert_eq!(say(Lang::Pt, &layer), vec!["Opacidade: 100% → 33.3%"]);
     }
 
     #[test]
@@ -1118,7 +1122,7 @@ mod tests {
             b[0].0["effects"] = json!([{"type": kind, "visible": true}]);
             for lang in [Lang::En, Lang::Pt] {
                 let said = list(lang, &compare(&snapshot(lang, &a, &Vars::default(), &Styles::default()), &snapshot(lang, &b, &Vars::default(), &Styles::default()))).texts(lang);
-                assert_eq!(said, vec![format!("{} : {} → {kind}", t(lang, Key::DeltaEffects), t(lang, Key::ValueNone))], "{kind} {lang:?}");
+                assert_eq!(said, vec![format!("{}: {} → {kind}", t(lang, Key::DeltaEffects), t(lang, Key::ValueNone))], "{kind} {lang:?}");
             }
         }
     }
@@ -1154,7 +1158,7 @@ mod tests {
         let snaps = snapshot(Lang::En, &a, &Vars::default(), &Styles::default());
         assert_eq!(snaps[1].path, "/Cell[0]");
         assert_eq!(snaps[2].path, "/Cell[1]");
-        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Cell[1]", "Typography : W 14/150% R → W 16/150% R"]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Cell[1]", "Typography: W 14/150% R → W 16/150% R"]);
     }
 
     const WORDS: &str = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor";
@@ -1245,19 +1249,19 @@ mod tests {
     #[test]
     fn a_change_only_in_spacing_or_line_breaks_says_so_in_both_languages() {
         for (a, b) in [("Line one\nLine two", "Line one Line two"), ("Save", "Save "), ("a  b", "a b"), ("a\r\nb", "a b"), ("\tHi there", "Hi there")] {
-            assert_eq!(said_text(Lang::En, a, b), "Text : whitespace or line breaks only", "{a:?} {b:?}");
-            assert_eq!(said_text(Lang::Pt, a, b), "Texto : só espaços ou quebras de linha", "{a:?} {b:?}");
+            assert_eq!(said_text(Lang::En, a, b), "Text: whitespace or line breaks only", "{a:?} {b:?}");
+            assert_eq!(said_text(Lang::Pt, a, b), "Texto: só espaços ou quebras de linha", "{a:?} {b:?}");
         }
         // It still counts as one line of text in a variant's list.
         let text = |s: &str| vec![(json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0), (json!({"name": "T", "type": "TEXT", "characters": s}), 1)];
-        assert_eq!(texts(&diff_of(&text("a\nb"), &text("a b"))), vec!["↳ T", "Text : whitespace or line breaks only"]);
+        assert_eq!(texts(&diff_of(&text("a\nb"), &text("a b"))), vec!["↳ T", "Text: whitespace or line breaks only"]);
     }
 
     #[test]
     fn changes_of_case_and_punctuation_are_still_changes() {
-        assert_eq!(said_text(Lang::En, "Save changes", "Save Changes"), "Text : \"Save changes\" → \"Save Changes\"");
-        assert_eq!(said_text(Lang::En, "Hello world.", "Hello world"), "Text : \"Hello world.\" → \"Hello world\"");
-        assert_eq!(said_text(Lang::Pt, "Olá, mundo", "Olá mundo"), "Texto : \"Olá, mundo\" → \"Olá mundo\"");
+        assert_eq!(said_text(Lang::En, "Save changes", "Save Changes"), "Text: \"Save changes\" → \"Save Changes\"");
+        assert_eq!(said_text(Lang::En, "Hello world.", "Hello world"), "Text: \"Hello world.\" → \"Hello world\"");
+        assert_eq!(said_text(Lang::Pt, "Olá, mundo", "Olá mundo"), "Texto: \"Olá, mundo\" → \"Olá mundo\"");
     }
 
     #[test]
@@ -1286,6 +1290,6 @@ mod tests {
         let (a, b) = (vec![root.clone(), node(100.0, "fill")], vec![root.clone(), node(140.0, "fill")]);
         assert!(diff_of(&a, &b).changes.is_empty());
         let (a, b) = (vec![root.clone(), node(100.0, "fixed")], vec![root, node(140.0, "fixed")]);
-        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Box", "Width : 100 → 140"]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Box", "Width: 100 → 140"]);
     }
 }

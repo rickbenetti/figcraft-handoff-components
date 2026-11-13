@@ -7,7 +7,7 @@ use crate::audit::{self, Group, Info, Line, Prop, Row, State, Styles, Vars};
 use crate::glyphs;
 use crate::i18n::{Key, Lang, override_name, plural, t, tf};
 use crate::contrast::{self, Rgba};
-use crate::delta;
+use crate::delta::{self, LABEL_SEP};
 use crate::store::{REPORT_KEY, Rerun, Settings, StageMode};
 use crate::theme;
 use crate::variants::{self, Pairs, SetInfo, Variant};
@@ -557,15 +557,15 @@ fn text_with(lang: Lang, parent: u64, s: &str, size: f64, fill: &str, name: &str
 }
 
 /// One property of a layer, in the legend's body. With a token: two lines glued together, "glyph
-/// Label : [chip]" and under it, dimmer, "value · state" (and "· ×N layers" when it is shared).
-/// Without: one line, "glyph Label : value · no token".
+/// Label: [chip]" and under it, dimmer, "value · state" (and "· ×N layers" when it is shared).
+/// Without: one line, "glyph Label: value · no token".
 fn draw_prop(lang: Lang, body: u64, width: f64, line: &Line, accent: &str) -> Result<()> {
     let label = t(lang, prop_key(line.property));
     let head = glyphs::with_word(prop_glyph(line.property), label);
     let (state, accented) = state_text(lang, line.state);
     if line.state == State::Unbound {
         let state = if line.property == Prop::Typography { t(lang, Key::LegendNoStyle).to_string() } else { state };
-        text_with(lang, body, &format!("{head} : {} · {state}", line.value), LINE_SIZE, theme::TEXT, label, json!({}))?;
+        text_with(lang, body, &format!("{head}{LABEL_SEP}{} · {state}", line.value), LINE_SIZE, theme::TEXT, label, json!({}))?;
         return Ok(());
     }
     let mut pair = FlowSpec::new(label, width, "vertical");
@@ -575,7 +575,7 @@ fn draw_prop(lang: Lang, body: u64, width: f64, line: &Line, accent: &str) -> Re
     a.gap = 6.0;
     a.extra = json!({"sizingH": "hug", "crossAlign": "center"});
     let a = flow_frame(lang, pair, a)?;
-    text_with(lang, a, &format!("{head} :"), LINE_SIZE, theme::TEXT, label, json!({}))?;
+    text_with(lang, a, &format!("{head}{}", LABEL_SEP.trim_end()), LINE_SIZE, theme::TEXT, label, json!({}))?;
     let chip_name = t(lang, Key::LayerChip);
     let mut c = FlowSpec::new(chip_name, 20.0, "horizontal");
     c.padding = json!([2, 8, 2, 8]);
@@ -869,7 +869,7 @@ fn limit_groups(groups: &[Group], max: usize) -> (Vec<Group>, usize) {
 
 /// A block of the legend: the layer's header (a badge when it has one, "↳" when it sits inside
 /// another layer) and under it its lines, indented under the glyph. `extra` are plain lines
-/// ("Label : value") that follow.
+/// ("Label: value") that follow.
 #[allow(clippy::too_many_arguments)]
 fn block_name(walked: &[(Value, usize)], block: &Block) -> String {
     let layer_name = walked.get(block.node).and_then(|(v, _)| v.get("name")).and_then(Value::as_str).unwrap_or_default();
@@ -923,7 +923,7 @@ fn draw_block(lang: Lang, legend: u64, walked: &[(Value, usize)], variant: bool,
         draw_prop(lang, body, width, line, accent)?;
     }
     for (label, value) in extra {
-        text_with(lang, body, &format!("{label} : {value}"), LINE_SIZE, theme::TEXT, label, json!({}))?;
+        text_with(lang, body, &format!("{label}{LABEL_SEP}{value}"), LINE_SIZE, theme::TEXT, label, json!({}))?;
     }
     Ok(())
 }
@@ -2731,8 +2731,8 @@ mod tests {
     fn spacing_lines_use_words() {
         let node = json!({"layout": {"mode": "horizontal", "mainAlign": "center", "crossAlign": "center"}, "sizing": {"horizontal": "hug", "vertical": "fixed"}});
         let lines = layout_lines(Lang::En, &node);
-        let text: Vec<String> = lines.iter().map(|(k, v)| format!("{k} : {v}")).collect();
-        assert_eq!(text, ["Direction : Horizontal", "Alignment : Middle center", "Horizontal resizing : Hug", "Vertical resizing : Fixed"]);
+        let text: Vec<String> = lines.iter().map(|(k, v)| format!("{k}: {v}")).collect();
+        assert_eq!(text, ["Direction: Horizontal", "Alignment: Middle center", "Horizontal resizing: Hug", "Vertical resizing: Fixed"]);
     }
 
     #[test]

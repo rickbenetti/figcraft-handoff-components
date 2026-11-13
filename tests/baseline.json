@@ -574,57 +574,57 @@
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
-        "Fill : Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
+        "Fill: Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
         "↳ Leading icon / plus · Label / Text",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
+        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
       ],
       "Type=Outline, Size=Medium, State=Enabled": [
-        "Fill : Colors/color/primary (#C6005C) → none",
-        "Width : 100 → 102",
-        "Height : 36 → 38",
-        "Stroke : none → Colors/color/border (#E3E7E8)",
-        "Stroke weight : 0 → 1",
+        "Fill: Colors/color/primary (#C6005C) → none",
+        "Width: 100 → 102",
+        "Height: 36 → 38",
+        "Stroke: none → Colors/color/border (#E3E7E8)",
+        "Stroke weight: 0 → 1",
         "↳ Leading icon / plus · Label / Text",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
+        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
       ],
       "Type=Destructive, Size=Medium, State=Enabled": [
-        "Fill : Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
+        "Fill: Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
         "↳ Leading icon / plus · Label / Text",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
+        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
       ],
       "Type=Primary, Size=Small, State=Enabled": [
-        "Radius : Radius/radius/default (10) → 8",
-        "Gap : Spacing/space/8 (8) → 6",
-        "Horizontal padding : Spacing/space/16 (16) → Spacing/space/12 (12)",
-        "Vertical padding : Spacing/space/8 (8) → 4",
-        "Width : 100 → 84",
-        "Height : 36 → 24",
+        "Radius: Radius/radius/default (10) → 8",
+        "Gap: Spacing/space/8 (8) → 6",
+        "Horizontal padding: Spacing/space/16 (16) → Spacing/space/12 (12)",
+        "Vertical padding: Spacing/space/8 (8) → 4",
+        "Width: 100 → 84",
+        "Height: 36 → 24",
         "↳ Label / Text",
-        "Typography : text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
+        "Typography: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
       ],
       "Type=Primary, Size=Large, State=Enabled": [
-        "Horizontal padding : Spacing/space/16 (16) → Spacing/space/24 (24)",
-        "Vertical padding : Spacing/space/8 (8) → Spacing/space/12 (12)",
-        "Width : 100 → 123",
-        "Height : 36 → 48",
+        "Horizontal padding: Spacing/space/16 (16) → Spacing/space/24 (24)",
+        "Vertical padding: Spacing/space/8 (8) → Spacing/space/12 (12)",
+        "Width: 100 → 123",
+        "Height: 36 → 48",
         "↳ Leading icon / plus",
-        "Fill : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
+        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
         "↳ Label / Text",
-        "Typography : text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
+        "Typography: text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
       ],
       "Type=Primary, Size=Medium, State=Hover": [
-        "Fill : Colors/color/primary (#C6005C) → Colors/color/primary-hover (#B10652)",
-        "Effects : none → shadow/sm (Drop shadow 0 1 blur 2 #000000 at 5%)"
+        "Fill: Colors/color/primary (#C6005C) → Colors/color/primary-hover (#B10652)",
+        "Effects: none → shadow/sm (Drop shadow 0 1 blur 2 #000000 at 5%)"
       ],
       "Type=Primary, Size=Medium, State=Pressed": [
-        "Fill : Colors/color/primary (#C6005C) → Colors/color/primary-pressed (#9E0749)"
+        "Fill: Colors/color/primary (#C6005C) → Colors/color/primary-pressed (#9E0749)"
       ],
       "Type=Primary, Size=Medium, State=Disabled": [
-        "Opacity : 100% → 50%"
+        "Opacity: 100% → 50%"
       ],
       "Type=Primary, Size=Medium, State=Focus": [
-        "Stroke : none → Colors/color/ring (#9CA8AB)",
-        "Stroke weight : 0 → 2"
+        "Stroke: none → Colors/color/ring (#9CA8AB)",
+        "Stroke weight: 0 → 2"
       ]
     },
     "anatomy": {
@@ -669,20 +669,20 @@
     "fuel": 237637260,
     "deltas": {
       "Size=Compact": [
-        "Horizontal padding : Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Vertical padding : Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Width : 384 → 320",
-        "Height : 422 → 238",
+        "Horizontal padding: Spacing/space/24 (24) → Spacing/space/16 (16)",
+        "Vertical padding: Spacing/space/24 (24) → Spacing/space/16 (16)",
+        "Width: 384 → 320",
+        "Height: 422 → 238",
         "↳ Header / Title row / Title",
-        "Typography : text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%",
+        "Typography: text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%",
         "↳ Content / Paragraph",
-        "Text : \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
-        "↳ Content / Features : hidden"
+        "Text: \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
+        "↳ Content / Features: hidden"
       ],
       "Size=Default": [],
       "Size=Wide": [
-        "Width : 384 → 448",
-        "Height : 422 → 382"
+        "Width: 384 → 448",
+        "Height: 422 → 382"
       ]
     },
     "anatomy": {
@@ -785,16 +785,16 @@
     "fuel": 69520523,
     "deltas": {
       "State=Collapsed": [
-        "Height : 130 → 54",
-        "↳ Trigger / Chevron : Name: caret-up → caret-down",
-        "↳ Answer : hidden"
+        "Height: 130 → 54",
+        "↳ Trigger / Chevron: Name: caret-up → caret-down",
+        "↳ Answer: hidden"
       ],
       "State=Expanded": [],
       "State=Locked": [
-        "Height : 130 → 54",
-        "Opacity : 100% → 50%",
-        "↳ Trigger / Chevron : Name: caret-up → caret-down",
-        "↳ Answer : hidden"
+        "Height: 130 → 54",
+        "Opacity: 100% → 50%",
+        "↳ Trigger / Chevron: Name: caret-up → caret-down",
+        "↳ Answer: hidden"
       ]
     },
     "anatomy": {
@@ -875,48 +875,48 @@
     "deltas": {
       "Name=caret-down, Size=16": [],
       "Name=caret-up, Size=16": [
-        "↳ caret-up : visible",
-        "↳ caret-down : hidden"
+        "↳ caret-up: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=caret-right, Size=16": [
-        "↳ caret-right : visible",
-        "↳ caret-down : hidden"
+        "↳ caret-right: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=plus, Size=16": [
-        "↳ plus : visible",
-        "↳ caret-down : hidden"
+        "↳ plus: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=minus, Size=16": [
-        "↳ minus : visible",
-        "↳ caret-down : hidden"
+        "↳ minus: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=x, Size=16": [
-        "↳ x : visible",
-        "↳ caret-down : hidden"
+        "↳ x: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=check, Size=16": [
-        "↳ check : visible",
-        "↳ caret-down : hidden"
+        "↳ check: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=arrow-right, Size=16": [
-        "↳ arrow-right : visible",
-        "↳ caret-down : hidden"
+        "↳ arrow-right: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=info, Size=16": [
-        "↳ info : visible",
-        "↳ caret-down : hidden"
+        "↳ info: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=warning, Size=16": [
-        "↳ warning : visible",
-        "↳ caret-down : hidden"
+        "↳ warning: visible",
+        "↳ caret-down: hidden"
       ],
       "Name=caret-down, Size=20": [
-        "Width : 16 → 20",
-        "Height : 16 → 20"
+        "Width: 16 → 20",
+        "Height: 16 → 20"
       ],
       "Name=caret-down, Size=24": [
-        "Width : 16 → 24",
-        "Height : 16 → 24"
+        "Width: 16 → 24",
+        "Height: 16 → 24"
       ]
     },
     "anatomy": {
@@ -1024,57 +1024,57 @@
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
-        "Preenchimento : Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
+        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
         "↳ Leading icon / plus, Label / Text",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
+        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
       ],
       "Type=Outline, Size=Medium, State=Enabled": [
-        "Preenchimento : Colors/color/primary (#C6005C) → nenhum",
-        "Largura : 100 → 102",
-        "Altura : 36 → 38",
-        "Traço : nenhum → Colors/color/border (#E3E7E8)",
-        "Espessura do traço : 0 → 1",
+        "Preenchimento: Colors/color/primary (#C6005C) → nenhum",
+        "Largura: 100 → 102",
+        "Altura: 36 → 38",
+        "Traço: nenhum → Colors/color/border (#E3E7E8)",
+        "Espessura do traço: 0 → 1",
         "↳ Leading icon / plus, Label / Text",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
+        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
       ],
       "Type=Destructive, Size=Medium, State=Enabled": [
-        "Preenchimento : Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
+        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
         "↳ Leading icon / plus, Label / Text",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
+        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
       ],
       "Type=Primary, Size=Small, State=Enabled": [
-        "Raio : Radius/radius/default (10) → 8",
-        "Espaço entre itens : Spacing/space/8 (8) → 6",
-        "Espaçamento interno horizontal : Spacing/space/16 (16) → Spacing/space/12 (12)",
-        "Espaçamento interno vertical : Spacing/space/8 (8) → 4",
-        "Largura : 100 → 84",
-        "Altura : 36 → 24",
+        "Raio: Radius/radius/default (10) → 8",
+        "Espaço entre itens: Spacing/space/8 (8) → 6",
+        "Espaçamento interno horizontal: Spacing/space/16 (16) → Spacing/space/12 (12)",
+        "Espaçamento interno vertical: Spacing/space/8 (8) → 4",
+        "Largura: 100 → 84",
+        "Altura: 36 → 24",
         "↳ Label / Text",
-        "Tipografia : text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
+        "Tipografia: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
       ],
       "Type=Primary, Size=Large, State=Enabled": [
-        "Espaçamento interno horizontal : Spacing/space/16 (16) → Spacing/space/24 (24)",
-        "Espaçamento interno vertical : Spacing/space/8 (8) → Spacing/space/12 (12)",
-        "Largura : 100 → 123",
-        "Altura : 36 → 48",
+        "Espaçamento interno horizontal: Spacing/space/16 (16) → Spacing/space/24 (24)",
+        "Espaçamento interno vertical: Spacing/space/8 (8) → Spacing/space/12 (12)",
+        "Largura: 100 → 123",
+        "Altura: 36 → 48",
         "↳ Leading icon / plus",
-        "Preenchimento : Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
+        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
         "↳ Label / Text",
-        "Tipografia : text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
+        "Tipografia: text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
       ],
       "Type=Primary, Size=Medium, State=Hover": [
-        "Preenchimento : Colors/color/primary (#C6005C) → Colors/color/primary-hover (#B10652)",
-        "Efeitos : nenhum → shadow/sm (Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
+        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/primary-hover (#B10652)",
+        "Efeitos: nenhum → shadow/sm (Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
       ],
       "Type=Primary, Size=Medium, State=Pressed": [
-        "Preenchimento : Colors/color/primary (#C6005C) → Colors/color/primary-pressed (#9E0749)"
+        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/primary-pressed (#9E0749)"
       ],
       "Type=Primary, Size=Medium, State=Disabled": [
-        "Opacidade : 100% → 50%"
+        "Opacidade: 100% → 50%"
       ],
       "Type=Primary, Size=Medium, State=Focus": [
-        "Traço : nenhum → Colors/color/ring (#9CA8AB)",
-        "Espessura do traço : 0 → 2"
+        "Traço: nenhum → Colors/color/ring (#9CA8AB)",
+        "Espessura do traço: 0 → 2"
       ]
     },
     "anatomy": {
@@ -1119,20 +1119,20 @@
     "fuel": 241365795,
     "deltas": {
       "Size=Compact": [
-        "Espaçamento interno horizontal : Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Espaçamento interno vertical : Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Largura : 384 → 320",
-        "Altura : 422 → 238",
+        "Espaçamento interno horizontal: Spacing/space/24 (24) → Spacing/space/16 (16)",
+        "Espaçamento interno vertical: Spacing/space/24 (24) → Spacing/space/16 (16)",
+        "Largura: 384 → 320",
+        "Altura: 422 → 238",
         "↳ Header / Title row / Title",
-        "Tipografia : text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%",
+        "Tipografia: text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%",
         "↳ Content / Paragraph",
-        "Texto : \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
-        "↳ Content / Features : oculto"
+        "Texto: \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
+        "↳ Content / Features: oculto"
       ],
       "Size=Default": [],
       "Size=Wide": [
-        "Largura : 384 → 448",
-        "Altura : 422 → 382"
+        "Largura: 384 → 448",
+        "Altura: 422 → 382"
       ]
     },
     "anatomy": {
@@ -1235,16 +1235,16 @@
     "fuel": 73078698,
     "deltas": {
       "State=Collapsed": [
-        "Altura : 130 → 54",
-        "↳ Trigger / Chevron : Name: caret-up → caret-down",
-        "↳ Answer : oculto"
+        "Altura: 130 → 54",
+        "↳ Trigger / Chevron: Name: caret-up → caret-down",
+        "↳ Answer: oculto"
       ],
       "State=Expanded": [],
       "State=Locked": [
-        "Altura : 130 → 54",
-        "Opacidade : 100% → 50%",
-        "↳ Trigger / Chevron : Name: caret-up → caret-down",
-        "↳ Answer : oculto"
+        "Altura: 130 → 54",
+        "Opacidade: 100% → 50%",
+        "↳ Trigger / Chevron: Name: caret-up → caret-down",
+        "↳ Answer: oculto"
       ]
     },
     "anatomy": {

@@ -248,7 +248,7 @@ fn the_heuristic_sees_what_the_inventory_found() {
     for english in ["unknown command: {cmd}", "alias loop or broken", "Drop shadow", "Frame", "Boolean Operation", "none", "auto", "effect", ", letter spacing {text}", "Select a component"] {
         assert!(looks_english(english).is_some(), "{english:?} should be flagged");
     }
-    for fine in ["node.get", "absoluteBounds", "BOOLEAN_OPERATION", "—", "×{n}", "{label} : {value}", "#FF4D6D", "x", "", "1x", "png", "horizontal", "mainComponentName", "{n}px", "{}%", "12 / 34"] {
+    for fine in ["node.get", "absoluteBounds", "BOOLEAN_OPERATION", "—", "×{n}", "{label}: {value}", "#FF4D6D", "x", "", "1x", "png", "horizontal", "mainComponentName", "{n}px", "{}%", "12 / 34"] {
         assert!(looks_english(fine).is_none(), "{fine:?} should pass");
     }
 }
