@@ -87,7 +87,6 @@
   "MoreVariants": "+{n} variantes não exibidas",
   "MoreVariantsOne": "+{n} variante não exibida",
   "NotDefined": "Não definido: {list}",
-  "NoteExport1x": "Esta documentação tem mais de 8.000 px de altura, então a exportação em PNG está em 1x (em 2x passaria de 16.384 px).",
   "NoteLineNoCoords": "a linha {i} do measure.padding não tem coordenadas",
   "NoteLineOblique": "a linha {i} (\"{label}\") do measure.padding não é horizontal nem vertical",
   "OvCorners": "cantos",

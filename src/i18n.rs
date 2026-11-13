@@ -131,7 +131,7 @@ keys! {
     LayerTitle, LayerValue, LayerWarning, LegendCheck, LegendDefault,
     LegendMissing, LegendNoStyle, LegendNone, LegendStyle, LegendSuspect,
     LegendToken, MoreLines, MoreLinesOne, MoreVariants, MoreVariantsOne,
-    NotDefined, NoteExport1x, NoteLineNoCoords, NoteLineOblique, OvCorners,
+    NotDefined, NoteLineNoCoords, NoteLineOblique, OvCorners,
     OvEffects, OvFills, OvPadding, OvPosition, OvSize,
     OvStrokes, OvTextStyle, OverrideNote, PropFill, PropGap,
     PropPadH, PropPadV, PropRadius, PropStroke, PropTypography,

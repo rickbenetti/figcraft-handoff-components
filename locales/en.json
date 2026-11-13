@@ -87,7 +87,6 @@
   "MoreVariants": "+{n} variants not shown",
   "MoreVariantsOne": "+{n} variant not shown",
   "NotDefined": "Not defined: {list}",
-  "NoteExport1x": "This documentation is taller than 8,000 px, so its PNG export is set to 1x (at 2x it would pass 16,384 px).",
   "NoteLineNoCoords": "measure.padding line {i} has no coordinates",
   "NoteLineOblique": "measure.padding line {i} (\"{label}\") is neither horizontal nor vertical",
   "OvCorners": "corners",

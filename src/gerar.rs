@@ -66,8 +66,6 @@ const MAX_BADGES: usize = 12;
 const PROP_NAME_W: f64 = 180.0;
 const PROP_TYPE_W: f64 = 120.0;
 const MAX_AXIS_ROWS: usize = 24;
-/// A report taller than this exports at 1x: at 2x it would pass 16,384 px, where images break.
-const EXPORT_2X_MAX_H: f64 = 8_000.0;
 /// Axis rows: room around the instance (in all) and least stage height.
 const AXIS_ROOM: f64 = 64.0;
 const AXIS_MIN_H: f64 = 120.0;
@@ -2081,14 +2079,10 @@ pub fn generate(input: Input) -> Result<Value> {
     let mut caches = Caches { vars, vars_loaded, styles, styles_loaded };
     let axes_drawn = if axes_list.is_empty() { None } else { Some(draw_axes(lang, frame, inner, stage_w, x, &axes_list, MAX_AXIS_ROWS, mode, set_fill, &walked, &mut caches)?) };
 
-    // The report is born with PNG export on, as the Export section of the panel would set it: 2x with no
-    // suffix, or 1x (said in a note) when it is too tall for 2x.
+    // The report is born with one export setting: SVG at 1x with no suffix (the scale is ignored for SVG). It is
+    // always SVG, whatever the height: a PNG fails above 16,384 px and SVG does not have that limit.
     let frame_h = height_of(lang, frame)?;
-    let too_tall = frame_h > EXPORT_2X_MAX_H;
-    if too_tall {
-        text(lang, head, t(lang, Key::NoteExport1x), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerNote))?;
-    }
-    let export_result = match call("export.add", &json!({"ids": [frame], "setting": {"size": if too_tall { "1x" } else { "2x" }, "suffix": "", "format": "png"}})) {
+    let export_result = match call("export.add", &json!({"ids": [frame], "setting": {"size": "1x", "suffix": "", "format": "svg"}})) {
         Ok(_) => "ok".to_string(),
         Err(e) => e,
     };
@@ -2114,7 +2108,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "audited_layers": audited,
         "rows": {"all_properties": all_count, "in_table": rows.len(), "lines_after_grouping": line_total, "hidden": hidden},
         "legend_cost": {"lines": line_total - hidden, "blocks": anatomy_blocks.len(), "host_calls": calls_legends},
-        "spacing": spacing_info, "spacing_wrapper": wrapper, "export": {"size": if too_tall { "1x" } else { "2x" }, "result": export_result, "frame_height": frame_h}, "badges": badge_layers,
+        "spacing": spacing_info, "spacing_wrapper": wrapper, "export": {"format": "svg", "size": "1x", "result": export_result, "frame_height": frame_h}, "badges": badge_layers,
         "properties": views.iter().map(|v| json!({"name": v.name, "type": v.kind, "options": v.options.iter().map(|(o, d)| json!({"option": o, "default": d})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
         "default_variant": target.set.as_ref().map(|sp| json!({"pairs": variants::join(&sp.default), "source": format!("{:?}", sp.source)})),
         "axes": axes_drawn.as_ref().map(|a| json!({"rows": a.rows, "skipped": a.skipped, "undefined": a.undefined, "planned": variants::within_limit(&axes_list, MAX_AXIS_ROWS).0, "stages": a.info})),

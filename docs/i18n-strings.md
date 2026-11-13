@@ -94,7 +94,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | MoreVariants | +{n} variants not shown | +{n} variantes não exibidas |
 | MoreVariantsOne | +{n} variant not shown | +{n} variante não exibida |
 | NotDefined | Not defined: {list} | Não definido: {list} |
-| NoteExport1x | This documentation is taller than 8,000 px, so its PNG export is set to 1x (at 2x it would pass 16,384 px). | Esta documentação tem mais de 8.000 px de altura, então a exportação em PNG está em 1x (em 2x passaria de 16.384 px). |
 | NoteLineNoCoords | measure.padding line {i} has no coordinates | a linha {i} do measure.padding não tem coordenadas |
 | NoteLineOblique | measure.padding line {i} ("{label}") is neither horizontal nor vertical | a linha {i} ("{label}") do measure.padding não é horizontal nem vertical |
 | OvCorners | corners | cantos |

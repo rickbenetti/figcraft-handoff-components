@@ -15,6 +15,7 @@ Select a component or a set and run one command. The plugin writes the documenta
   another value).
 - **Spacing**: gap and padding, drawn over the component.
 - **Variant differences**: for a component set, what each variant changes from the default one, axis by axis.
+- **One SVG export**: the documentation frame is born with a single export setting, SVG at 1x with no suffix, whatever its height (a PNG fails above 16,384 px; SVG has no such limit).
 - **Same page, one click**: the documentation goes to the right of everything on the page, at the same height. (Inside the file the frame keeps the old pluginData key `handoff-report`, so a rerun still replaces documentation made by earlier versions.)
 
 More samples: [Button](docs/samples/report-button.png), [Card](docs/samples/report-card.png),
