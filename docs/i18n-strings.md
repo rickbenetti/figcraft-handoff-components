@@ -16,8 +16,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | AlignSpaceEvenly | Space evenly | Espaço uniforme |
 | AlignTop | Top | Topo |
 | Anatomy | Anatomy | Anatomia |
-| Collision | Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
-| CollisionOne | Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Atenção: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
+| Collision | Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Aviso: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
+| CollisionOne | Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong. | Aviso: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados. |
 | VariantShown | Variant shown: {name} | Variante mostrada: {name} |
 | DeltaContent | Text | Texto |
 | DeltaWhitespaceOnly | whitespace or line breaks only | só espaços ou quebras de linha |
@@ -39,7 +39,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | Done | Documentation generated: {name} | Documentação gerada: {name} |
 | ErrBadColour | "{value}" is not a hex colour like #FF4D6D | "{value}" não é uma cor hexadecimal como #FF4D6D |
 | ErrBadLang | language must be en or pt-BR, not "{value}" | o idioma deve ser en ou pt-BR, não "{value}" |
-| ErrBadRerun | on rerun must be replace or new, not "{value}" | ao rodar de novo deve ser replace ou new, não "{value}" |
+| ErrBadRerun | on rerun must be replace or new, not "{value}" | ao gerar de novo deve ser replace ou new, não "{value}" |
 | ErrBadStage | stage must be light, dark or auto, not "{value}" | o palco deve ser light, dark ou auto, não "{value}" |
 | ErrCall | {cmd}: {reason} | {cmd}: {reason} |
 | ErrEmptySet | component set {id} has no variants | o conjunto de componentes {id} não tem variantes |
@@ -57,7 +57,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | LayerAxis | Axis: {name} | Eixo: {name} |
 | LayerAxisNote | Note | Nota |
 | LayerAxisRow | Variant: {name} | Variante: {name} |
-| LayerBadge | Badge {n} | Distintivo {n} |
+| LayerBadge | Badge {n} | Número {n} |
 | LayerBlockHeader | Block header | Cabeçalho do bloco |
 | LayerBody | Properties | Propriedades |
 | LayerChip | Token chip | Chip de token |
@@ -66,7 +66,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | LayerGroup | Legend: {name} | Legenda: {name} |
 | LayerHeaderBlock | Header | Cabeçalho |
 | LayerKind | Layer kind | Tipo da camada |
-| LayerLeader | Leader {n} | Guia {n} |
+| LayerLeader | Leader {n} | Linha-guia {n} |
 | LayerLegend | Legend | Legenda |
 | LayerMarker | Marker {n} | Marcador {n} |
 | LayerMeasure | Measure {value} | Medida {value} |
@@ -129,8 +129,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | NounVariables | variables | variáveis |
 | NounStyle | style | estilo |
 | NounStyles | styles | estilos |
-| NounProperty | design value | valor de design |
-| NounProperties | design values | valores de design |
+| NounProperty | design value | valor |
+| NounProperties | design values | valores |
 | NounBound | bound | vinculado |
 | NounBounds | bound | vinculados |
 | NounMissing | missing | ausente |
@@ -166,7 +166,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | EffectInnerShadow | Inner shadow | Sombra interna |
 | EffectLayerBlur | Layer blur | Desfoque de camada |
 | EffectBackgroundBlur | Background blur | Desfoque de fundo |
-| EffectDefault | effect | effect |
+| EffectDefault | effect | efeito |
 | EffectBlur | blur {r} | desfoque {r} |
 | EffectSpread | spread {n} | expansão {n} |
 | AtPercent | {value} at {n}% | {value} a {n}% |
@@ -178,7 +178,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | DecoUnderline | underline | sublinhado |
 | DecoStrikethrough | strikethrough | tachado |
 | ValueNone | none | nenhum |
-| AliasBroken | {path} (alias loop or broken) | {path} (alias loop or broken) |
+| AliasBroken | {path} (alias loop or broken) | {path} (apelido em ciclo ou quebrado) |
 | ErrUnknownCommand | unknown command: {cmd} | unknown command: {cmd} |
 | AlignTopLeft | Top left | Topo à esquerda |
 | AlignTopCenter | Top center | Topo ao centro |
@@ -202,24 +202,24 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelStageLight | Light | Claro |
 | PanelStageDark | Dark | Escuro |
 | PanelStageAuto | Auto | Automático |
-| PanelRerun | On rerun | Ao rodar de novo |
-| PanelRerunReplace | Replace | Substituir |
-| PanelRerunNew | New | Novo |
+| PanelRerun | On rerun | Ao gerar de novo |
+| PanelRerunReplace | Replace | Substituir a anterior |
+| PanelRerunNew | New | Criar outra |
 | PanelVersion | Version | Versão |
 | PanelStatus | Status | Status |
-| PanelRestored | Line colour, fill, stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Cor da linha, preenchimento, palco e “ao rodar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
+| PanelRestored | Line colour, fill, stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Cor da linha, opacidade, palco e “ao gerar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
 | PanelTitleMessages | MESSAGES | MENSAGENS |
 | VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
 | ToBeDefined | to be defined | a definir |
 | PanelTitleDocumentation | DOCUMENTATION | DOCUMENTAÇÃO |
 | PanelBlankHint | Left blank, the documentation shows “to be defined”. | Em branco, a documentação mostra “a definir”. |
-| PanelIdle | Select a component, a component set or a variant and press Generate documentation. | Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação. |
+| PanelIdle | Select a component, a component set or a variant and press Generate documentation. | Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação. |
 | PanelGenerated | Documentation generated: {name}. | Documentação gerada: {name}. |
-| PanelNothingSelected | Nothing is selected. Select a component, a component set or a variant and press Generate documentation. | Nada selecionado. Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação. |
-| PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e aperte Gerar documentação. |
+| PanelNothingSelected | Nothing is selected. Select a component, a component set or a variant and press Generate documentation. | Nada selecionado. Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação. |
+| PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação. |
 | PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
 | PanelGenerate | Generate documentation | Gerar documentação |
 | ErrBadOpacity | fill opacity must be a whole number from 0 to 100, not "{value}" | a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não "{value}" |
-| PanelFillOpacity | Fill opacity (0–100) | Preenchimento (%) |
+| PanelFillOpacity | Fill opacity (0–100) | Opacidade (0–100) |
 | PanelFillHint | Fill opacity, using the line colour. 0 = no fill. | Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento. |
-| PanelBadOpacity | The fill must be a whole number from 0 to 100. Correct it and press Generate documentation. | O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação. |
+| PanelBadOpacity | The fill must be a whole number from 0 to 100. Correct it and press Generate documentation. | A opacidade deve ser um número inteiro de 0 a 100. Corrija e clique em Gerar documentação. |

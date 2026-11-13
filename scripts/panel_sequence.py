@@ -218,7 +218,7 @@ def main():
         shown = r[5]["result"]
         labels = [l for _, l in controls(r[5])]
         check(shown["values"].get("lang") == "Português (Brasil)" and shown["values"].get("line") == "#FCA311" and "Idioma" in labels, "Restore defaults keeps Portuguese and restores the rest", str(shown["values"].get("lang")))
-        check(any(l.startswith("Cor da linha, preenchimento, palco e “ao rodar de novo” voltaram aos padrões") for l in labels), "the restore note is in Portuguese and says the language was kept")
+        check(any(l.startswith("Cor da linha, opacidade, palco e “ao gerar de novo” voltaram aos padrões") for l in labels), "the restore note is in Portuguese and says the language was kept")
         check(r[8]["result"]["values"].get("lang") == "Português (Brasil)", "after the click the language is still Portuguese (the page keeps `lang`)")
 
         # 5d. The panel has the same controls and labels before and after a documentation and a refusal.

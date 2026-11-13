@@ -939,7 +939,7 @@
     }
   },
   "pt-BR / copia-2 / id 32": {
-    "summary": "8 valores de design · 6 vinculados · 2 sem token · 0 ausentes · 0 suspeitos",
+    "summary": "8 valores · 6 vinculados · 2 sem token · 0 ausentes · 0 suspeitos",
     "lines": 8,
     "sections": 0,
     "instances": 2,
@@ -965,7 +965,7 @@
     }
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
-    "summary": "17 valores de design · 4 vinculados (4 a verificar) · 6 sem token · 0 ausentes · 7 suspeitos",
+    "summary": "17 valores · 4 vinculados (4 a verificar) · 6 sem token · 0 ausentes · 7 suspeitos",
     "lines": 17,
     "sections": 0,
     "instances": 2,
@@ -1016,7 +1016,7 @@
     }
   },
   "pt-BR / ds-base-demo / Button": {
-    "summary": "8 valores de design · 8 vinculados (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitos",
+    "summary": "8 valores · 8 vinculados (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitos",
     "lines": 8,
     "sections": 0,
     "instances": 14,
@@ -1112,7 +1112,7 @@
     }
   },
   "pt-BR / ds-base-demo / Card": {
-    "summary": "45 valores de design · 43 vinculados (35 variáveis, 8 estilos) · 2 sem token · 0 ausentes · 0 suspeitos",
+    "summary": "45 valores · 43 vinculados (35 variáveis, 8 estilos) · 2 sem token · 0 ausentes · 0 suspeitos",
     "lines": 45,
     "sections": 0,
     "instances": 5,
@@ -1228,7 +1228,7 @@
     }
   },
   "pt-BR / ds-base-demo / Accordion": {
-    "summary": "11 valores de design · 10 vinculados (8 variáveis, 2 estilos) · 1 sem token · 0 ausentes · 0 suspeitos",
+    "summary": "11 valores · 10 vinculados (8 variáveis, 2 estilos) · 1 sem token · 0 ausentes · 0 suspeitos",
     "lines": 11,
     "sections": 0,
     "instances": 4,

@@ -727,7 +727,7 @@ mod tests {
     fn the_english_fill_hint_keeps_no_and_fill_together_and_the_labels_are_plain_text() {
         assert_eq!(t(Lang::En, Key::PanelFillHint), "Fill opacity, using the line colour. 0 = no\u{a0}fill.");
         assert_eq!(t(Lang::Pt, Key::PanelFillHint), "Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.");
-        assert_eq!((t(Lang::En, Key::PanelFillOpacity), t(Lang::Pt, Key::PanelFillOpacity)), ("Fill opacity (0–100)", "Preenchimento (%)"));
+        assert_eq!((t(Lang::En, Key::PanelFillOpacity), t(Lang::Pt, Key::PanelFillOpacity)), ("Fill opacity (0–100)", "Opacidade (0–100)"));
         for lang in [Lang::En, Lang::Pt] {
             for c in spec(lang, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap() {
                 if c["type"] != "note" {
@@ -750,12 +750,12 @@ mod tests {
 
     #[test]
     fn the_symbols_mark_only_success_and_refusal_and_the_warning() {
-        assert_eq!(message_text(Lang::Pt, &Message::Idle), "Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação.");
+        assert_eq!(message_text(Lang::Pt, &Message::Idle), "Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação.");
         assert_eq!(message_text(Lang::Pt, &Message::Done("Botão".into())), "✔ Documentação gerada: Botão.");
-        assert_eq!(message_text(Lang::Pt, &Message::NothingSelected), "✖ Nada selecionado. Selecione um componente, um conjunto ou uma variante e aperte Gerar documentação.");
+        assert_eq!(message_text(Lang::Pt, &Message::NothingSelected), "✖ Nada selecionado. Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação.");
         assert_eq!(
             message_text(Lang::Pt, &Message::WrongKind("Quadro".into())),
-            "✖ A seleção é do tipo Quadro, não um componente, conjunto ou variante. Selecione um deles e aperte Gerar documentação."
+            "✖ A seleção é do tipo Quadro, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação."
         );
         assert_eq!(message_text(Lang::En, &Message::Done("Button".into())), "✔ Documentation generated: Button.");
         assert_eq!(message_text(Lang::En, &Message::NothingSelected), "✖ Nothing is selected. Select a component, a component set or a variant and press Generate documentation.");
@@ -784,7 +784,7 @@ mod tests {
     fn the_fill_is_a_number_field_from_0_to_100_and_there_is_no_fill_colour() {
         let sp = spec(Lang::Pt, &Form::defaults(), &Message::Idle);
         let c = sp["controls"].as_array().unwrap().iter().find(|c| c["name"] == "fill_opacity").unwrap();
-        assert_eq!((c["type"].as_str(), c["label"].as_str(), c["min"].as_i64(), c["max"].as_i64(), c["value"].as_f64()), (Some("number"), Some("Preenchimento (%)"), Some(0), Some(100), Some(30.0)));
+        assert_eq!((c["type"].as_str(), c["label"].as_str(), c["min"].as_i64(), c["max"].as_i64(), c["value"].as_f64()), (Some("number"), Some("Opacidade (0–100)"), Some(0), Some(100), Some(30.0)));
         let en = spec(Lang::En, &Form::defaults(), &Message::Idle);
         assert!(en["controls"].as_array().unwrap().iter().any(|c| c["label"] == "Fill opacity (0–100)"));
         for sp in [sp, en] {
@@ -811,7 +811,7 @@ mod tests {
 
     #[test]
     fn an_invalid_opacity_is_shown_as_a_note_and_the_message_is_the_same_length_class() {
-        assert_eq!(message_text(Lang::Pt, &Message::BadOpacity), "✖ O preenchimento deve ser um número inteiro de 0 a 100. Corrija e aperte Gerar documentação.");
+        assert_eq!(message_text(Lang::Pt, &Message::BadOpacity), "✖ A opacidade deve ser um número inteiro de 0 a 100. Corrija e clique em Gerar documentação.");
         assert_eq!(message_text(Lang::En, &Message::BadOpacity), "✖ The fill must be a whole number from 0 to 100. Correct it and press Generate documentation.");
     }
 

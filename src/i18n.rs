@@ -239,7 +239,7 @@ mod tests {
 
     /// The keys pt-BR keeps in English on purpose, for lack of a decision on their translation. Each
     /// has pt-BR text equal to the English one; the test below keeps this list and the files in step.
-    const KEPT_IN_ENGLISH: &[&str] = &["AliasBroken", "ErrUnknownCommand", "EffectDefault"];
+    const KEPT_IN_ENGLISH: &[&str] = &["ErrUnknownCommand"];
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
@@ -357,9 +357,9 @@ mod tests {
                     "Warning: 2 bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
                 ],
                 [
-                    "Atenção: 0 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
-                    "Atenção: 1 vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
-                    "Atenção: 2 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Aviso: 0 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Aviso: 1 vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Aviso: 2 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
                 ],
             ),
             (Key::UnnumberedOne, Key::Unnumbered, ["+0 layers without a number", "+1 layer without a number", "+2 layers without a number"], ["+0 camadas sem número", "+1 camada sem número", "+2 camadas sem número"]),
@@ -381,7 +381,7 @@ mod tests {
         for (one, many, en, pt) in [
             (Key::NounVariable, Key::NounVariables, ("variable", "variables"), ("variável", "variáveis")),
             (Key::NounStyle, Key::NounStyles, ("style", "styles"), ("estilo", "estilos")),
-            (Key::NounProperty, Key::NounProperties, ("design value", "design values"), ("valor de design", "valores de design")),
+            (Key::NounProperty, Key::NounProperties, ("design value", "design values"), ("valor", "valores")),
             (Key::NounBound, Key::NounBounds, ("bound", "bound"), ("vinculado", "vinculados")),
             (Key::NounMissing, Key::NounMissings, ("missing", "missing"), ("ausente", "ausentes")),
             (Key::NounSuspect, Key::NounSuspects, ("suspect", "suspect"), ("suspeito", "suspeitos")),

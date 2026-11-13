@@ -2453,13 +2453,13 @@ mod tests {
     fn the_summary_puts_the_total_first_and_its_parts_after() {
         assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "45 design values · 8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect");
         assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "45 design values · 8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "45 valores de design · 8 vinculados (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitos");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "45 valores de design · 8 vinculados (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "45 valores · 8 vinculados (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "45 valores · 8 vinculados (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitos");
         // With "to check", and with no styles (no parentheses), and the plain line.
         assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 45)), "45 design values · 8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect");
-        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 45)), "45 valores de design · 8 vinculados (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 45)), "45 valores · 8 vinculados (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitos");
         assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 45)), "45 design values · 8 bound (2 to check) · 3 no token · 0 missing · 2 suspect");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 45)), "45 valores de design · 8 vinculados · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 45)), "45 valores · 8 vinculados · 3 sem token · 0 ausentes · 2 suspeitos");
         assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 45)), "45 design values · 8 bound · 3 no token · 0 missing · 2 suspect");
         // 0 is the plural.
         assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "0 design values · 8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect");
@@ -2469,12 +2469,12 @@ mod tests {
     fn the_summary_words_are_singular_for_exactly_one_and_agree_in_portuguese() {
         let one = SummaryCounts { bound: 1, check: 0, unbound: 1, missing: 1, suspect: 1, total: 1, vars: 1, styles: 1 };
         assert_eq!(summary_text(Lang::En, &one), "1 design value · 1 bound (1 variable, 1 style) · 1 no token · 1 missing · 1 suspect");
-        assert_eq!(summary_text(Lang::Pt, &one), "1 valor de design · 1 vinculado (1 variável, 1 estilo) · 1 sem token · 1 ausente · 1 suspeito");
+        assert_eq!(summary_text(Lang::Pt, &one), "1 valor · 1 vinculado (1 variável, 1 estilo) · 1 sem token · 1 ausente · 1 suspeito");
         let two = SummaryCounts { bound: 2, check: 0, unbound: 2, missing: 2, suspect: 2, total: 2, vars: 1, styles: 1 };
-        assert_eq!(summary_text(Lang::Pt, &two), "2 valores de design · 2 vinculados (1 variável, 1 estilo) · 2 sem token · 2 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &two), "2 valores · 2 vinculados (1 variável, 1 estilo) · 2 sem token · 2 ausentes · 2 suspeitos");
         // The Alert of the report: 14 bound (11 variables, 3 styles), 3 no token, 0 missing, 0 suspect = 17.
         let alert = SummaryCounts { bound: 14, check: 0, unbound: 3, missing: 0, suspect: 0, total: 17, vars: 11, styles: 3 };
-        assert_eq!(summary_text(Lang::Pt, &alert), "17 valores de design · 14 vinculados (11 variáveis, 3 estilos) · 3 sem token · 0 ausentes · 0 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &alert), "17 valores · 14 vinculados (11 variáveis, 3 estilos) · 3 sem token · 0 ausentes · 0 suspeitos");
         assert_eq!(summary_text(Lang::En, &alert), "17 design values · 14 bound (11 variables, 3 styles) · 3 no token · 0 missing · 0 suspect");
     }
 

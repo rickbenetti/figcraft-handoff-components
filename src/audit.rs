@@ -647,7 +647,7 @@ mod tests {
         let text = |l: Lang| classify(l, &Real::Color("#FFFFFF".into()), Want::Color, Some("L1"), &v).1;
         assert_eq!(text(Lang::En), "T/loop (alias loop or broken)");
         // No decision yet on this text: English in pt-BR too.
-        assert_eq!(text(Lang::Pt), "T/loop (alias loop or broken)");
+        assert_eq!(text(Lang::Pt), "T/loop (apelido em ciclo ou quebrado)");
         let styles = Styles::parse(&json!([{"id": "1:1", "name": "brand/primary", "type": "paint", "paints": [{"type": "solid", "color": {"r": 0.23137255, "g": 0.35686275, "b": 0.85882354, "a": 0.5}, "opacity": 1.0, "visible": true}]}]));
         let other = |l: Lang| classify_style(l, &Real::Color("#FF0000".into()), 1.0, "1:1", &styles).1;
         assert_eq!(other(Lang::En), "brand/primary (style: #3B5BDB at 50%)");
