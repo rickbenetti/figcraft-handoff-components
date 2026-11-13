@@ -1760,12 +1760,18 @@ fn draw_axes(
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
     let base_snap = delta::snapshot(lang, base_walked, &caches.vars, &caches.styles);
     let base_reach = effect_reach(effect_overflow(base_walked, &rendered(base_walked)));
+    // The block's padding takes its width from the stage; so does its border (the host counts an inside stroke in the layout).
+    let row_stage_w = stage_w - 2.0 * (theme::BLOCK_PAD + theme::BLOCK_BORDER);
     for axis in axes {
         let mut section: Option<u64> = None;
+        // The options with no variant: the note names their values (the section already says the property); the output keeps
+        // the "Property=Option" spelling.
         let mut missing: Vec<String> = Vec::new();
+        let mut missing_named: Vec<String> = Vec::new();
         for opt in &axis.options {
             let Some(variant) = &opt.variant else {
-                missing.push(format!("{}={}", axis.prop, opt.option));
+                missing.push(opt.option.clone());
+                missing_named.push(format!("{}={}", axis.prop, opt.option));
                 continue;
             };
             if drawn.rows >= limit {
@@ -1782,17 +1788,21 @@ fn draw_axes(
             };
             last_section = Some(sec);
             let rname = tf(lang, Key::LayerAxisRow, &[("name", &opt.name)]);
+            // The row is a block: its own frame has the fill, the border and the padding (no node is added).
             let mut r = FlowSpec::new(&rname, inner, "horizontal");
             r.gap = ANATOMY_GAP;
+            r.padding = json!(theme::BLOCK_PAD);
+            r.fill = Some(theme::BLOCK_FILL);
+            r.extra = json!({"cornerRadius": theme::BLOCK_RADIUS, "stroke": theme::BORDER, "strokeWeight": theme::BLOCK_BORDER, "strokeAlign": "inside"});
             let row = flow_frame(lang, sec, r)?;
             let mut lg = FlowSpec::new(t(lang, Key::LayerLegend), LEGEND_W, "vertical");
             lg.gap = 8.0;
             let legend = flow_frame(lang, row, lg)?;
-            let title = glyphs::with_word(glyphs::VARIANT, &format!("{}={}", axis.prop, opt.option));
+            let title = glyphs::with_word(glyphs::VARIANT, &opt.option);
             text_with(lang, legend, &title, HEADER_SIZE, theme::TEXT, &rname, json!({"fontStyle": "Bold"}))?;
             // The stage first with the room the instance needs; it grows when the list is taller.
             let h0 = (variant.h + AXIS_ROOM).max(AXIS_MIN_H);
-            let sb = Rect { x, y: STAGING_Y, w: stage_w, h: h0 };
+            let sb = Rect { x, y: STAGING_Y, w: row_stage_w, h: h0 };
             let stage = make_stage(lang, sb, mode == StageMode::Dark)?;
             let (instance, _) = place_instance(lang, variant.id, stage, sb, Rect { x: 0.0, y: 0.0, w: variant.w, h: variant.h })?;
             let mut listed: Vec<String> = Vec::new();
@@ -1832,7 +1842,7 @@ fn draw_axes(
                 host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h}}))?;
                 host(lang, "node.set", &json!({"ids": [instance], "props": {"y": (h - variant.h) / 2.0}}))?;
             }
-            if reach > 0.0 && stage_w < variant.w + 2.0 * reach {
+            if reach > 0.0 && row_stage_w < variant.w + 2.0 * reach {
                 drawn.narrow.push((opt.name.clone(), variant.w + 2.0 * reach));
             }
             let (dark, lowest) = is_dark(mode, &nodes, ancestor);
@@ -1846,7 +1856,7 @@ fn draw_axes(
         if let (Some(sec), false) = (section, missing.is_empty()) {
             text(lang, sec, &tf(lang, Key::NotDefined, &[("list", &missing.join(", "))]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
         }
-        drawn.undefined.extend(missing);
+        drawn.undefined.extend(missing_named);
     }
     if let (Some(sec), true) = (last_section, drawn.skipped > 0) {
         text(lang, sec, &tf(lang, plural(drawn.skipped, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
