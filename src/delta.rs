@@ -15,8 +15,8 @@ use std::collections::HashMap;
 pub const MAX_LINES: usize = 12;
 /// Pixels (and percentage points) below which two numbers are the same.
 const TOLERANCE: f64 = 0.5;
-/// Longest text content quoted in a line.
-const MAX_CONTENT: usize = 40;
+/// Longest text content quoted in a line, in characters.
+const MAX_CONTENT: usize = 70;
 
 /// What an entry is about.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -478,22 +478,69 @@ fn sizing_word(lang: Lang, value: &str) -> String {
     }
 }
 
-/// Two texts, each cut to [`MAX_CONTENT`] characters around the place where they first differ.
+/// The marks of a cut: the text of the file may have an ellipsis of its own, so a cut is not "…".
+const CUT_START: &str = "[…] ";
+const CUT_END: &str = " […]";
+/// Characters of context kept before the first difference.
+const CONTEXT: usize = 10;
+
+/// The text as a line quotes it: line breaks are spaces.
+fn flat(text: &str) -> Vec<char> {
+    text.replace('\n', " ").chars().collect()
+}
+
+/// Two texts cut to one window of at most [`MAX_CONTENT`] characters (counted as Unicode scalar values) that holds
+/// the first place where they differ, with some context before it. The window starts and ends between words (at a
+/// space) when it can; a word too long for the window is cut at its edge. A cut is marked `[…]`; a text that ends
+/// inside the window is whole, with no mark. Both sides use the same start.
 fn windows(a: &str, b: &str) -> (String, String) {
-    let (a, b): (Vec<char>, Vec<char>) = (a.replace('\n', " ").chars().collect(), b.replace('\n', " ").chars().collect());
+    let (a, b) = (flat(a), flat(b));
     let common = a.iter().zip(&b).take_while(|(x, y)| x == y).count();
-    let start = if a.len().max(b.len()) > MAX_CONTENT { common.saturating_sub(MAX_CONTENT / 4) } else { 0 };
+    if a.len().max(b.len()) <= MAX_CONTENT {
+        return (a.into_iter().collect(), b.into_iter().collect());
+    }
+    // The start: CONTEXT characters before the difference, moved back to the start of its word, unless that word is so
+    // long that the difference would be far from the window's start.
+    let near = common.saturating_sub(CONTEXT);
+    let start = if near == 0 || a[near - 1] == ' ' || a[near] == ' ' {
+        near
+    } else {
+        match a[..near].iter().rposition(|c| *c == ' ') {
+            Some(space) if common - (space + 1) <= MAX_CONTENT / 2 => space + 1,
+            // The difference is inside the text's first word: the window starts with the text.
+            None if common <= MAX_CONTENT / 2 => 0,
+            _ => near,
+        }
+    };
     let cut = |v: &[char]| {
-        let end = (start + MAX_CONTENT).min(v.len());
-        let body: String = v.get(start..end).unwrap_or_default().iter().collect();
-        format!("{}{body}{}", if start > 0 { "…" } else { "" }, if end < v.len() { "…" } else { "" })
+        let limit = (start + MAX_CONTENT).min(v.len());
+        let end = if limit == v.len() || v[limit] == ' ' {
+            limit
+        } else {
+            // Back to the last space of the window, as long as the difference stays inside.
+            match v[start..limit].iter().rposition(|c| *c == ' ') {
+                Some(space) if start + space > common => start + space,
+                _ => limit,
+            }
+        };
+        let body: String = v[start..end].iter().collect();
+        format!("{}{body}{}", if start > 0 { CUT_START } else { "" }, if end < v.len() { CUT_END } else { "" })
     };
     (cut(&a), cut(&b))
+}
+
+/// A text with its whitespace made plain: line breaks, tabs and runs of spaces become one space, the ends are trimmed.
+fn plain_whitespace(text: &str) -> String {
+    text.split([' ', '\n', '\r', '\t']).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
 /// "Label : from → to", each side with its value in parentheses after the name of its token (see [`show_side`]).
 fn change_text(lang: Lang, label: Label, from: &Side, to: &Side) -> String {
     let (a, b) = if label == Label::Content {
+        // The two texts differ, but only in how they are spaced: say so rather than show two texts that look the same.
+        if plain_whitespace(&from.value) == plain_whitespace(&to.value) {
+            return format!("{} : {}", t(lang, label.key()), t(lang, Key::DeltaWhitespaceOnly));
+        }
         let (a, b) = windows(&from.value, &to.value);
         (format!("\"{a}\""), format!("\"{b}\""))
     } else {
@@ -898,6 +945,109 @@ mod tests {
         assert_eq!(snaps[1].path, "/Cell[0]");
         assert_eq!(snaps[2].path, "/Cell[1]");
         assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Cell[1]", "Typography : W 14/150% R → W 16/150% R"]);
+    }
+
+    const WORDS: &str = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor";
+
+    fn swapped_word(text: &str, from: &str, to: &str) -> String {
+        text.replacen(from, to, 1)
+    }
+
+    fn said_text(lang: Lang, a: &str, b: &str) -> String {
+        change_text(lang, Label::Content, &Side { token: None, value: a.to_string() }, &Side { token: None, value: b.to_string() })
+    }
+
+    #[test]
+    fn a_text_of_70_characters_or_less_is_whole_with_no_mark() {
+        let a = "x".repeat(70);
+        let b = format!("{}y", "x".repeat(69));
+        assert_eq!(windows(&a, &b), (a.clone(), b));
+        assert_eq!(windows("Button", "Cancel"), ("Button".to_string(), "Cancel".to_string()));
+        assert!(!said_text(Lang::En, &a, "short").contains('['));
+    }
+
+    #[test]
+    fn the_window_starts_and_ends_between_words_and_is_marked() {
+        // A difference in the middle of a long text: a word boundary before and after, a mark on each side.
+        let (a, b) = windows(WORDS, &swapped_word(WORDS, "kilo", "KILO"));
+        assert_eq!(a, "[…] india juliet kilo lima mike november oscar papa quebec romeo sierra […]");
+        assert_eq!(b, "[…] india juliet KILO lima mike november oscar papa quebec romeo sierra […]");
+        assert!(a.chars().count() <= MAX_CONTENT + CUT_START.chars().count() + CUT_END.chars().count());
+        // Only the start is cut (the difference is near the end).
+        let (a, b) = windows(WORDS, &swapped_word(WORDS, "victor", "VICTOR"));
+        assert!(a.starts_with("[…] ") && !a.ends_with("[…]"), "{a}");
+        assert!(a.ends_with("uniform victor") && b.ends_with("uniform VICTOR"), "{a} / {b}");
+        // A difference inside the very first word: no cut at the start, not even a part of that word.
+        let (a, _) = windows(WORDS, &swapped_word(WORDS, "alpha", "alpHa"));
+        assert!(a.starts_with("alpha bravo") && !a.starts_with('['), "{a}");
+        // Only the end is cut (the difference is at the start).
+        let (a, b) = windows(WORDS, &swapped_word(WORDS, "alpha", "ALPHA"));
+        assert!(!a.starts_with('[') && a.ends_with(" […]") && b.starts_with("ALPHA bravo"), "{a} / {b}");
+        // A cut never falls inside a word that fits.
+        for w in [&a, &b] {
+            let body = w.trim_end_matches(" […]");
+            assert!(WORDS.to_uppercase().contains(&body.to_uppercase()) && body.split(' ').all(|x| WORDS.split(' ').any(|y| y.eq_ignore_ascii_case(x))), "{body}");
+        }
+    }
+
+    #[test]
+    fn the_first_difference_is_always_inside_the_window_on_both_sides() {
+        let base: Vec<String> = (0..60).map(|i| format!("w{i:02}")).collect();
+        let text = base.join(" ");
+        for i in [0usize, 1, 5, 17, 30, 44, 58, 59] {
+            let mut other = base.clone();
+            other[i] = format!("X{i:02}");
+            let (a, b) = windows(&text, &other.join(" "));
+            assert!(a.contains(&base[i]), "{i}: {a}");
+            assert!(b.contains(&format!("X{i:02}")), "{i}: {b}");
+        }
+        // The text of one side is the start of the other: the longer one is cut, the shorter one is whole.
+        let (a, b) = windows(&text, &text[..100]);
+        assert!(b.trim_end().ends_with("w24"), "{b}");
+        assert!(a.ends_with(" […]") && !b.ends_with("[…]"), "{a} / {b}");
+    }
+
+    #[test]
+    fn a_word_longer_than_the_window_is_cut_at_its_edge() {
+        let a = format!("{}X", "a".repeat(200));
+        let b = format!("{}Y", "a".repeat(200));
+        let (wa, wb) = windows(&a, &b);
+        // The word has no space to cut at: the window opens CONTEXT characters before the difference, inside the word.
+        assert_eq!((wa.as_str(), wb.as_str()), ("[…] aaaaaaaaaaX", "[…] aaaaaaaaaaY"));
+        // No space anywhere, difference far from the start, and none to the right: no loop, window of MAX_CONTENT.
+        let (wa, wb) = windows(&"a".repeat(300), &format!("{}b", "a".repeat(299)));
+        assert!(wa.chars().count() <= MAX_CONTENT + 8 && wb.contains('b'), "{wa} / {wb}");
+    }
+
+    #[test]
+    fn the_cut_marks_are_not_the_designers_ellipsis_which_stays() {
+        // The Card of the demo: the short variant ends with an ellipsis of its own.
+        let long = "Design systems earn their keep when the people who build with them can see exactly what a component is made of: which tokens it reads, how much room it keeps around its content, and what changes between one variant and the next.";
+        let short = format!("{}…", &long[..long.find("how m").unwrap() + 5]);
+        let (a, b) = windows(long, &short);
+        assert_eq!(a, "[…] reads, how much room it keeps around its content, and what changes […]");
+        assert_eq!(b, "[…] reads, how m…", "the last … is the file's own: it is not a cut mark, and it is not touched");
+        // Both marks on one side, an ellipsis of the file inside the window.
+        let (a, _) = windows(&format!("{WORDS}…"), &swapped_word(WORDS, "kilo", "KILO"));
+        assert!(a.starts_with("[…] ") && a.ends_with(" […]"), "{a}");
+    }
+
+    #[test]
+    fn a_change_only_in_spacing_or_line_breaks_says_so_in_both_languages() {
+        for (a, b) in [("Line one\nLine two", "Line one Line two"), ("Save", "Save "), ("a  b", "a b"), ("a\r\nb", "a b"), ("\tHi there", "Hi there")] {
+            assert_eq!(said_text(Lang::En, a, b), "Text : whitespace or line breaks only", "{a:?} {b:?}");
+            assert_eq!(said_text(Lang::Pt, a, b), "Texto : só espaços ou quebras de linha", "{a:?} {b:?}");
+        }
+        // It still counts as one line of text in a variant's list.
+        let text = |s: &str| vec![(json!({"name": "Row", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 40.0}}), 0), (json!({"name": "T", "type": "TEXT", "characters": s}), 1)];
+        assert_eq!(texts(&diff_of(&text("a\nb"), &text("a b"))), vec!["↳ T", "Text : whitespace or line breaks only"]);
+    }
+
+    #[test]
+    fn changes_of_case_and_punctuation_are_still_changes() {
+        assert_eq!(said_text(Lang::En, "Save changes", "Save Changes"), "Text : \"Save changes\" → \"Save Changes\"");
+        assert_eq!(said_text(Lang::En, "Hello world.", "Hello world"), "Text : \"Hello world.\" → \"Hello world\"");
+        assert_eq!(said_text(Lang::Pt, "Olá, mundo", "Olá mundo"), "Texto : \"Olá, mundo\" → \"Olá mundo\"");
     }
 
     #[test]

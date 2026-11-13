@@ -12,6 +12,7 @@
   "Collision": "Warning: {n} bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
   "CollisionOne": "Warning: {n} binding with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
   "VariantShown": "Variant shown: {name}",
+  "DeltaWhitespaceOnly": "whitespace or line breaks only",
   "DeltaContent": "Text",
   "DeltaEffectOnly": "No readable differences (visual effect only)",
   "DeltaEffects": "Effects",

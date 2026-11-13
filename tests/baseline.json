@@ -672,7 +672,7 @@
     "lines": 45,
     "sections": 5,
     "instances": 5,
-    "fuel": 237208685,
+    "fuel": 237637260,
     "deltas": {
       "Size=Compact": [
         "Horizontal padding : Spacing/space/24 (24) → Spacing/space/16 (16)",
@@ -682,7 +682,7 @@
         "↳ Header / Title row / Title",
         "Typography : text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%",
         "↳ Content / Paragraph",
-        "Text : \"…ads, how much room it keeps around its c…\" → \"…ads, how m…\"",
+        "Text : \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
         "↳ Content / Features : hidden"
       ],
       "Size=Default": [],
@@ -1128,7 +1128,7 @@
     "lines": 45,
     "sections": 0,
     "instances": 5,
-    "fuel": 241069165,
+    "fuel": 241365795,
     "deltas": {
       "Size=Compact": [
         "Espaçamento interno horizontal : Spacing/space/24 (24) → Spacing/space/16 (16)",
@@ -1138,7 +1138,7 @@
         "↳ Header / Title row / Title",
         "Tipografia : text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%",
         "↳ Content / Paragraph",
-        "Texto : \"…ads, how much room it keeps around its c…\" → \"…ads, how m…\"",
+        "Texto : \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
         "↳ Content / Features : oculto"
       ],
       "Size=Default": [],

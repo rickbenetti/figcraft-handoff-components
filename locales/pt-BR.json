@@ -12,6 +12,7 @@
   "Collision": "Atenção: {n} vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
   "CollisionOne": "Atenção: {n} vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
   "VariantShown": "Variante mostrada: {name}",
+  "DeltaWhitespaceOnly": "só espaços ou quebras de linha",
   "DeltaContent": "Texto",
   "DeltaEffectOnly": "Sem diferenças legíveis (apenas efeito visual)",
   "DeltaEffects": "Efeitos",
