@@ -118,7 +118,7 @@ keys! {
     DeltaEffectOnly, DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore,
     DeltaMoreOne, DeltaNone, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
     DeltaWidth, DirGrid, DirHorizontal, DirVertical, Done,
-    ErrBadColour, ErrBadLang, ErrBadRerun, ErrBadStage,
+    ErrBadLang, ErrBadRerun, ErrBadStage,
     ErrCall,
     ErrEmptySet, ErrNoId, ErrNoMain, ErrNoPage,
     ErrNoSelection, ErrNotComponent, ErrNotList, ErrParent,
@@ -153,7 +153,7 @@ keys! {
     AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft, AlignBottomCenter,
     AlignBottomRight, AlignCompose, PanelTitle,
     PanelDefaults, PanelClose, PanelTitlePage,
-    PanelLang, PanelLangEn, PanelLangPt, PanelLineColour,
+    PanelLang, PanelLangEn, PanelLangPt,
     PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
     PanelRerun, PanelRerunReplace, PanelRerunNew,
     PanelVersion,
@@ -161,7 +161,6 @@ keys! {
     PanelRestored, PanelTitleMessages,
     VersionStatusLine, ToBeDefined,
     PanelTitleDocumentation, PanelBlankHint, PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelFreezeNote, PanelGenerate,
-    ErrBadOpacity, PanelFillOpacity, PanelFillHint, PanelBadOpacity,
 }
 
 /// The text of `key` in `lang` (English when the language has none).

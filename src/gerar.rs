@@ -122,15 +122,7 @@ fn id_of(lang: Lang, v: &Value, what: &str) -> Result<u64> {
     v.get("id").and_then(Value::as_u64).ok_or_else(|| tf(lang, Key::ErrNoId, &[("what", what)]))
 }
 
-/// The line colour, or the default.
-fn line_colour(text: Option<&str>) -> String {
-    match text.map(str::trim) {
-        Some(t) if !t.is_empty() => t.to_string(),
-        _ => theme::REDLINE.to_string(),
-    }
-}
-
-/// The fill colour: the line colour at `percent` opacity. The alpha is ABSOLUTE: the one the line colour may
+/// The fill colour: the colour `line` at `percent` opacity. The alpha is ABSOLUTE: the one the colour may
 /// carry (`#RRGGBBAA`) is replaced, not multiplied. 30% is `4D`, 0% is `00` (nothing shows), 100% is `FF`.
 pub(crate) fn fill_colour(percent: u8, line: &str) -> String {
     let alpha = (u32::from(percent.min(100)) * 255 + 50) / 100;
@@ -141,7 +133,7 @@ pub(crate) fn fill_colour(percent: u8, line: &str) -> String {
                 s.push(c);
                 s
             }),
-            None => theme::REDLINE.to_string(),
+            None => theme::LIGHT_SPACING.to_string(),
         },
     };
     format!("{rgb}{alpha:02X}")
@@ -899,7 +891,7 @@ fn draw_block(lang: Lang, legend: u64, walked: &[(Value, usize)], variant: bool,
             b.fill = Some(accent);
             b.extra = json!({"cornerRadius": MARKER_D / 2.0, "mainAlign": "center", "crossAlign": "center"});
             let badge = flow_frame(lang, header, b)?;
-            text_with(lang, badge, &n.to_string(), FONT, theme::ON_REDLINE, &badge_name, json!({}))?;
+            text_with(lang, badge, &n.to_string(), FONT, on_accent(accent), &badge_name, json!({}))?;
             // The badge already says where it sits: the title drops the "↳".
             let plain = match glyphs::layer(&node, depth == 0, variant) {
                 Some(g) => glyphs::with_word(g, &name),
@@ -1239,46 +1231,55 @@ fn make_stage(lang: Lang, at: Rect, dark: bool) -> Result<u64> {
     id_of(lang, &r, "frame.create")
 }
 
-/// The colours of the redlines (badges, guides, measures and overlay) on a stage. The guides and the overlay's outline
-/// have a fixed weight (`GUIDE_WEIGHT`, `OVERLAY_WEIGHT`). On the light stage with the default line colour the guides,
-/// the outline and the badges are the line colour at full strength, with Prussian blue for the measure values (the line
-/// colour is too pale to read on the light stage) and a Prussian ring on the badge. On the dark stage, or with a line
-/// colour set in the settings, everything is the line colour, no ring.
+/// The colours of the redlines (badges, guides, measures and overlay) on a stage: a fixed palette by stage and by
+/// section (see `Palette`). The guides and the overlay's outline have a fixed weight (`GUIDE_WEIGHT`,
+/// `OVERLAY_WEIGHT`). The anatomy colour is the badges' and the guides'; the spacing colour is the measure rectangles'
+/// (outline and fill). On the light stage the measure values are Prussian blue and the badge has a Prussian ring; on
+/// the dark stage the values are the spacing colour and there is no ring.
 struct RedStyle {
     accent: String,
     ring: Option<&'static str>,
     guide: String,
-    /// The measure rectangles' fill; `None` (fill opacity 0) means no fill at all, not a fill with alpha 00.
+    /// The measure rectangles' fill: the spacing colour at `MEASURE_FILL_PERCENT`.
     overlay_fill: Option<String>,
     overlay_stroke: String,
     /// The colour of the measure values.
     value: String,
 }
 
-/// The stroke weight of a marker's guide: the same on every stage, with or without a line colour set on the page.
+/// The stroke weight of a marker's guide: the same on every stage.
 const GUIDE_WEIGHT: f64 = 1.5;
 /// The stroke weight of the outline of a measure rectangle: likewise the same everywhere.
 const OVERLAY_WEIGHT: f64 = 1.5;
 
-fn red_style(dark: bool, custom_line: bool, line: &str, fill: Option<&str>) -> RedStyle {
-    if dark || custom_line {
-        RedStyle {
-            accent: line.to_string(),
-            ring: None,
-            guide: line.to_string(),
-            overlay_fill: fill.map(str::to_string),
-            overlay_stroke: line.to_string(),
-            value: line.to_string(),
-        }
+/// The fixed colours of a stage: the anatomy's and the spacing's.
+struct Palette {
+    anatomy: &'static str,
+    spacing: &'static str,
+}
+
+fn palette(dark: bool) -> Palette {
+    if dark {
+        Palette { anatomy: theme::DARK_ANATOMY, spacing: theme::DARK_SPACING }
     } else {
-        RedStyle {
-            accent: line.to_string(),
-            ring: Some(theme::PRUSSIAN),
-            guide: line.to_string(),
-            overlay_fill: fill.map(str::to_string),
-            overlay_stroke: line.to_string(),
-            value: theme::PRUSSIAN.to_string(),
-        }
+        Palette { anatomy: theme::LIGHT_ANATOMY, spacing: theme::LIGHT_SPACING }
+    }
+}
+
+/// The number on a badge or marker whose circle is `accent`: white on the light stage's colours, dark on the dark stage's.
+fn on_accent(accent: &str) -> &'static str {
+    if accent == theme::LIGHT_ANATOMY || accent == theme::LIGHT_SPACING { theme::ON_LIGHT_ACCENT } else { theme::ON_REDLINE }
+}
+
+fn red_style(dark: bool) -> RedStyle {
+    let p = palette(dark);
+    RedStyle {
+        accent: p.anatomy.to_string(),
+        ring: if dark { None } else { Some(theme::PRUSSIAN) },
+        guide: p.anatomy.to_string(),
+        overlay_fill: Some(fill_colour(theme::MEASURE_FILL_PERCENT, p.spacing)),
+        overlay_stroke: p.spacing.to_string(),
+        value: if dark { p.spacing.to_string() } else { theme::PRUSSIAN.to_string() },
     }
 }
 
@@ -1478,7 +1479,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
         )?;
         let digits = m.number.to_string();
         let tw = CHAR_W * digits.chars().count() as f64;
-        text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - LABEL_H / 2.0 - origin.1, FONT, theme::ON_REDLINE, None, &name)?;
+        text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - LABEL_H / 2.0 - origin.1, FONT, on_accent(&red.accent), None, &name)?;
         ids.push(id_of(lang, &c, "shape.ellipse")?);
     }
     let info = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1]})).collect();
@@ -1868,9 +1869,6 @@ pub fn generate(input: Input) -> Result<Value> {
     // remembered, and a sheet an older version saved on the component is not read.
     let versao = meta_text(input.str("version"));
     let status = meta_text(input.str("status"));
-    let cor_linha = line_colour(page.settings.line.as_deref());
-    // Opacity 0 means no fill: no fill paint at all (the output's `fill` is then null).
-    let cor_fill = (page.settings.fill_percent() > 0).then(|| fill_colour(page.settings.fill_percent(), &cor_linha));
     let comp = &target.node;
     let name = target.title.clone();
     let size = bounds(comp).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
@@ -1943,7 +1941,6 @@ pub fn generate(input: Input) -> Result<Value> {
     let h0 = (size.h + STAGE_ROOM).max(MIN_STAGE_H);
     let sb0 = Rect { x: stage_x, y: STAGING_Y, w: stage_w, h: h0 };
     let mode = page.settings.stage_mode();
-    let custom_line = page.settings.line.is_some();
     let stage = make_stage(lang, sb0, mode == StageMode::Dark)?;
     let (instance, ib0) = place_instance(lang, component, stage, sb0, size)?;
     let walked = walk_layers(lang, instance)?;
@@ -1987,8 +1984,14 @@ pub fn generate(input: Input) -> Result<Value> {
         text(lang, head, n, 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerNote))?;
     }
     if let Some(w) = &warning {
-        warning_band(lang, head, inner, w, &cor_linha)?;
+        warning_band(lang, head, inner, w, theme::WARN_LINE)?;
     }
+
+    // The stage's colour: dark or light, by the setting or, in auto, by contrast. It is decided before the legend is
+    // drawn: the badges of the legend take the anatomy colour of the stage they belong to. The Spacing follows it.
+    let set_fill = if mode == StageMode::Auto { set_backdrop(lang, &target)? } else { None };
+    let (anatomy_dark, anatomy_ratio) = is_dark(mode, &nodes, set_fill);
+    let pal = palette(anatomy_dark);
 
     // 6. The anatomy section: a block for each layer, and the stage to its right.
     let (_, row) = section(lang, frame, inner, t(lang, Key::LayerAnatomySection), t(lang, Key::Anatomy))?;
@@ -1997,7 +2000,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let mut anatomy_blocks = blocks(&shown, |l| !is_spacing(l.property), true);
     let unnumbered = number_blocks(&mut anatomy_blocks, &drawn);
     for b in &anatomy_blocks {
-        draw_block(lang, legend, &walked, variant, b, &[], &cor_linha)?;
+        draw_block(lang, legend, &walked, variant, b, &[], pal.anatomy)?;
     }
     if let Some(note) = hidden_note(lang, hidden) {
         text(lang, legend, &note, 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
@@ -2025,14 +2028,11 @@ pub fn generate(input: Input) -> Result<Value> {
             b.insert("y".into(), json!(v + dy));
         }
     }
-    // The stage's colour: dark or light, by the setting or, in auto, by contrast. The stage was
-    // made for light and dark settings; auto may turn it dark now.
-    let set_fill = if mode == StageMode::Auto { set_backdrop(lang, &target)? } else { None };
-    let (anatomy_dark, anatomy_ratio) = is_dark(mode, &nodes, set_fill);
+    // The stage was made for light and dark settings; auto may turn it dark now.
     if mode == StageMode::Auto && anatomy_dark {
         host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": theme::PANEL, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}))?;
     }
-    let red = red_style(anatomy_dark, custom_line, &cor_linha, cor_fill.as_deref());
+    let red = red_style(anatomy_dark);
     let tree = Tree::new(&nodes, walked.iter().map(|(_, d)| *d).collect());
     let numbered: Vec<(usize, usize)> = anatomy_blocks.iter().filter_map(|b| b.badge.map(|n| b.nodes.iter().filter(|i| drawn.get(**i).copied().unwrap_or(false)).map(move |i| (n, *i)))).flatten().collect();
     let badges = draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
@@ -2052,7 +2052,7 @@ pub fn generate(input: Input) -> Result<Value> {
         let legend2 = legend_frame(lang, row2)?;
         for b in blocks(&shown, |l| is_spacing(l.property), false) {
             let extra = walked.get(b.node).map(|(n, _)| layout_lines(lang, n)).unwrap_or_default();
-            draw_block(lang, legend2, &walked, variant, &b, &extra, &cor_linha)?;
+            draw_block(lang, legend2, &walked, variant, &b, &extra, pal.spacing)?;
         }
         let legend2_h = height_of(lang, legend2)?;
         let h2 = h0.max(legend2_h.min(STAGE_MAX_LEGEND_H));
@@ -2102,7 +2102,7 @@ pub fn generate(input: Input) -> Result<Value> {
     Ok(json!({
         "name": name, "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
         "x": x, "y": y, "replaced": replaced, "rerun": rerun.name(), "top_level_layers": top_level, "id_source": id_source,
-        "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill, "fill_opacity": page.settings.fill_percent()}, "meta": {"version": versao, "status": status},
+        "settings": {"lang": lang.code(), "palette": {"anatomy": pal.anatomy, "spacing": pal.spacing}, "fill": red.overlay_fill}, "meta": {"version": versao, "status": status},
         "notes": notes, "lang": lang.code(), "selected": selected,
         "instance_size": {"w": ib.w, "h": ib.h}, "stage_size": {"w": stage_w, "h": h1}, "frame_size": {"w": frame_w}, "legend_height": legend_h,
         "audited_layers": audited,
@@ -2260,7 +2260,7 @@ mod tests {
     }
 
     #[test]
-    fn fill_colour_is_the_line_colour_at_the_chosen_opacity_with_an_absolute_alpha() {
+    fn fill_colour_is_the_colour_at_the_chosen_opacity_with_an_absolute_alpha() {
         assert_eq!(fill_colour(30, "#FF4D6D"), "#FF4D6D4D");
         assert_eq!(fill_colour(30, "#F0A"), "#FF00AA4D");
         // The line's own alpha does not count: the alpha is the chosen one, absolute.
@@ -2269,12 +2269,8 @@ mod tests {
         assert_eq!(fill_colour(0, "#3B5BDB"), "#3B5BDB00");
         assert_eq!(fill_colour(50, "#3B5BDB"), "#3B5BDB80");
         assert_eq!(fill_colour(1, "#3B5BDB"), "#3B5BDB03");
-        // 0 never reaches the stage as a colour: there is no fill at all.
-        let none = red_style(false, false, "#3B5BDB", None);
-        assert_eq!(none.overlay_fill, None);
-        assert_eq!(none.overlay_stroke, "#3B5BDB");
-        // Not a colour: the default line's.
-        assert_eq!(fill_colour(30, "nope"), "#FCA3114D");
+        // Not a colour: the light stage's spacing colour.
+        assert_eq!(fill_colour(30, "nope"), "#007D004D");
     }
 
     fn node(id: u64, x: f64, y: f64, w: f64, h: f64, children: &[u64]) -> Value {
@@ -2736,21 +2732,38 @@ mod tests {
     }
 
     #[test]
-    fn redlines_follow_the_stage_and_the_line_colour() {
-        // Light stage, default line colour: the line colour at full strength, 2 px, Prussian values and ring.
-        let light = red_style(false, false, "#FCA311", Some("#FCA3114D"));
-        assert_eq!((light.guide.as_str(), light.ring), ("#FCA311", Some("#14213D")));
-        assert_eq!((light.accent.as_str(), light.overlay_stroke.as_str(), light.value.as_str()), ("#FCA311", "#FCA311", "#14213D"));
-        assert_eq!(light.overlay_fill.as_deref(), Some("#FCA3114D"));
+    fn redlines_follow_the_stage_by_a_fixed_palette() {
+        // Light stage: anatomy in #C54600 (guides, badges), spacing in #007D00 (outline, fill at 30%), Prussian values and ring.
+        let light = red_style(false);
+        assert_eq!((light.guide.as_str(), light.accent.as_str(), light.ring), ("#C54600", "#C54600", Some("#14213D")));
+        assert_eq!((light.overlay_stroke.as_str(), light.value.as_str()), ("#007D00", "#14213D"));
+        assert_eq!(light.overlay_fill.as_deref(), Some("#007D004D"));
         assert_eq!((GUIDE_WEIGHT, OVERLAY_WEIGHT), (1.5, 1.5), "one weight for every guide, on any stage");
-        // Dark stage: the line colour everywhere, 1 px, no ring.
-        let dark = red_style(true, false, "#FCA311", Some("#FCA3114D"));
-        assert_eq!((dark.guide.as_str(), dark.ring, dark.value.as_str()), ("#FCA311", None, "#FCA311"));
-        // A line colour set in the settings counts on every stage.
-        let custom = red_style(false, true, "#3B82F6", Some("#3B82F64D"));
-        assert_eq!((custom.guide.as_str(), custom.ring, custom.overlay_stroke.as_str(), custom.value.as_str()), ("#3B82F6", None, "#3B82F6", "#3B82F6"));
+        // Dark stage: anatomy in #FCA311, spacing in #4ADE80 (the values too), no ring.
+        let dark = red_style(true);
+        assert_eq!((dark.guide.as_str(), dark.accent.as_str(), dark.ring), ("#FCA311", "#FCA311", None));
+        assert_eq!((dark.overlay_stroke.as_str(), dark.value.as_str(), dark.overlay_fill.as_deref()), ("#4ADE80", "#4ADE80", Some("#4ADE804D")));
+        // The number on a badge: white on the light colours, dark on the dark ones.
+        assert_eq!((on_accent("#C54600"), on_accent("#007D00"), on_accent("#FCA311"), on_accent("#4ADE80")), ("#FFFFFF", "#FFFFFF", "#232323", "#232323"));
+        // The plain stage colours are the old ones: #E5E5E5 and #14213D.
         assert_eq!(stage_fill(false), "#E5E5E5");
         assert_eq!(stage_fill(true), "#14213D");
+    }
+
+    #[test]
+    fn every_palette_colour_reads_on_its_stage_and_every_badge_number_on_its_colour() {
+        let c = |h: &str| contrast::parse_hex(h, 1.0).unwrap();
+        let (light, dark) = (c("#E5E5E5"), c("#14213D"));
+        // Graphical objects: 3:1 on the stage they are drawn on.
+        for (p, stage) in [(palette(false), light), (palette(true), dark)] {
+            for colour in [p.anatomy, p.spacing] {
+                assert!(contrast::ratio(c(colour), stage) >= 3.0, "{colour}: {}", contrast::ratio(c(colour), stage));
+            }
+        }
+        // A number of 14 px: 4.5:1 on the circle it is in.
+        for colour in [theme::LIGHT_ANATOMY, theme::LIGHT_SPACING, theme::DARK_ANATOMY, theme::DARK_SPACING] {
+            assert!(contrast::ratio(c(on_accent(colour)), c(colour)) >= 4.5, "{colour}");
+        }
     }
 
     #[test]

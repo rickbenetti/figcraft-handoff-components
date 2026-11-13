@@ -30,7 +30,6 @@
   "DirHorizontal": "Horizontal",
   "DirVertical": "Vertical",
   "Done": "Documentação gerada: {name}",
-  "ErrBadColour": "\"{value}\" não é uma cor hexadecimal como #FF4D6D",
   "ErrBadLang": "o idioma deve ser en ou pt-BR, não \"{value}\"",
   "ErrBadRerun": "ao gerar de novo deve ser replace ou new, não \"{value}\"",
   "ErrBadStage": "o palco deve ser light, dark ou auto, não \"{value}\"",
@@ -190,7 +189,6 @@
   "PanelLang": "Idioma",
   "PanelLangEn": "English",
   "PanelLangPt": "Português (Brasil)",
-  "PanelLineColour": "Cor da linha",
   "PanelStage": "Palco",
   "PanelStageLight": "Claro",
   "PanelStageDark": "Escuro",
@@ -200,7 +198,7 @@
   "PanelRerunNew": "Criar outra",
   "PanelVersion": "Versão",
   "PanelStatus": "Status",
-  "PanelRestored": "Cor da linha, opacidade, palco e \u201cao gerar de novo\u201d voltaram aos padr\u00f5es; o idioma foi mantido. As configura\u00e7\u00f5es restauradas ser\u00e3o gravadas na pr\u00f3xima documenta\u00e7\u00e3o gerada.",
+  "PanelRestored": "Palco e \u201cao gerar de novo\u201d voltaram aos padr\u00f5es; o idioma foi mantido. As configura\u00e7\u00f5es restauradas ser\u00e3o gravadas na pr\u00f3xima documenta\u00e7\u00e3o gerada.",
   "PanelTitleMessages": "MENSAGENS",
   "VersionStatusLine": "Versão: {version} · Status: {status}",
   "ToBeDefined": "a definir",
@@ -211,9 +209,5 @@
   "PanelNothingSelected": "Nada selecionado. Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação.",
   "PanelWrongKind": "A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação.",
   "PanelFreezeNote": "A tela fica travada enquanto a documentação é gerada.",
-  "PanelGenerate": "Gerar documentação",
-  "ErrBadOpacity": "a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não \"{value}\"",
-  "PanelFillOpacity": "Opacidade (0–100)",
-  "PanelFillHint": "Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.",
-  "PanelBadOpacity": "A opacidade deve ser um número inteiro de 0 a 100. Corrija e clique em Gerar documentação."
+  "PanelGenerate": "Gerar documentação"
 }

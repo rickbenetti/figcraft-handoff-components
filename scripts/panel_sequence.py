@@ -11,8 +11,8 @@ a field's event comes first, so the button already sees the new value. This scri
      selection is what it was, and the screen is at the start of the documentation.
   3. Nothing selected: refused with a note, nothing in the document.
   4. A selection that is not a component (the documentation itself): refused with a note, nothing new.
-  5. The line colour (and the fill opacity) typed, then the button: saved on the page on the first click; a fill opacity
-     that is not a whole number from 0 to 100 is refused with a note; the fill's alpha is absolute.
+  5. The stage typed, then the button: saved on the page on the first click; Restore defaults puts it back to automatic.
+     There is no line colour and no fill opacity control; the measures' fill is the spacing colour at 30%.
   6. A forced error (an instruction budget too small for the callback): everything is rolled back.
 
 `--states` prints the ordered controls (type and label) of the panel in each state, in pt-BR, as Markdown.
@@ -145,43 +145,29 @@ def main():
         refusal = [l for l in labels if l.startswith("✖")]
         check(out["refused"] and frames["result"]["total"] == 1 and any(l.startswith("✖ The selection is of type Frame") for l in labels), "a frame selected: refused with a ✖ note, nothing new made", refusal[0] if refusal else "")
 
-        # 5. A field, then the button: written on the first click.
-        r = run(copia, [select(32), generate(), event("line", "#112233"), event("generate"), generate(), ui()], tmp)
+        # 5. A field, then the button: written on the first click. (The line colour and the fill opacity are no longer
+        # settings: the colours are fixed by stage and by section.)
+        r = run(copia, [select(32), generate(), event("stage", "Dark"), event("generate"), generate(), ui()], tmp)
         reopened = r[5]["result"]["values"]
-        check(reopened.get("line") == "#112233", "line colour typed, then one click: saved on the page (a reopened panel shows it)", str(reopened.get("line")))
-        r = run(copia, [select(32), generate(), event("line", "#112233"), event("generate"), select(32), generate(), event("defaults"), event("generate"), generate(), ui()], tmp)
-        check(r[9]["result"]["values"].get("line") == "#FCA311", "Restore defaults, then the button: the page's settings are cleared", str(r[9]["result"]["values"].get("line")))
+        check(reopened.get("stage") == "Dark", "stage typed, then one click: saved on the page (a reopened panel shows it)", str(reopened.get("stage")))
+        check("line" not in reopened and "fill_opacity" not in reopened, "the panel has no line colour and no fill opacity control", str(sorted(reopened)))
+        r = run(copia, [select(32), generate(), event("stage", "Dark"), event("generate"), select(32), generate(), event("defaults"), event("generate"), generate(), ui()], tmp)
+        check(r[9]["result"]["values"].get("stage") == "Auto", "Restore defaults, then the button: the page's settings are cleared (the stage is automatic again)", str(r[9]["result"]["values"].get("stage")))
 
-        # 5b. Fill opacity: 50 typed, then one click: saved; 12.5 typed: refused with a note, nothing made.
-        r = run(copia, [select(32), generate(), event("fill_opacity", 50), event("generate"), generate(), ui()], tmp)
-        check(r[5]["result"]["values"].get("fill_opacity") == 50, "Fill opacity = 50 typed, then one click: saved on the page (a reopened panel shows 50)", str(r[5]["result"]["values"].get("fill_opacity")))
-        r = run(copia, [select(32), generate(), event("fill_opacity", 12.5), event("generate"), find("Documentation")], tmp)
-        labels = [l for _, l in controls(r[3])]
-        check(output(r[3])["refused"] and r[4]["result"]["total"] == 0 and any(l.startswith("✖ The fill must be a whole number from 0 to 100") for l in labels), "Fill opacity = 12.5: refused with a ✖ note, nothing made, the field kept")
+        # 5b. The measures' fill has one opacity (30%) in the spacing colour of the stage; the old parameters are ignored.
         r = run(copia, [select(32), generate(direct=True, fill_opacity=50, line="#11F2FC5B")], tmp)
-        check(output(r[1])["settings"]["fill"] == "#11F2FC80", "direct: fill_opacity 50 on a line with its own alpha gives the absolute alpha 80", output(r[1])["settings"]["fill"])
-        r = run(copia, [select(32), generate(direct=True, line="#11F2FC5B")], tmp)
-        check(output(r[1])["settings"]["fill"] == "#11F2FC4D", "direct: the default 30 on #11F2FC5B gives #11F2FC4D")
-        # 5b2. 0 makes no fill layer at all; 1, 30 and 100 give the absolute alpha 03, 4D and FF (direct mode and panel).
+        out = output(r[1])
+        check(out["settings"]["fill"] in ("#007D004D", "#4ADE804D") and set(out["settings"]["palette"]) == {"anatomy", "spacing"}, "direct: line and fill_opacity are ignored; the fill is the spacing colour at 30% (4D)", json.dumps(out["settings"]))
+
         def measure_fills(steps):
             rr = run(copia, steps + [{"command": "node.find", "params": {"name": "Measure", "limit": 200}}], tmp)
             ids = rr[-1]["result"]["ids"]
             gets = run(copia, steps + [{"command": "node.get", "params": {"id": i, "fields": ["fills"]}} for i in ids[:3]], tmp)
             return ids, [g["result"].get("fills") for g in gets[len(steps):]]
 
-        for pct, want in [(0, None), (1, "#11F2FC03"), (30, "#11F2FC4D"), (100, "#11F2FCFF")]:
-            rr = run(copia, [select(32), generate(direct=True, fill_opacity=pct, line="#11F2FC")], tmp)
-            check(output(rr[1])["settings"]["fill"] == want, f"direct: fill_opacity {pct} -> settings.fill {want}", str(output(rr[1])["settings"]["fill"]))
-            ids, fills = measure_fills([select(32), generate(direct=True, fill_opacity=pct, line="#11F2FC")])
-            if want is None:
-                check(bool(ids) and all(not f for f in fills), "fill_opacity 0: the measure rectangles have no fill layer", str(fills))
-            else:
-                check(bool(ids) and all(f and len(f) == 1 and str(f[0]).upper().find(want[1:7]) >= 0 for f in fills), f"fill_opacity {pct}: one fill layer on the measure rectangles", str(fills[:1]))
-        ids, fills = measure_fills([select(32), generate(), event("fill_opacity", 0), event("generate")])
-        check(bool(ids) and all(not f for f in fills), "panel: fill opacity 0 typed, then one click: no fill layer", str(fills))
-        err = run(copia, [select(32), generate(direct=True, fill_opacity="101")], tmp, expect_error=True)
-        check(err is not None and "0 to 100" in err.get("error", ""), "direct: fill_opacity 101 is refused with the dictionary's message", (err or {}).get("error", "")[:90])
-
+        for mode, want in (("light", "007D00"), ("dark", "4ADE80")):
+            ids, fills = measure_fills([select(32), generate(direct=True, stage=mode)])
+            check(bool(ids) and all(f and len(f) == 1 and str(f[0]).upper().find(want) >= 0 for f in fills), f"stage {mode}: the measure rectangles have one fill layer in the spacing colour {want}", str(fills[:1]))
         # 5b3. A synthetic component whose properties repeat their names (Title/Title, Message/Message, Show link/Show link,
         # with a text whose default is empty): the rows are numbered, in both languages, and a name that is alone is not.
         props = FIX + "/fixture-propriedades.figcraft"
@@ -214,18 +200,18 @@ def main():
             check(texts[0][-1] == "Icon/plus" and texts[1][-1] == nf, f"swap chips ({lang}): the default's name, and {nf} for an id that does not resolve", str(texts))
 
         # 5c. Restore defaults keeps the language (the panel must not turn English), and saves it with the next click.
-        r = run(copia, [select(32), generate(direct=True, lang="pt-BR", line="#112233"), select(32), generate(), event("defaults"), ui(), event("generate"), generate(), ui()], tmp)
+        r = run(copia, [select(32), generate(direct=True, lang="pt-BR", stage="dark"), select(32), generate(), event("defaults"), ui(), event("generate"), generate(), ui()], tmp)
         shown = r[5]["result"]
         labels = [l for _, l in controls(r[5])]
-        check(shown["values"].get("lang") == "Português (Brasil)" and shown["values"].get("line") == "#FCA311" and "Idioma" in labels, "Restore defaults keeps Portuguese and restores the rest", str(shown["values"].get("lang")))
-        check(any(l.startswith("Cor da linha, opacidade, palco e “ao gerar de novo” voltaram aos padrões") for l in labels), "the restore note is in Portuguese and says the language was kept")
+        check(shown["values"].get("lang") == "Português (Brasil)" and shown["values"].get("stage") == "Automático" and "Idioma" in labels, "Restore defaults keeps Portuguese and restores the rest", str(shown["values"].get("lang")))
+        check(any(l.startswith("Palco e “ao gerar de novo” voltaram aos padrões") for l in labels), "the restore note is in Portuguese and says the language was kept")
         check(r[8]["result"]["values"].get("lang") == "Português (Brasil)", "after the click the language is still Portuguese (the page keeps `lang`)")
 
         # 5d. The panel has the same controls and labels before and after a documentation and a refusal.
         r = run(copia, [select(32), generate(), event("generate"), select(), event("generate")], tmp)
         a, b, c = controls(r[1]), controls(r[2]), controls(r[4])
         strip = lambda ctl: ctl[:-2] + ctl[-1:]  # without the state note
-        check(len(a) == len(b) == len(c) == 20 and strip(a) == strip(b) == strip(c), "20 controls with the same labels when opened, after a documentation and after a refusal")
+        check(len(a) == len(b) == len(c) == 17 and strip(a) == strip(b) == strip(c), "17 controls with the same labels when opened, after a documentation and after a refusal")
 
         # 6. The order of the controls in the real panel, whatever is selected.
         for name, src, ids in [("no selection", copia, []), ("component", copia, [32]), ("variant", copia, [3])]:

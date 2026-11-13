@@ -12,8 +12,7 @@
 use crate::direct::write_data;
 use crate::gerar::{generate, host, kind_word};
 use crate::i18n::{Key, Lang, t, tf};
-use crate::store::{DEFAULT_FILL_OPACITY, Rerun, SETTINGS_KEY, Settings, StageMode, is_hex_colour};
-use crate::theme;
+use crate::store::{Rerun, SETTINGS_KEY, Settings, StageMode};
 use figcraft_plugin_sdk::{Input, Result, Value, close_ui, json, show_ui};
 use std::cell::RefCell;
 use std::collections::BTreeSet;
@@ -30,22 +29,18 @@ const MAX_NOTE: usize = 1000;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Field {
     Lang,
-    Line,
-    FillOpacity,
     Stage,
     Rerun,
 }
 
 impl Field {
     /// What "Restore defaults" restores: everything on the page but the language.
-    pub const RESTORABLE: [Field; 4] = [Field::Line, Field::FillOpacity, Field::Stage, Field::Rerun];
+    pub const RESTORABLE: [Field; 2] = [Field::Stage, Field::Rerun];
 
     /// The page setting a control edits, by the control's name.
     pub fn of_control(name: &str) -> Option<Field> {
         match name {
             "lang" => Some(Field::Lang),
-            "line" => Some(Field::Line),
-            "fill_opacity" => Some(Field::FillOpacity),
             "stage" => Some(Field::Stage),
             "on_rerun" => Some(Field::Rerun),
             _ => None,
@@ -57,36 +52,18 @@ impl Field {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Form {
     pub lang: Lang,
-    pub line: String,
-    /// The fill's opacity as the field holds it (percent). Only a whole number from 0 to 100 is valid; see [`Form::fill_valid`].
-    pub fill_pct: f64,
     pub stage: StageMode,
     pub rerun: Rerun,
     pub version: String,
     pub status: String,
 }
 
-/// `#RGB`, `#RRGGBB` or `#RRGGBBAA` (the `#` optional) as upper-case `#RRGGBB(AA)`; none when it isn't one.
-pub fn hex_norm(text: &str) -> Option<String> {
-    let t = text.trim();
-    let t = if t.starts_with('#') { t.to_string() } else { format!("#{t}") };
-    if !is_hex_colour(&t) {
-        return None;
-    }
-    let hex = t.trim_start_matches('#').to_uppercase();
-    let hex = if hex.len() == 3 { hex.chars().flat_map(|c| [c, c]).collect() } else { hex };
-    Some(format!("#{hex}"))
-}
-
 impl Form {
     /// The form of a page with nothing defined.
     pub fn defaults() -> Form {
-        let line = hex_norm(theme::REDLINE).unwrap_or_default();
         Form {
             lang: Lang::En,
-            line,
-            fill_pct: f64::from(DEFAULT_FILL_OPACITY),
-            stage: StageMode::Light,
+            stage: StageMode::Auto,
             rerun: Rerun::Replace,
             version: String::new(),
             status: String::new(),
@@ -97,10 +74,6 @@ impl Form {
     pub fn from_stored(s: &Settings) -> Form {
         let mut f = Form::defaults();
         f.lang = s.lang.as_deref().and_then(Lang::strict).unwrap_or_default();
-        if let Some(line) = s.line.as_deref().and_then(hex_norm) {
-            f.line = line;
-        }
-        f.fill_pct = f64::from(s.fill_percent());
         f.stage = s.stage_mode();
         f.rerun = s.rerun();
         f
@@ -113,15 +86,6 @@ impl Form {
         let text = |name: &str| values.get(name).and_then(Value::as_str);
         if let Some(l) = text("lang").and_then(parse_lang_label) {
             f.lang = l;
-        }
-        if let Some(c) = text("line").and_then(hex_norm) {
-            f.line = c;
-        }
-        match values.get("fill_opacity") {
-            Some(Value::Number(n)) => f.fill_pct = n.as_f64().unwrap_or(f64::NAN),
-            Some(Value::String(t)) => f.fill_pct = t.trim().parse().unwrap_or(f64::NAN),
-            Some(Value::Null) => f.fill_pct = f64::NAN,
-            _ => {}
         }
         if let Some(s) = text("stage").and_then(parse_stage_label) {
             f.stage = s;
@@ -138,17 +102,11 @@ impl Form {
         f
     }
 
-    /// The fill opacity as a whole number from 0 to 100, or none when the field holds anything else.
-    pub fn fill_valid(&self) -> Option<u8> {
-        let n = self.fill_pct;
-        (n.is_finite() && n.fract() == 0.0 && (0.0..=100.0).contains(&n)).then_some(n as u8)
-    }
-
     /// The page's part of the form back to "nothing defined", except the language: it stays, so the panel does
     /// not change language under the user's hands.
     pub fn restore_page_defaults(&self) -> Form {
         let d = Form::defaults();
-        Form { line: d.line.clone(), fill_pct: d.fill_pct, stage: d.stage, rerun: d.rerun, ..self.clone() }
+        Form { stage: d.stage, rerun: d.rerun, ..self.clone() }
     }
 
     /// The form after a documentation was made: nothing is remembered, so Version and Status are empty again.
@@ -226,23 +184,12 @@ fn choose<T: PartialEq>(stored: &Option<String>, eff: Option<T>, clear: bool, wa
 pub fn plan(stored: &Settings, form: &Form, cleared: &BTreeSet<Field>) -> Option<Settings> {
     let s = stored;
     let has = |f: Field| cleared.contains(&f);
-    let default_line = hex_norm(theme::REDLINE).unwrap_or_default();
-    let line_eff = s.line.as_deref().and_then(hex_norm);
     let new = Settings {
         lang: choose(&s.lang, s.lang.as_deref().and_then(Lang::strict), has(Field::Lang), form.lang, Lang::En, |l| l.code().to_string()),
-        line: choose(&s.line, line_eff, has(Field::Line), form.line.clone(), default_line, |c| c.clone()),
-        // Only a valid opacity is ever planned; the click refuses the others before it gets here.
-        fill_opacity: match form.fill_valid() {
-            _ if has(Field::FillOpacity) => None,
-            Some(want) if Some(want) == s.fill_opacity => s.fill_opacity,
-            Some(want) if s.fill_opacity.is_none() && want == DEFAULT_FILL_OPACITY => None,
-            Some(want) => Some(want),
-            None => s.fill_opacity,
-        },
         on_rerun: choose(&s.on_rerun, s.on_rerun.as_deref().and_then(Rerun::parse), has(Field::Rerun), form.rerun, Rerun::Replace, |r| r.name().to_string()),
-        stage: choose(&s.stage, s.stage.as_deref().and_then(StageMode::parse), has(Field::Stage), form.stage, StageMode::Light, |m| m.name().to_string()),
-        // A leftover key (a `tz` or a `fill` colour from 0.9.6 and before) is ignored, not deleted; "Restore
-        // defaults" (every setting but the language cleared) drops it too.
+        stage: choose(&s.stage, s.stage.as_deref().and_then(StageMode::parse), has(Field::Stage), form.stage, StageMode::Auto, |m| m.name().to_string()),
+        // A leftover key (a `tz`, a `fill` colour, a `line` colour or a `fill_opacity` from earlier versions) is
+        // ignored, not deleted; "Restore defaults" (every setting but the language cleared) drops it too.
         other: if Field::RESTORABLE.iter().all(|f| has(*f)) { serde_json::Map::new() } else { s.other.clone() },
     };
     (new != *s).then_some(new)
@@ -292,8 +239,6 @@ pub enum Message {
     NothingSelected,
     /// The selection is a layer of this kind (in the panel's language), not a component.
     WrongKind(String),
-    /// The fill opacity is not a whole number from 0 to 100.
-    BadOpacity,
     /// "Restore defaults" was pressed.
     Restored,
 }
@@ -305,7 +250,6 @@ pub fn message_text(lang: Lang, m: &Message) -> String {
         Message::Done(name) => marked(SYM_OK, &tf(lang, Key::PanelGenerated, &[("name", name)])),
         Message::NothingSelected => marked(SYM_ERR, t(lang, Key::PanelNothingSelected)),
         Message::WrongKind(kind) => marked(SYM_ERR, &tf(lang, Key::PanelWrongKind, &[("kind", kind)])),
-        Message::BadOpacity => marked(SYM_ERR, t(lang, Key::PanelBadOpacity)),
         Message::Restored => t(lang, Key::PanelRestored).to_string(),
     }
 }
@@ -330,11 +274,6 @@ pub fn spec(lang: Lang, form: &Form, message: &Message) -> Value {
     // a spacer (except at the top): the host has no section, divider or spacing of its own.
     c.push(note(t(lang, Key::PanelTitlePage)));
     c.push(json!({"type": "select", "name": "lang", "label": label(Key::PanelLang), "options": [lang_label(Lang::En), lang_label(Lang::Pt)], "value": lang_label(form.lang)}));
-    c.push(json!({"type": "color", "name": "line", "label": label(Key::PanelLineColour), "value": form.line}));
-    // The field holds a whole number from 0 to 100 (the host clamps what is typed; the plugin checks the rest).
-    let shown = if form.fill_pct.is_finite() { form.fill_pct } else { f64::from(DEFAULT_FILL_OPACITY) };
-    c.push(json!({"type": "number", "name": "fill_opacity", "label": label(Key::PanelFillOpacity), "min": 0, "max": 100, "value": shown}));
-    c.push(note(t(lang, Key::PanelFillHint)));
     let stage: Vec<&str> = [StageMode::Light, StageMode::Dark, StageMode::Auto].iter().map(|s| t(lang, stage_key(*s))).collect();
     c.push(json!({"type": "select", "name": "stage", "label": label(Key::PanelStage), "options": stage, "value": t(lang, stage_key(form.stage))}));
     let rerun: Vec<&str> = [Rerun::Replace, Rerun::New].iter().map(|r| t(lang, rerun_key(*r))).collect();
@@ -445,12 +384,12 @@ fn run_event(input: &Input, control: &str, state: &mut State) -> Result<Value> {
 }
 
 /// The click on "Generate documentation", all in this callback and in this order: look at the selection and
-/// refuse (a note, nothing changed) when it can't be documented or the fill opacity is not a whole number from 0 to 100; write the page's settings; make the
+/// refuse (a note, nothing changed) when it can't be documented; write the page's settings; make the
 /// documentation; take the screen to its start; give the selection back; redraw with Version and Status
 /// empty. An error from any step after the first look is returned as it is: the host puts everything back.
 fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64, form: Form) -> Result<Value> {
     let lang = form.lang;
-    // a) Look before writing anything: the selection, then the fill opacity.
+    // a) Look before writing anything: the selection.
     let refusal = match input.selection.first() {
         None => Some(Message::NothingSelected),
         Some(first) => {
@@ -459,7 +398,6 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
             wrong_kind(lang, kind).map(Message::WrongKind)
         }
     };
-    let refusal = refusal.or_else(|| form.fill_valid().is_none().then_some(Message::BadOpacity));
     if let Some(message) = refusal {
         draw(&form, &message)?;
         state.message = message.clone();
@@ -513,21 +451,20 @@ mod tests {
         BTreeSet::new()
     }
 
-    /// Every state the panel can be drawn in: the messages, both languages, a fill opacity of 0, 30 and 100.
+    /// Every state the panel can be drawn in: the messages, both languages, the three stages.
     fn every_state() -> Vec<(Form, Message)> {
         let mut out = Vec::new();
         for lang in [Lang::En, Lang::Pt] {
-            for pct in [0.0, 30.0, 100.0] {
+            for stage in [StageMode::Light, StageMode::Dark, StageMode::Auto] {
                 let mut form = Form::defaults();
                 form.lang = lang;
-                form.fill_pct = pct;
+                form.stage = stage;
                 for m in [
                     Message::Idle,
                     Message::Done("Botão".into()),
                     Message::Done("x".repeat(2000)),
                     Message::NothingSelected,
                     Message::WrongKind(kind_word(lang, "FRAME")),
-                    Message::BadOpacity,
                     Message::Restored,
                 ] {
                     out.push((form.clone(), m));
@@ -570,15 +507,11 @@ mod tests {
                 assert!(!name.is_empty() && name.len() <= 64 && name.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_')), "bad name {name}");
                 assert!(names.insert(name.to_string()), "two controls called {name}");
             }
-            match kind {
-                "select" => {
-                    let options: Vec<&str> = c["options"].as_array().unwrap().iter().map(|o| o.as_str().unwrap()).collect();
-                    assert!(options.len() <= 64 && !options.is_empty());
-                    assert!(options.iter().all(|o| o.chars().count() <= MAX_LABEL && !o.chars().any(char::is_control)));
-                    assert!(options.contains(&c["value"].as_str().unwrap()), "{} is not one of {options:?}", c["value"]);
-                }
-                "color" => assert!(is_hex_colour(c["value"].as_str().unwrap())),
-                _ => {}
+            if kind == "select" {
+                let options: Vec<&str> = c["options"].as_array().unwrap().iter().map(|o| o.as_str().unwrap()).collect();
+                assert!(options.len() <= 64 && !options.is_empty());
+                assert!(options.iter().all(|o| o.chars().count() <= MAX_LABEL && !o.chars().any(char::is_control)));
+                assert!(options.contains(&c["value"].as_str().unwrap()), "{} is not one of {options:?}", c["value"]);
             }
         }
     }
@@ -602,7 +535,7 @@ mod tests {
         assert_eq!(
             en,
             [
-                "note:THIS PAGE", "lang", "line", "fill_opacity", "note:Fill opacity, using the line colour. 0 = no\u{a0}fill.", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status",
+                "note:THIS PAGE", "lang", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status",
                 &format!("note:Left blank, the documentation shows “to{nb}be{nb}defined”."), "note:", "generate", "defaults", "close",
                 "note:", "note:MESSAGES", "note:Select a component, a component set or a variant and press Generate documentation.", "note:ℹ The screen freezes while the documentation is generated."
             ]
@@ -612,7 +545,7 @@ mod tests {
         assert_eq!(
             pt,
             [
-                "note:ESTA PÁGINA", "lang", "line", "fill_opacity", "note:Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.", "stage", "on_rerun", "note:", "note:DOCUMENTAÇÃO", "version", "status",
+                "note:ESTA PÁGINA", "lang", "stage", "on_rerun", "note:", "note:DOCUMENTAÇÃO", "version", "status",
                 &format!("note:Em branco, a documentação mostra “a{nb}definir”."), "note:", "generate", "defaults", "close",
                 "note:", "note:MENSAGENS", "note:✔ Documentação gerada: Botão de teste.", "note:ℹ A tela fica travada enquanto a documentação é gerada."
             ]
@@ -622,7 +555,7 @@ mod tests {
     #[test]
     fn the_panel_has_the_same_number_of_controls_in_every_state() {
         for (form, message) in every_state() {
-            assert_eq!(spec(form.lang, &form, &message)["controls"].as_array().unwrap().len(), 20);
+            assert_eq!(spec(form.lang, &form, &message)["controls"].as_array().unwrap().len(), 17);
         }
     }
 
@@ -700,21 +633,17 @@ mod tests {
         let mut per_lang: Vec<(Lang, Shape)> = Vec::new();
         for lang in [Lang::En, Lang::Pt] {
             let reference = shape(&spec(lang, &Form { lang, ..Form::defaults() }, &Message::Idle));
-            // Every message, a custom line colour, other opacities, stages and reruns, long names.
+            // Every message, stages and reruns, long names.
             let mut states: Vec<(Form, Message)> = every_state().into_iter().filter(|(f, _)| f.lang == lang).collect();
-            for form in [
-                Form { lang, line: "#112233".into(), fill_pct: 0.0, stage: StageMode::Dark, rerun: Rerun::New, version: "1.2".into(), status: "Aprovado".into() },
-                Form { lang, fill_pct: f64::NAN, ..Form::defaults() },
-                Form { lang, fill_pct: 12.5, ..Form::defaults() },
-            ] {
+            for form in [Form { lang, stage: StageMode::Dark, rerun: Rerun::New, version: "1.2".into(), status: "Aprovado".into() }, Form { lang, stage: StageMode::Light, ..Form::defaults() }] {
                 states.push((form.clone(), Message::Idle));
-                states.push((form, Message::BadOpacity));
+                states.push((form, Message::Restored));
             }
             assert!(states.len() >= 20);
             for (form, message) in states {
                 let sp = spec(lang, &form, &message);
                 assert_eq!(shape(&sp), reference, "{lang:?} {message:?} {form:?}");
-                assert_eq!(sp["controls"].as_array().unwrap().len(), 20);
+                assert_eq!(sp["controls"].as_array().unwrap().len(), 17);
             }
             per_lang.push((lang, reference));
         }
@@ -724,10 +653,7 @@ mod tests {
     }
 
     #[test]
-    fn the_english_fill_hint_keeps_no_and_fill_together_and_the_labels_are_plain_text() {
-        assert_eq!(t(Lang::En, Key::PanelFillHint), "Fill opacity, using the line colour. 0 = no\u{a0}fill.");
-        assert_eq!(t(Lang::Pt, Key::PanelFillHint), "Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento.");
-        assert_eq!((t(Lang::En, Key::PanelFillOpacity), t(Lang::Pt, Key::PanelFillOpacity)), ("Fill opacity (0–100)", "Opacidade (0–100)"));
+    fn the_labels_are_plain_text() {
         for lang in [Lang::En, Lang::Pt] {
             for c in spec(lang, &Form::defaults(), &Message::Idle)["controls"].as_array().unwrap() {
                 if c["type"] != "note" {
@@ -781,38 +707,15 @@ mod tests {
     }
 
     #[test]
-    fn the_fill_is_a_number_field_from_0_to_100_and_there_is_no_fill_colour() {
-        let sp = spec(Lang::Pt, &Form::defaults(), &Message::Idle);
-        let c = sp["controls"].as_array().unwrap().iter().find(|c| c["name"] == "fill_opacity").unwrap();
-        assert_eq!((c["type"].as_str(), c["label"].as_str(), c["min"].as_i64(), c["max"].as_i64(), c["value"].as_f64()), (Some("number"), Some("Opacidade (0–100)"), Some(0), Some(100), Some(30.0)));
-        let en = spec(Lang::En, &Form::defaults(), &Message::Idle);
-        assert!(en["controls"].as_array().unwrap().iter().any(|c| c["label"] == "Fill opacity (0–100)"));
-        for sp in [sp, en] {
+    fn there_is_no_colour_and_no_opacity_control_only_language_stage_rerun_version_and_status() {
+        // The redline colours are fixed by stage and by section, and the fill of the measures has one opacity.
+        for lang in [Lang::En, Lang::Pt] {
+            let sp = spec(lang, &Form::defaults(), &Message::Idle);
             let names: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter_map(|c| c["name"].as_str()).collect();
-            assert!(!names.contains(&"fill") && !names.contains(&"fill_auto"));
+            assert_eq!(names, ["lang", "stage", "on_rerun", "version", "status", "generate", "defaults", "close"]);
+            assert!(sp["controls"].as_array().unwrap().iter().all(|c| c["type"] != "color" && c["type"] != "number"));
         }
-    }
-
-    #[test]
-    fn only_a_whole_number_from_0_to_100_is_a_valid_fill() {
-        let with = |n: f64| Form { fill_pct: n, ..Form::defaults() }.fill_valid();
-        assert_eq!((with(0.0), with(30.0), with(100.0)), (Some(0), Some(30), Some(100)));
-        for bad in [-1.0, 100.5, 12.5, 101.0, f64::NAN, f64::INFINITY] {
-            assert_eq!(with(bad), None, "{bad}");
-        }
-        // What the host sends: a number, or text it coerced; null or a word is not a valid fill.
-        let base = Form::defaults();
-        for (v, want) in [(json!(45), Some(45)), (json!(45.0), Some(45)), (json!("45"), Some(45)), (json!(12.5), None), (json!(null), None), (json!("abc"), None)] {
-            assert_eq!(Form::from_values(&json!({"fill_opacity": v}), &base).fill_valid(), want, "{v}");
-        }
-        // Not sent at all: the form keeps its value.
-        assert_eq!(Form::from_values(&json!({}), &Form { fill_pct: 70.0, ..base }).fill_valid(), Some(70));
-    }
-
-    #[test]
-    fn an_invalid_opacity_is_shown_as_a_note_and_the_message_is_the_same_length_class() {
-        assert_eq!(message_text(Lang::Pt, &Message::BadOpacity), "✖ A opacidade deve ser um número inteiro de 0 a 100. Corrija e clique em Gerar documentação.");
-        assert_eq!(message_text(Lang::En, &Message::BadOpacity), "✖ The fill must be a whole number from 0 to 100. Correct it and press Generate documentation.");
+        assert_eq!(Form::defaults().stage, StageMode::Auto, "the stage is automatic unless the page says otherwise");
     }
 
     // ---- Version and Status start empty and come back empty ----------------------------------------
@@ -832,7 +735,6 @@ mod tests {
         let values = values_of(&spec(Lang::Pt, &after, &Message::Done("x".into())));
         assert_eq!(values["version"], "");
         assert_eq!(values["status"], "");
-        assert_eq!(values["line"], "#112233");
     }
 
     // ---- the selection and the view ----------------------------------------------------------------
@@ -869,8 +771,6 @@ mod tests {
     fn busy_form() -> Form {
         Form {
             lang: Lang::Pt,
-            line: "#3B82F6".into(),
-            fill_pct: 45.0,
             stage: StageMode::Dark,
             rerun: Rerun::New,
             version: "1.2.0 beta".into(),
@@ -931,7 +831,7 @@ mod tests {
         assert_eq!(plan(&s, &form, &none()), None);
         // The form shows the defaults: choosing them by hand changes nothing either.
         let mut by_hand = Form::defaults();
-        by_hand.line = "#FCA311".into();
+        by_hand.stage = StageMode::Auto;
         by_hand.lang = Lang::En;
         assert_eq!(plan(&s, &by_hand, &none()), None);
         // Version and Status are never stored.
@@ -944,7 +844,7 @@ mod tests {
         let s = st(r##"{"lang":"pt","line":"#3b82f6","fill_opacity":45,"on_rerun":"new","stage":"dark","tz":"+9","fill":"#3B82F633"}"##);
         let form = Form::from_stored(&s);
         assert_eq!(form.lang, Lang::Pt);
-        assert_eq!(plan(&s, &form, &none()), None, "pt, lower-case hex and +9 are left as they are");
+        assert_eq!(plan(&s, &form, &none()), None, "pt and +9 are left as they are, and so are the line colour and the opacity the page still holds");
         let mut changed = form.clone();
         changed.stage = StageMode::Auto;
         let p = plan(&s, &changed, &none()).unwrap();
@@ -956,10 +856,9 @@ mod tests {
         let s = Settings::default();
         let mut f = Form::from_stored(&s);
         f.lang = Lang::Pt;
-        f.line = "#112233".into();
         f.stage = StageMode::Dark;
         f.rerun = Rerun::New;
-        assert_eq!(plan(&s, &f, &none()).unwrap().to_text().unwrap(), r##"{"lang":"pt-BR","line":"#112233","on_rerun":"new","stage":"dark"}"##);
+        assert_eq!(plan(&s, &f, &none()).unwrap().to_text().unwrap(), r##"{"lang":"pt-BR","on_rerun":"new","stage":"dark"}"##);
     }
 
     #[test]
@@ -967,7 +866,7 @@ mod tests {
         let full = st(r##"{"lang":"pt-BR","line":"#112233","fill_opacity":45,"fill":"#11223344","on_rerun":"new","stage":"dark","tz":"5.5"}"##);
         let form = Form::from_stored(&full).restore_page_defaults();
         assert_eq!(form.lang, Lang::Pt, "the language stays, or the panel would turn English under the user");
-        assert_eq!((form.fill_valid(), form.stage, form.rerun, form.line.as_str()), (Some(30), StageMode::Light, Rerun::Replace, "#FCA311"));
+        assert_eq!((form.stage, form.rerun), (StageMode::Auto, Rerun::Replace));
         let cleared: BTreeSet<Field> = Field::RESTORABLE.into_iter().collect();
         let p = plan(&full, &form, &cleared).unwrap();
         assert_eq!(p.to_text().as_deref(), Some(r##"{"lang":"pt-BR"}"##), "only the language is left: old keys (tz, the old fill colour) are dropped");
@@ -977,7 +876,7 @@ mod tests {
         // Nothing stored but a language: nothing to do.
         let only_lang = st(r##"{"lang":"pt-BR"}"##);
         assert_eq!(plan(&only_lang, &Form::from_stored(&only_lang), &cleared), None);
-        let explicit = st(r##"{"line":"#FCA311","tz":"-3"}"##);
+        let explicit = st(r##"{"line":"#FCA311","tz":"-3"}"##); // a leftover line colour is ignored like the time zone
         let f2 = Form::from_stored(&explicit);
         assert_eq!(plan(&explicit, &f2, &none()), None, "unmarked: untouched");
         assert_eq!(plan(&explicit, &f2.restore_page_defaults(), &cleared).unwrap().to_text(), None);
@@ -986,40 +885,23 @@ mod tests {
     }
 
     #[test]
-    fn the_fill_opacity_is_written_only_when_it_changes_and_the_default_stays_absent() {
-        let none_stored = st(r##"{"line":"#112233"}"##);
-        let mut f = Form::from_stored(&none_stored);
-        assert_eq!(f.fill_valid(), Some(30));
-        assert_eq!(plan(&none_stored, &f, &none()), None, "the default 30 on a page with nothing stored writes nothing");
-        f.fill_pct = 50.0;
-        assert_eq!(plan(&none_stored, &f, &none()).unwrap().to_text().unwrap(), r##"{"fill_opacity":50,"line":"#112233"}"##);
-        f.fill_pct = 0.0;
-        assert_eq!(plan(&none_stored, &f, &none()).unwrap().to_text().unwrap(), r##"{"fill_opacity":0,"line":"#112233"}"##, "0 is a value, not 'nothing'");
-        // 30 typed by hand where 45 is stored is a change; the same value as stored is not.
-        let stored = st(r##"{"fill_opacity":45}"##);
-        let mut g = Form::from_stored(&stored);
-        assert_eq!(plan(&stored, &g, &none()), None);
-        g.fill_pct = 30.0;
-        assert_eq!(plan(&stored, &g, &none()).unwrap().to_text().unwrap(), r##"{"fill_opacity":30}"##);
-        // An old fill colour is ignored: the form shows 30 and the colour stays in the file.
-        let old = st(r##"{"fill":"#3B82F633","line":"#112233"}"##);
-        let h = Form::from_stored(&old);
-        assert_eq!(h.fill_valid(), Some(30));
-        assert_eq!(plan(&old, &h, &none()), None);
-        let mut h2 = h.clone();
-        h2.stage = StageMode::Dark;
-        assert!(plan(&old, &h2, &none()).unwrap().to_text().unwrap().contains(r##""fill":"#3B82F633""##));
-        // An invalid field plans no change to the opacity (the click refuses it before).
-        let bad = Form { fill_pct: 12.5, ..Form::from_stored(&stored) };
-        assert_eq!(plan(&stored, &bad, &none()), None);
+    fn a_line_colour_and_an_opacity_stored_by_earlier_versions_are_ignored_and_kept() {
+        // They are no longer settings: the form shows nothing of them, a click that changes the stage writes them back as they were.
+        let old = st(r##"{"fill":"#3B82F633","line":"#112233","fill_opacity":45}"##);
+        let form = Form::from_stored(&old);
+        assert_eq!((form.stage, form.rerun), (StageMode::Auto, Rerun::Replace));
+        assert_eq!(plan(&old, &form, &none()), None);
+        let mut dark = form.clone();
+        dark.stage = StageMode::Dark;
+        let text = plan(&old, &dark, &none()).unwrap().to_text().unwrap();
+        assert_eq!(text, r##"{"fill":"#3B82F633","fill_opacity":45,"line":"#112233","stage":"dark"}"##);
     }
 
     #[test]
     fn a_stored_value_that_cannot_be_read_is_left_alone_unless_restored() {
         let junk = st(r##"{"line":"red","fill_opacity":150,"stage":"loud","tz":"99"}"##);
         let form = Form::from_stored(&junk);
-        assert_eq!(form.line, "#FCA311");
-        assert_eq!(form.fill_valid(), Some(30), "an opacity over 100 reads as the default");
+        assert_eq!(form.stage, StageMode::Auto, "a stage that cannot be read is the default");
         assert_eq!(plan(&junk, &form, &none()), None);
         let cleared: BTreeSet<Field> = Field::RESTORABLE.into_iter().collect();
         assert_eq!(plan(&junk, &form, &cleared).unwrap().to_text(), None);
@@ -1027,8 +909,9 @@ mod tests {
 
     #[test]
     fn an_edit_takes_back_the_restore_mark_of_its_own_field_only() {
-        assert_eq!(Field::of_control("fill_opacity"), Some(Field::FillOpacity));
-        assert_eq!(Field::of_control("fill"), None);
+        assert_eq!(Field::of_control("stage"), Some(Field::Stage));
+        assert_eq!(Field::of_control("line"), None);
+        assert_eq!(Field::of_control("fill_opacity"), None);
         assert_eq!(Field::of_control("on_rerun"), Some(Field::Rerun));
         assert_eq!(Field::of_control("version"), None);
         assert_eq!(Field::of_control("generate"), None);
@@ -1037,10 +920,7 @@ mod tests {
     // ---- small helpers --------------------------------------------------------------------
 
     #[test]
-    fn hex_and_text_helpers() {
-        for (typed, want) in [("#abc", Some("#AABBCC")), ("fca311", Some("#FCA311")), (" #fca31180 ", Some("#FCA31180")), ("red", None), ("#12", None), ("", None)] {
-            assert_eq!(hex_norm(typed).as_deref(), want, "{typed:?}");
-        }
+    fn text_helpers() {
         assert_eq!(safe_text("  a\nb\tc  ", 80), "a b c");
         assert_eq!(safe_text(&"x".repeat(100), 10), format!("{}…", "x".repeat(9)));
         assert_eq!(safe_text("short", 10), "short");

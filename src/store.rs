@@ -47,31 +47,25 @@ impl Rerun {
     }
 }
 
-/// The fill's opacity when nothing is stored, in percent.
-pub const DEFAULT_FILL_OPACITY: u8 = 30;
-
-/// The page's settings; a field that is `None` takes its default.
+/// The page's settings; a field that is `None` takes its default. A `line` colour or a `fill_opacity` stored by earlier
+/// versions is no longer a setting: it is kept in `other`, ignored, and written back as it was.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Settings {
     pub lang: Option<String>,
-    pub line: Option<String>,
-    /// How opaque the fill is, in percent (0 = no fill): the fill is always the line colour at this opacity.
-    pub fill_opacity: Option<u8>,
     pub on_rerun: Option<String>,
     /// `light`, `dark` or `auto`.
     pub stage: Option<String>,
-    /// The keys of the stored object that this version doesn't know (a `tz`, or a `fill` colour, from 0.9.6 and
-    /// before; a `fill_opacity` that is not a whole number from 0 to 100):
-    /// ignored when reading, written back when the settings are saved.
+    /// The keys of the stored object that this version doesn't know (a `tz`, a `fill` colour, a `line` colour or a
+    /// `fill_opacity` from earlier versions): ignored when reading, written back when the settings are saved.
     pub other: serde_json::Map<String, Value>,
 }
 
-/// The stage behind the instances: light (the default), dark, or chosen row by row from contrast.
+/// The stage behind the instances: light, dark, or chosen row by row from contrast (the default).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum StageMode {
-    #[default]
     Light,
     Dark,
+    #[default]
     Auto,
 }
 
@@ -119,27 +113,17 @@ impl Settings {
     /// The settings in a node's `pluginData` (the `pluginData` object of `node.get`).
     pub fn from_plugin_data(plugin_data: &Value) -> Settings {
         let o = stored(plugin_data, SETTINGS_KEY);
-        let fill_opacity = o.get("fill_opacity").and_then(Value::as_u64).filter(|n| *n <= 100).and_then(|n| u8::try_from(n).ok());
-        // A `fill_opacity` that can't be read stays in `other`, untouched, like any other key this version doesn't know.
-        let known = |k: &str| matches!(k, "lang" | "line" | "on_rerun" | "stage") || (k == "fill_opacity" && fill_opacity.is_some());
+        // Any key this version doesn't know (a `tz`, a `line` colour, a `fill_opacity`) stays in `other`, untouched.
+        let known = |k: &str| matches!(k, "lang" | "on_rerun" | "stage");
         let other = o.as_object().map(|m| m.iter().filter(|(k, _)| !known(k)).map(|(k, v)| (k.clone(), v.clone())).collect()).unwrap_or_default();
-        Settings { lang: text_of(&o, "lang"), line: text_of(&o, "line"), fill_opacity, on_rerun: text_of(&o, "on_rerun"), stage: text_of(&o, "stage"), other }
+        Settings { lang: text_of(&o, "lang"), on_rerun: text_of(&o, "on_rerun"), stage: text_of(&o, "stage"), other }
     }
 
     pub fn to_text(&self) -> Option<String> {
-        let mut other = self.other.clone();
-        if let Some(n) = self.fill_opacity {
-            other.insert("fill_opacity".to_string(), Value::from(n));
-        }
-        to_text(&[("lang", &self.lang), ("line", &self.line), ("on_rerun", &self.on_rerun), ("stage", &self.stage)], &other)
+        to_text(&[("lang", &self.lang), ("on_rerun", &self.on_rerun), ("stage", &self.stage)], &self.other)
     }
 
-    /// The fill's opacity in percent: the stored one, or 30.
-    pub fn fill_percent(&self) -> u8 {
-        self.fill_opacity.unwrap_or(DEFAULT_FILL_OPACITY)
-    }
-
-    /// The stage mode: the stored one, or light.
+    /// The stage mode: the stored one, or auto.
     pub fn stage_mode(&self) -> StageMode {
         self.stage.as_deref().and_then(StageMode::parse).unwrap_or_default()
     }
@@ -150,20 +134,6 @@ impl Settings {
     }
 }
 
-/// A form field's effect on a stored value: empty keeps it, "-" clears it, anything else replaces it.
-pub fn update(current: &Option<String>, field: &str) -> Option<String> {
-    match field.trim() {
-        "" => current.clone(),
-        "-" => None,
-        v => Some(v.to_string()),
-    }
-}
-
-/// Whether `text` is a hex colour: `#RGB`, `#RRGGBB` or `#RRGGBBAA`.
-pub fn is_hex_colour(text: &str) -> bool {
-    text.strip_prefix('#').is_some_and(|h| matches!(h.len(), 3 | 6 | 8) && h.chars().all(|c| c.is_ascii_hexdigit()))
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -172,9 +142,9 @@ mod tests {
 
     #[test]
     fn settings_round_trip_through_plugin_data() {
-        let s = Settings { lang: Some("pt".into()), line: Some("#3B82F6".into()), fill_opacity: Some(45), on_rerun: Some("new".into()), stage: None, other: serde_json::Map::new() };
+        let s = Settings { lang: Some("pt".into()), on_rerun: Some("new".into()), stage: Some("dark".into()), other: serde_json::Map::new() };
         let text = s.to_text().unwrap();
-        assert_eq!(text, r##"{"fill_opacity":45,"lang":"pt","line":"#3B82F6","on_rerun":"new"}"##);
+        assert_eq!(text, r##"{"lang":"pt","on_rerun":"new","stage":"dark"}"##);
         let back = Settings::from_plugin_data(&json!({SETTINGS_KEY: text}));
         assert_eq!(back, s);
         assert_eq!(back.rerun(), Rerun::New);
@@ -190,14 +160,15 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_opacity_is_kept_as_it_was_and_the_default_is_used() {
-        for bad in [r#"{"fill_opacity":150}"#, r#"{"fill_opacity":"30"}"#, r#"{"fill_opacity":-1}"#, r#"{"fill_opacity":12.5}"#] {
-            let s = Settings::from_plugin_data(&json!({SETTINGS_KEY: bad}));
-            assert_eq!((s.fill_opacity, s.fill_percent()), (None, 30), "{bad}");
-            assert_eq!(s.to_text().as_deref(), Some(bad), "{bad}");
+    fn a_stored_line_colour_or_opacity_is_ignored_but_kept() {
+        // Settings of earlier versions: the line colour and the fill opacity are no longer settings; they stay as they were.
+        for stored in [r##"{"line":"#3B82F6"}"##, r#"{"fill_opacity":45}"#, r#"{"fill_opacity":150}"#, r##"{"lang":"pt-BR","line":"#112233","fill_opacity":0,"stage":"dark"}"##] {
+            let s = Settings::from_plugin_data(&json!({SETTINGS_KEY: stored}));
+            assert!(s.other.contains_key("line") || s.other.contains_key("fill_opacity"), "{stored}");
+            let back: Value = serde_json::from_str(&s.to_text().unwrap()).unwrap();
+            let want: Value = serde_json::from_str(stored).unwrap();
+            assert_eq!(back, want, "{stored}");
         }
-        let ok = Settings::from_plugin_data(&json!({SETTINGS_KEY: r#"{"fill_opacity":0}"#}));
-        assert_eq!((ok.fill_opacity, ok.fill_percent()), (Some(0), 0));
     }
 
     #[test]
@@ -211,28 +182,12 @@ mod tests {
     }
 
     #[test]
-    fn a_field_keeps_clears_or_replaces() {
-        let cur = Some("1.0".to_string());
-        assert_eq!(update(&cur, ""), cur);
-        assert_eq!(update(&cur, "   "), cur);
-        assert_eq!(update(&cur, "-"), None);
-        assert_eq!(update(&cur, " 2.0 "), Some("2.0".to_string()));
-        assert_eq!(update(&None, ""), None);
-    }
-
-    #[test]
-    fn colours_and_modes() {
-        for ok in ["#FFF", "#FF4D6D", "#FF4D6D33"] {
-            assert!(is_hex_colour(ok), "{ok}");
-        }
-        for bad in ["FF4D6D", "#FF4D", "#GG4D6D", "", "red"] {
-            assert!(!is_hex_colour(bad), "{bad}");
-        }
+    fn rerun_and_stage_modes() {
         assert_eq!(Rerun::parse(" Replace "), Some(Rerun::Replace));
         assert_eq!(Rerun::parse("NEW"), Some(Rerun::New));
         assert_eq!(StageMode::parse(" Auto "), Some(StageMode::Auto));
         assert_eq!(StageMode::parse("both"), None);
-        assert_eq!(Settings::default().stage_mode(), StageMode::Light);
+        assert_eq!(Settings::default().stage_mode(), StageMode::Auto);
         assert_eq!(Rerun::parse("both"), None);
     }
 }

@@ -37,7 +37,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | DirHorizontal | Horizontal | Horizontal |
 | DirVertical | Vertical | Vertical |
 | Done | Documentation generated: {name} | Documentação gerada: {name} |
-| ErrBadColour | "{value}" is not a hex colour like #FF4D6D | "{value}" não é uma cor hexadecimal como #FF4D6D |
 | ErrBadLang | language must be en or pt-BR, not "{value}" | o idioma deve ser en ou pt-BR, não "{value}" |
 | ErrBadRerun | on rerun must be replace or new, not "{value}" | ao gerar de novo deve ser replace ou new, não "{value}" |
 | ErrBadStage | stage must be light, dark or auto, not "{value}" | o palco deve ser light, dark ou auto, não "{value}" |
@@ -197,7 +196,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelLang | Language | Idioma |
 | PanelLangEn | English | English |
 | PanelLangPt | Português (Brasil) | Português (Brasil) |
-| PanelLineColour | Line colour | Cor da linha |
 | PanelStage | Stage | Palco |
 | PanelStageLight | Light | Claro |
 | PanelStageDark | Dark | Escuro |
@@ -207,7 +205,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelRerunNew | New | Criar outra |
 | PanelVersion | Version | Versão |
 | PanelStatus | Status | Status |
-| PanelRestored | Line colour, fill, stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Cor da linha, opacidade, palco e “ao gerar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
+| PanelRestored | Stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Palco e “ao gerar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
 | PanelTitleMessages | MESSAGES | MENSAGENS |
 | VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
 | ToBeDefined | to be defined | a definir |
@@ -219,7 +217,3 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação. |
 | PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
 | PanelGenerate | Generate documentation | Gerar documentação |
-| ErrBadOpacity | fill opacity must be a whole number from 0 to 100, not "{value}" | a opacidade do preenchimento deve ser um número inteiro de 0 a 100, não "{value}" |
-| PanelFillOpacity | Fill opacity (0–100) | Opacidade (0–100) |
-| PanelFillHint | Fill opacity, using the line colour. 0 = no fill. | Opacidade do preenchimento, na cor da linha. 0 = sem preenchimento. |
-| PanelBadOpacity | The fill must be a whole number from 0 to 100. Correct it and press Generate documentation. | A opacidade deve ser um número inteiro de 0 a 100. Corrija e clique em Gerar documentação. |
