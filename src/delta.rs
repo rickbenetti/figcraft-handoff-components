@@ -192,11 +192,18 @@ pub fn entries(lang: Lang, node: &Value, root: bool, vars: &Vars, styles: &Style
     if !matches!(kind, "TEXT" | "VECTOR" | "BOOLEAN_OPERATION" | "LINE" | "STAR" | "POLYGON")
         && let Some(b) = node.get("absoluteBounds")
     {
-        // The component's own size always counts; a layer inside counts when it sets that size itself.
+        // A layer inside counts when it sets that size itself (it is fixed). The component's own size is its number when it is
+        // fixed (or the host says nothing), and its mode when it hugs or fills: a hugging size follows from the padding and the
+        // content, which have lines of their own, so two variants that both hug (or both fill) have no difference in it; a
+        // variant that changes the mode says so ("Width: Hug → Fixed 320"; see `change_text`).
         for (label, key, axis) in [(Label::Width, "width", "horizontal"), (Label::Height, "height", "vertical")] {
             if let Some(v) = float(b, key) {
-                let fixed = node.get("sizing").and_then(|s| s.get(axis)).and_then(Value::as_str) == Some("fixed");
-                out.push(Entry { minor: true, derived: !root && !fixed, ..Entry::new(label, None, number(v), vec![v]) });
+                let mode = node.get("sizing").and_then(|s| s.get(axis)).and_then(Value::as_str);
+                let fixed = mode == Some("fixed");
+                match mode {
+                    Some(m @ ("hug" | "fill")) if root => out.push(Entry { minor: true, ..Entry::new(label, None, m.to_string(), Vec::new()) }),
+                    _ => out.push(Entry { minor: true, derived: !root && !fixed, ..Entry::new(label, None, number(v), vec![v]) }),
+                }
             }
         }
     }
@@ -213,7 +220,8 @@ pub fn entries(lang: Lang, node: &Value, root: bool, vars: &Vars, styles: &Style
         let value = if shown.is_empty() { "none".to_string() } else { shown.iter().map(|e| describe_effect(lang, e)).collect::<Vec<_>>().join("; ") };
         out.push(Entry::new(Label::Effects, token, value, vec![]));
     }
-    for (label, key) in [(Label::HSizing, "horizontal"), (Label::VSizing, "vertical")] {
+    // The component's own mode is in its width and height (above); a layer inside has a line for its mode.
+    for (label, key) in [(Label::HSizing, "horizontal"), (Label::VSizing, "vertical")].into_iter().filter(|_| !root) {
         if let Some(s) = node.get("sizing").and_then(|s| s.get(key)).and_then(Value::as_str) {
             out.push(Entry { minor: true, ..Entry::new(label, None, s.to_string(), vec![]) });
         }
@@ -460,6 +468,7 @@ impl Listing {
 fn show_value(value: &str, label: Label, lang: Lang) -> String {
     match label {
         Label::HSizing | Label::VSizing => sizing_word(lang, value),
+        Label::Width | Label::Height if matches!(value, "hug" | "fill") => sizing_word(lang, value),
         Label::Prop(Prop::Fill | Prop::Stroke) | Label::Effects if value == "none" => t(lang, Key::ValueNone).to_string(),
         _ => value.to_string(),
     }
@@ -543,6 +552,12 @@ fn plain_whitespace(text: &str) -> String {
 
 /// "Label: from → to", each side with its value in parentheses after the name of its token (see [`show_side`]).
 fn change_text(lang: Lang, label: Label, from: &Side, to: &Side) -> String {
+    // A component's width or height that changes mode: the mode before and after, with the number of the fixed one.
+    let mode = |s: &Side| matches!(s.value.as_str(), "hug" | "fill");
+    if matches!(label, Label::Width | Label::Height) && mode(from) != mode(to) {
+        let said = |s: &Side| if mode(s) { sizing_word(lang, &s.value) } else { format!("{} {}", sizing_word(lang, "fixed"), s.value) };
+        return format!("{}{LABEL_SEP}{} → {}", t(lang, label.key()), said(from), said(to));
+    }
     let (a, b) = if label == Label::Content {
         // The two texts differ, but only in how they are spaced: say so rather than show two texts that look the same.
         if plain_whitespace(&from.value) == plain_whitespace(&to.value) {
@@ -1291,5 +1306,65 @@ mod tests {
         assert!(diff_of(&a, &b).changes.is_empty());
         let (a, b) = (vec![root.clone(), node(100.0, "fixed")], vec![root, node(140.0, "fixed")]);
         assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Box", "Width: 100 → 140"]);
+    }
+
+    /// A component root `w` × `h` with the given sizing modes (`None`: the host says nothing about sizing).
+    fn sized(w: f64, h: f64, sizing: Option<(&str, &str)>) -> Vec<(Value, usize)> {
+        let mut n = json!({"name": "Box", "type": "COMPONENT", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": w, "height": h}});
+        if let (Some((sh, sv)), Some(o)) = (sizing, n.as_object_mut()) {
+            o.insert("sizing".into(), json!({"horizontal": sh, "vertical": sv}));
+        }
+        vec![(n, 0)]
+    }
+
+    #[test]
+    fn a_hugging_or_filling_component_has_no_size_difference() {
+        // Both hug: the size follows from the padding and the content, which have lines of their own.
+        assert!(diff_of(&sized(100.0, 36.0, Some(("hug", "hug"))), &sized(123.0, 48.0, Some(("hug", "hug")))).changes.is_empty());
+        // Both fill: the same.
+        assert!(diff_of(&sized(100.0, 36.0, Some(("fill", "fill"))), &sized(140.0, 50.0, Some(("fill", "fill")))).changes.is_empty());
+        // Only the axis that is fixed counts: a fixed width and a hugging height (the Card).
+        let (a, b) = (sized(384.0, 422.0, Some(("fixed", "hug"))), sized(320.0, 238.0, Some(("fixed", "hug"))));
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["Width: 384 → 320"]);
+    }
+
+    #[test]
+    fn a_fixed_component_keeps_its_numbers() {
+        let (a, b) = (sized(100.0, 40.0, Some(("fixed", "fixed"))), sized(120.0, 48.0, Some(("fixed", "fixed"))));
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["Width: 100 → 120", "Height: 40 → 48"]);
+    }
+
+    #[test]
+    fn a_change_of_mode_says_the_modes_with_the_fixed_number() {
+        let hug = sized(100.0, 36.0, Some(("hug", "hug")));
+        let fixed = sized(320.0, 36.0, Some(("fixed", "hug")));
+        assert_eq!(texts(&diff_of(&hug, &fixed)), vec!["Width: Hug → Fixed 320"]);
+        assert_eq!(texts(&diff_of(&fixed, &hug)), vec!["Width: Fixed 320 → Hug"]);
+        // The height too, and Fill is a mode like Hug; no separate "resizing" line says the same again.
+        let (a, b) = (sized(100.0, 36.0, Some(("fill", "hug"))), sized(100.0, 90.0, Some(("fill", "fixed"))));
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["Height: Hug → Fixed 90"]);
+        let (a, b) = (sized(100.0, 36.0, Some(("hug", "hug"))), sized(100.0, 36.0, Some(("fill", "hug"))));
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["Width: Hug → Fill"]);
+        // In Portuguese, with the words the file already uses for the modes.
+        let d = diff_of(&hug, &fixed);
+        assert_eq!(list(Lang::Pt, &d).texts(Lang::Pt), vec!["Largura: Ajustar ao conteúdo → Fixo 320"]);
+    }
+
+    #[test]
+    fn a_component_with_no_sizing_in_the_data_counts_as_fixed() {
+        // The host gives no sizing for some components (an icon): its size is a number, as it always was.
+        assert_eq!(texts(&diff_of(&sized(16.0, 16.0, None), &sized(24.0, 24.0, None))), vec!["Width: 16 → 24", "Height: 16 → 24"]);
+        // The default has none and the variant says hug: the number of the one is not compared with the mode of the other
+        // as a number: it is a change of mode.
+        assert_eq!(texts(&diff_of(&sized(100.0, 36.0, None), &sized(100.0, 36.0, Some(("hug", "fixed"))))), vec!["Width: Fixed 100 → Hug"]);
+    }
+
+    #[test]
+    fn the_resizing_line_of_a_layer_inside_stays() {
+        // The rule is about the component's own size; a layer inside keeps its mode line (and its size only when it is fixed).
+        let child = |w: f64, sh: &str| (json!({"name": "Box", "type": "FRAME", "absoluteBounds": {"x": 0.0, "y": 0.0, "width": w, "height": 10.0}, "sizing": {"horizontal": sh, "vertical": "fixed"}}), 1);
+        let root = || sized(100.0, 36.0, Some(("hug", "hug"))).remove(0);
+        let (a, b) = (vec![root(), child(100.0, "hug")], vec![root(), child(100.0, "fill")]);
+        assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Box", "Horizontal resizing: Hug → Fill"]);
     }
 }

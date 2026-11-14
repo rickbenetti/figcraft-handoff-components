@@ -580,8 +580,6 @@
       ],
       "Type=Outline, Size=Medium, State=Enabled": [
         "Fill: Colors/color/primary (#C6005C) → none",
-        "Width: 100 → 102",
-        "Height: 36 → 38",
         "Stroke: none → Colors/color/border (#E3E7E8)",
         "Stroke weight: 0 → 1",
         "↳ Leading icon / plus · Label / Text",
@@ -597,16 +595,12 @@
         "Gap: Spacing/space/8 (8) → 6",
         "Horizontal padding: Spacing/space/16 (16) → Spacing/space/12 (12)",
         "Vertical padding: Spacing/space/8 (8) → 4",
-        "Width: 100 → 84",
-        "Height: 36 → 24",
         "↳ Label / Text",
         "Typography: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
       ],
       "Type=Primary, Size=Large, State=Enabled": [
         "Horizontal padding: Spacing/space/16 (16) → Spacing/space/24 (24)",
         "Vertical padding: Spacing/space/8 (8) → Spacing/space/12 (12)",
-        "Width: 100 → 123",
-        "Height: 36 → 48",
         "↳ Leading icon / plus",
         "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
         "↳ Label / Text",
@@ -672,7 +666,6 @@
         "Horizontal padding: Spacing/space/24 (24) → Spacing/space/16 (16)",
         "Vertical padding: Spacing/space/24 (24) → Spacing/space/16 (16)",
         "Width: 384 → 320",
-        "Height: 422 → 238",
         "↳ Header / Title row / Title",
         "Typography: text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%",
         "↳ Content / Paragraph",
@@ -681,8 +674,7 @@
       ],
       "Size=Default": [],
       "Size=Wide": [
-        "Width: 384 → 448",
-        "Height: 422 → 382"
+        "Width: 384 → 448"
       ]
     },
     "anatomy": {
@@ -785,13 +777,11 @@
     "fuel": 69520523,
     "deltas": {
       "State=Collapsed": [
-        "Height: 130 → 54",
         "↳ Trigger / Chevron: Name: caret-up → caret-down",
         "↳ Answer: hidden"
       ],
       "State=Expanded": [],
       "State=Locked": [
-        "Height: 130 → 54",
         "Opacity: 100% → 50%",
         "↳ Trigger / Chevron: Name: caret-up → caret-down",
         "↳ Answer: hidden"
@@ -1030,8 +1020,6 @@
       ],
       "Type=Outline, Size=Medium, State=Enabled": [
         "Preenchimento: Colors/color/primary (#C6005C) → nenhum",
-        "Largura: 100 → 102",
-        "Altura: 36 → 38",
         "Traço: nenhum → Colors/color/border (#E3E7E8)",
         "Espessura do traço: 0 → 1",
         "↳ Leading icon / plus, Label / Text",
@@ -1047,16 +1035,12 @@
         "Espaço entre itens: Spacing/space/8 (8) → 6",
         "Espaçamento interno horizontal: Spacing/space/16 (16) → Spacing/space/12 (12)",
         "Espaçamento interno vertical: Spacing/space/8 (8) → 4",
-        "Largura: 100 → 84",
-        "Altura: 36 → 24",
         "↳ Label / Text",
         "Tipografia: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
       ],
       "Type=Primary, Size=Large, State=Enabled": [
         "Espaçamento interno horizontal: Spacing/space/16 (16) → Spacing/space/24 (24)",
         "Espaçamento interno vertical: Spacing/space/8 (8) → Spacing/space/12 (12)",
-        "Largura: 100 → 123",
-        "Altura: 36 → 48",
         "↳ Leading icon / plus",
         "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
         "↳ Label / Text",
@@ -1122,7 +1106,6 @@
         "Espaçamento interno horizontal: Spacing/space/24 (24) → Spacing/space/16 (16)",
         "Espaçamento interno vertical: Spacing/space/24 (24) → Spacing/space/16 (16)",
         "Largura: 384 → 320",
-        "Altura: 422 → 238",
         "↳ Header / Title row / Title",
         "Tipografia: text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%",
         "↳ Content / Paragraph",
@@ -1131,8 +1114,7 @@
       ],
       "Size=Default": [],
       "Size=Wide": [
-        "Largura: 384 → 448",
-        "Altura: 422 → 382"
+        "Largura: 384 → 448"
       ]
     },
     "anatomy": {
@@ -1235,13 +1217,11 @@
     "fuel": 73078698,
     "deltas": {
       "State=Collapsed": [
-        "Altura: 130 → 54",
         "↳ Trigger / Chevron: Name: caret-up → caret-down",
         "↳ Answer: oculto"
       ],
       "State=Expanded": [],
       "State=Locked": [
-        "Altura: 130 → 54",
         "Opacidade: 100% → 50%",
         "↳ Trigger / Chevron: Name: caret-up → caret-down",
         "↳ Answer: oculto"
