@@ -1,6 +1,6 @@
 [package]
 name = "handoff-components"
-version = "0.9.6"
+version = "0.10.0"
 description = "FigCraft plugin that generates handoff documentation for a component: anatomy, properties and tokens, spacing and variant differences."
 license = "MIT"
 edition = "2024"

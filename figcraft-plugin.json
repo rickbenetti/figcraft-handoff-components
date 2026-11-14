@@ -1,7 +1,7 @@
 {
   "id": "me.benetti.handoff-components",
   "name": "Handoff Components",
-  "version": "0.9.6",
+  "version": "0.10.0",
   "description": "Generates documentation for the selected component on the same page: numbered anatomy, properties and tokens, spacing and per-variant differences, in one click.",
   "author": "Rick Benetti",
   "main": "handoff_components.wasm",

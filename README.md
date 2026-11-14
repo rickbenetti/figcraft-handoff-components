@@ -92,7 +92,7 @@ no local time, so a date would be wrong for many people; it will come back when 
 
 ## Known limitations
 
-- Version 0.9.x, before 1.0: expect rough edges.
+- Version 0.10.x, before 1.0: expect rough edges.
 - The documentation is available in English (the default) and Brazilian Portuguese (`pt-BR`), chosen per page in the panel. The item in the Plugins menu stays in English (the host takes its label from the manifest); the panel itself follows the page's language, and the values it saves stay in English (`light`, `dark`, `auto`, `replace`, `new`). In `pt-BR`, a few words are still English because no translation has been agreed: the type of a variable in a token conflict (`number`, `color`…); the name of an effect the plugin doesn't describe (noise, texture, glass); and the technical reasons the host gives in an error.
 - The host does not report a layer's text case, so it is missing from the typography lines.
 - The screen freezes while the documentation is generated (it is made inside the click, in the app's own thread, with no progress indicator).
