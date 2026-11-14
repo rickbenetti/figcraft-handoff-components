@@ -54,6 +54,8 @@ It writes `dist/` (the `.wasm` is about 479 KB) and prints the absolute path of 
 
 To make the release zip, run `scripts/package.sh`: it builds, then writes `dist/handoff-components-<version>.zip` (the manifest, the `.wasm`, `LICENSE` and `THIRD_PARTY_NOTICES.md` at the root, with fixed timestamps so the same build gives the same zip) and prints its SHA-256; it does not tag or publish anything.
 
+The changes of each version are in [`CHANGELOG.md`](CHANGELOG.md); the data the plugin stores and returns is in [`docs/data-contract.md`](docs/data-contract.md).
+
 ## Usage
 
 Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a panel (it needs a FigCraft that supports plugin API 2) that stays open until you close it:
