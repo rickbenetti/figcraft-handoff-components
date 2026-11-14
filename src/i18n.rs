@@ -160,7 +160,7 @@ keys! {
     PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelGenerate,
     SectionName, SectionFrameName,
     SecCover, SecMaster, SecProperties, SecAnatomy, SecVariants, SecLayouts, SecTokens, SecChangelog, ReservedB, ReservedC, CoverDescription, CoverLastDesigner, CoverUpdatedOn, CoverGuideDescription, CoverGuideDesigner, CoverGuideUpdated, CoverApprovals, RoleDesigner, RoleEngineering, RoleQa, RoleWriters, RolePo, RolePm, MasterFrameName, MasterDescription, MasterNote, ChangelogVersion, ChangelogDate, ChangelogChange, ChangelogGuideVersion, ChangelogGuideDate, ChangelogGuideChange, PanelWarnWide, PanelWarnLegacy, ErrMainGone,
-    PanelUpdate, PanelTitleUpdate, UpdAll, UpdTables, UpdTokens, UpdProperties, UpdAnatomy, UpdVariants, UpdLayouts, PanelUpdateNote, PanelNewSection, PanelWarnNoStage, SecKit, KitNote, KitSetName, StatePending, StateApproved, StateConditional, StateRejected, CoverOverview, CoverGuideVersion, CoverGuideStatus, CoverGuideNameDate, MasterTitle,
+    PanelUpdate, PanelTitleUpdate, UpdAll, UpdTables, UpdTokens, UpdProperties, UpdAnatomy, UpdVariants, UpdLayouts, PanelUpdateNote, PanelNewSection, PanelWarnNoStage, SecKit, KitNote, KitSetName, StatePending, StateApproved, StateConditional, StateRejected, CoverOverview, CoverGuideVersion, CoverGuideStatus, CoverGuideNameDate, MasterTitle, ApprPropArea, ApprPropName,
 }
 
 /// The text of `key` in `lang` (English when the language has none).

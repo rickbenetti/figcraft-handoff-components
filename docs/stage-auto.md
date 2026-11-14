@@ -36,3 +36,7 @@ more is listed in `effects.narrow` of the run's output. A variant row's stage is
 
 Code: `src/contrast.rs` (`pick_stage`) and `effective_backdrop` / `is_dark` in `src/gerar.rs`;
 tests in both.
+
+## The Component Master (0.11)
+
+The stage under the component set in the Component Master is chosen over the union of all the variants (each variant's root fill, else the set's fill, else the colours of its layers) among three candidates: light `#E5E5E5`, mid-grey `#777777` and dark `#14213D`. The winner is the one with the highest lowest contrast; a tie goes to light, then mid-grey, then dark. When that contrast is under 3:1 the panel says no stage suits every variant. The Stage control still offers Auto, Light and Dark only.

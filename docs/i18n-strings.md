@@ -268,8 +268,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelNewSection | New Section | Nova Section |
 | PanelWarnNoStage | No stage suits every variant: change it in Stage. | Nenhum palco serve a todas as variantes: troque em Palco. |
 | SecKit | Support components | Componentes de apoio |
-| KitNote | Do not delete: the approval symbols on the Cover are instances of the component that lives here. | Não apague: os símbolos de aprovação da Cover são instâncias do componente que mora aqui. |
-| KitSetName | Handoff · Approval state | Handoff · Estado de aprovação |
+| KitNote | Do not delete: the approval pills on the Cover are instances of the component that lives here. | Não apague: as pílulas de aprovação da Cover são instâncias do componente que mora aqui. |
+| KitSetName | Handoff · Approval | Handoff · Aprovação |
 | StatePending | Pending | Pendente |
 | StateApproved | Approved | Aprovado |
 | StateConditional | With reservations | Com ressalvas |
@@ -279,3 +279,5 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | CoverGuideStatus | status: to be defined | status: a definir |
 | CoverGuideNameDate | name · date | nome · data |
 | MasterTitle | Base component | Componente base |
+| ApprPropArea | Area | Área |
+| ApprPropName | Name · date | Nome · data |

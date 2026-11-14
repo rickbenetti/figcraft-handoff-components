@@ -261,8 +261,8 @@
   "PanelNewSection": "Nova Section",
   "PanelWarnNoStage": "Nenhum palco serve a todas as variantes: troque em Palco.",
   "SecKit": "Componentes de apoio",
-  "KitNote": "Não apague: os símbolos de aprovação da Cover são instâncias do componente que mora aqui.",
-  "KitSetName": "Handoff · Estado de aprovação",
+  "KitNote": "Não apague: as pílulas de aprovação da Cover são instâncias do componente que mora aqui.",
+  "KitSetName": "Handoff · Aprovação",
   "StatePending": "Pendente",
   "StateApproved": "Aprovado",
   "StateConditional": "Com ressalvas",
@@ -271,5 +271,7 @@
   "CoverGuideVersion": "v0.0.0",
   "CoverGuideStatus": "status: a definir",
   "CoverGuideNameDate": "nome · data",
-  "MasterTitle": "Componente base"
+  "MasterTitle": "Componente base",
+  "ApprPropArea": "Área",
+  "ApprPropName": "Nome · data"
 }

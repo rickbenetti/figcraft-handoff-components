@@ -261,8 +261,8 @@
   "PanelNewSection": "New Section",
   "PanelWarnNoStage": "No stage suits every variant: change it in Stage.",
   "SecKit": "Support components",
-  "KitNote": "Do not delete: the approval symbols on the Cover are instances of the component that lives here.",
-  "KitSetName": "Handoff · Approval state",
+  "KitNote": "Do not delete: the approval pills on the Cover are instances of the component that lives here.",
+  "KitSetName": "Handoff · Approval",
   "StatePending": "Pending",
   "StateApproved": "Approved",
   "StateConditional": "With reservations",
@@ -271,5 +271,7 @@
   "CoverGuideVersion": "v0.0.0",
   "CoverGuideStatus": "status: to be defined",
   "CoverGuideNameDate": "name · date",
-  "MasterTitle": "Base component"
+  "MasterTitle": "Base component",
+  "ApprPropArea": "Area",
+  "ApprPropName": "Name · date"
 }

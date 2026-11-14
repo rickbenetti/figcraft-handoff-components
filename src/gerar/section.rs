@@ -12,7 +12,7 @@
 #![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
 use super::*;
-use crate::contrast::{self, Pick};
+use crate::contrast::{self, Pick3, Stage};
 
 /// The frame's width, its padding and the useful width inside it.
 pub const FRAME_W: f64 = 1920.0;
@@ -23,37 +23,39 @@ pub const SECTION_PAD: f64 = 256.0;
 pub const FRAME_GAP: f64 = 64.0;
 /// The Section's width.
 pub const SECTION_W: f64 = FRAME_W + 2.0 * SECTION_PAD;
-/// The mark of the Section on the page (the value is the id of the component), of a frame's section, and of the set of approval states.
+/// The mark of the Section on the page (the value is the id of the component), of a frame's section, and of the set of approval pills.
 pub const SECTION_MARK: &str = "handoff-report-section";
 pub const NAME_MARK: &str = "handoff-section";
-pub const STATE_SET_MARK: &str = "handoff-state-set";
+pub const APPROVAL_SET_MARK: &str = "handoff-approval-set";
 /// The stage inside the Component Master frame.
 const STAGE_PAD: f64 = 48.0;
 /// The lowest contrast the automatic stage should reach for every variant (WCAG graphics: 3:1).
 pub const MIN_STAGE_CONTRAST: f64 = 3.0;
 
-/// The colours of the new frames (the dark palette; the 0.10.0 tables keep theirs).
+/// The colours of the new frames, in ONE table (the light theme; change these to change the theme). The 0.10.0 tables keep theirs.
 pub mod pal {
-    pub const SECTION: &str = "#242424";
-    pub const FRAME: &str = "#2E2E2E";
-    pub const CARD: &str = "#383838";
-    pub const LINE: &str = "#4A4A4A";
-    pub const TEXT: &str = "#F0F0F1";
-    pub const TEXT2: &str = "#B0B0B4";
-    pub const GUIDE: &str = "#929297";
-    pub const OK: &str = "#5CCB98";
-    pub const COND: &str = "#E8B64F";
-    pub const BAD: &str = "#F0786C";
-    pub const PEND: &str = "#8E8E93";
+    pub const SECTION: &str = "#E7E7EA";
+    pub const FRAME: &str = "#F4F4F5";
+    /// Cards, pills and chips.
+    pub const CARD: &str = "#FFFFFF";
+    pub const LINE: &str = "#D4D4D8";
+    pub const TEXT: &str = "#1C1C1F";
+    pub const TEXT2: &str = "#56565C";
+    pub const GUIDE: &str = "#74747B";
+    pub const OK: &str = "#167A4C";
+    pub const COND: &str = "#9A6410";
+    pub const BAD: &str = "#C13B30";
+    pub const PEND: &str = "#74747B";
     /// The symbol inside a state circle.
-    pub const ON_STATE: &str = "#1B1B1D";
+    pub const ON_STATE: &str = "#FFFFFF";
 }
 
 const CELL_PAD: [f64; 4] = [12.0, 16.0, 12.0, 16.0];
 const TABLE_RADIUS: f64 = 8.0;
 const CHANGELOG_COLS: [f64; 3] = [200.0, 240.0, 1384.0];
-/// The circle of a state, and the name of the property of the set that holds the four.
+/// The circle of a state, the pill that holds it, and the name of the variant property of the set that holds the four pills.
 const STATE_D: f64 = 44.0;
+const PILL_W: f64 = 290.0;
 const STATE_PROP: &str = "Estado";
 
 // ---------------------------------------------------------------------------------------------
@@ -227,10 +229,6 @@ impl Approval {
     pub fn variant_name(self) -> String {
         format!("{STATE_PROP}={}", self.value())
     }
-
-    fn from_variant_name(name: &str) -> Option<Approval> {
-        Approval::ALL.into_iter().find(|a| a.variant_name() == name)
-    }
 }
 
 /// Something the person should know after a run, most important first.
@@ -287,22 +285,35 @@ pub fn union_colours(variants: &[Judged], set_fill: Option<Rgba>) -> Vec<Rgba> {
     out
 }
 
-/// The automatic stage for those variants: the light or dark stage that maximises the lowest contrast over the union (a tie is light).
-pub fn pick_union(variants: &[Judged], set_fill: Option<Rgba>) -> Pick {
-    contrast::pick_stage(None, &union_colours(variants, set_fill))
+/// The automatic stage for those variants: the light, mid-grey or dark stage that maximises the lowest contrast over the union
+/// (a tie is light, then mid-grey, then dark).
+pub fn pick_union(variants: &[Judged], set_fill: Option<Rgba>) -> Pick3 {
+    contrast::pick_stage3(&union_colours(variants, set_fill))
 }
 
-/// The stage the panel's "Stage" asks for: whether it is dark, and the lowest contrast when it is automatic.
+/// The stage the panel's "Stage" asks for: which of the three, and the lowest contrast when it is automatic.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StageChoice {
-    pub dark: bool,
+    pub stage: Stage,
     pub lowest: Option<f64>,
     pub auto: bool,
 }
 
 impl StageChoice {
     pub fn fill(self) -> &'static str {
-        if self.dark { theme::PANEL } else { theme::STAGE_LIGHT }
+        match self.stage {
+            Stage::Light => theme::STAGE_LIGHT,
+            Stage::Mid => theme::STAGE_MID,
+            Stage::Dark => theme::PANEL,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self.stage {
+            Stage::Light => "light",
+            Stage::Mid => "mid",
+            Stage::Dark => "dark",
+        }
     }
 
     /// Whether the automatic stage leaves some variant under 3:1.
@@ -341,8 +352,8 @@ fn colour_nodes(lang: Lang, root: u64, budget: usize) -> Result<Vec<Value>> {
 /// The stage of the Component Master for `target` in `mode`.
 fn choose_stage(lang: Lang, target: &Picked, mode: StageMode) -> Result<StageChoice> {
     match mode {
-        StageMode::Light => Ok(StageChoice { dark: false, lowest: None, auto: false }),
-        StageMode::Dark => Ok(StageChoice { dark: true, lowest: None, auto: false }),
+        StageMode::Light => Ok(StageChoice { stage: Stage::Light, lowest: None, auto: false }),
+        StageMode::Dark => Ok(StageChoice { stage: Stage::Dark, lowest: None, auto: false }),
         StageMode::Auto => {
             let ids: Vec<u64> = match &target.set {
                 Some(s) => s.info.variants.iter().map(|v| v.id).take(MAX_STAGE_VARIANTS).collect(),
@@ -357,7 +368,7 @@ fn choose_stage(lang: Lang, target: &Picked, mode: StageMode) -> Result<StageCho
                 judged.push(judge(&nodes));
             }
             let pick = pick_union(&judged, set_fill);
-            Ok(StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true })
+            Ok(StageChoice { stage: pick.stage, lowest: pick.lowest, auto: true })
         }
     }
 }
@@ -410,33 +421,10 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
     Ok((sb, out))
 }
 
-/// The set of approval states in the support frame, with the id of each of its variants.
-struct StateSet {
-    set: u64,
-    variants: Vec<(Approval, u64)>,
-}
-
-impl StateSet {
-    fn variant(&self, a: Approval) -> Option<u64> {
-        self.variants.iter().find(|(x, _)| *x == a).map(|(_, id)| *id)
-    }
-}
-
-/// The set of states of a support frame: the child that carries the `handoff-state-set` mark, and its variants named "Estado=…".
-fn read_state_set(lang: Lang, kit: u64) -> Result<Option<StateSet>> {
+/// The set of approval pills in the support frame: the child that carries the `handoff-approval-set` mark.
+fn read_approval_set(lang: Lang, kit: u64) -> Result<Option<u64>> {
     let node = host(lang, "node.get", &json!({"id": kit, "fields": ["children", "pluginData"]}))?;
-    let Some(set) = node.get("children").and_then(Value::as_array).into_iter().flatten().find(|c| mark_of(c, STATE_SET_MARK).is_some()).and_then(|c| c.get("id").and_then(Value::as_u64)) else {
-        return Ok(None);
-    };
-    let s = host(lang, "node.get", &json!({"id": set, "fields": ["children", "name"]}))?;
-    let variants: Vec<(Approval, u64)> = s
-        .get("children")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|c| Some((Approval::from_variant_name(c.get("name")?.as_str()?)?, c.get("id")?.as_u64()?)))
-        .collect();
-    Ok((variants.len() == Approval::ALL.len()).then_some(StateSet { set, variants }))
+    Ok(node.get("children").and_then(Value::as_array).into_iter().flatten().find(|c| mark_of(c, APPROVAL_SET_MARK).is_some()).and_then(|c| c.get("id").and_then(Value::as_u64)))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -523,7 +511,8 @@ fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], r
 struct Ctx<'a> {
     lang: Lang,
     target: &'a Picked,
-    states: Option<StateSet>,
+    /// The set of approval pills (its default variant is Estado=pendente).
+    pills: Option<u64>,
     stage: StageChoice,
 }
 
@@ -573,11 +562,18 @@ fn labelled_guide(lang: Lang, parent: u64, label: Key, hint: Key, width: Option<
     Ok(())
 }
 
-/// An instance of one of the states, 44 × 44.
-fn state_instance(lang: Lang, parent: u64, states: &StateSet, a: Approval) -> Result<u64> {
-    let variant = states.variant(a).ok_or_else(|| t(lang, Key::ErrNoId).to_string())?;
-    let made = host(lang, "instance.create", &json!({"component": variant, "parent": parent}))?;
-    id_of(lang, &made, "instance.create")
+/// A state's circle, drawn: the colour, the symbol in white on it.
+fn state_circle(lang: Lang, parent: u64, a: Approval) -> Result<u64> {
+    let made = host(
+        lang,
+        "frame.create",
+        &json!({"parent": parent, "width": STATE_D, "height": STATE_D, "name": "Circle", "select": false,
+            "props": {"fill": a.colour(), "layout": "horizontal", "mainAlign": "center", "crossAlign": "center", "cornerRadius": STATE_D / 2.0, "padding": 0,
+                "sizingH": "fixed", "sizingV": "fixed", "clip": false}}),
+    )?;
+    let id = id_of(lang, &made, "frame.create")?;
+    text_with(lang, id, a.symbol(), 24.0, pal::ON_STATE, "Symbol", bold())?;
+    Ok(id)
 }
 
 fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
@@ -602,41 +598,32 @@ fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
     labelled_guide(lang, meta, Key::CoverUpdatedOn, Key::CoverGuideUpdated, None, true)?;
     // 3. The description.
     labelled_guide(lang, frame, Key::CoverDescription, Key::CoverGuideDescription, Some(USEFUL_W), false)?;
-    // 4. The approvals: six equal chips, each with the state's instance, the area and a guide line.
+    // 4. The approvals: six instances of the pill component in six equal columns, the area written in each.
     text_with(lang, frame, t(lang, Key::CoverApprovals), theme::SECTION_SIZE, pal::TEXT, "Approvals title", bold())?;
-    if let Some(states) = &c.states {
+    if let Some(set) = c.pills {
         let mut g = FlowSpec::new("Approvals", USEFUL_W, "grid");
-        g.extra = json!({"gridColumns": 6, "gridRows": 1, "columnTracks": ["1fr", "1fr", "1fr", "1fr", "1fr", "1fr"], "rowTracks": ["auto"], "rowGap": 0, "sizingH": "fixed"});
+        g.extra = json!({"gridColumns": 6, "gridRows": 1, "columnTracks": [PILL_W, PILL_W, PILL_W, PILL_W, PILL_W, PILL_W], "rowTracks": ["auto"], "rowGap": 0, "sizingH": "fixed"});
         g.gap = 16.0;
         let grid = flow_frame(lang, frame, g)?;
-        for (i, role) in [Key::RoleDesigner, Key::RoleEngineering, Key::RoleQa, Key::RoleWriters, Key::RolePo, Key::RolePm].iter().enumerate() {
-            let mut p = FlowSpec::new("Approval", 100.0, "horizontal");
-            p.gap = 12.0;
-            p.padding = json!(14);
-            p.fill = Some(pal::CARD);
-            p.extra = json!({"sizingH": "fill", "sizingV": "hug", "cornerRadius": 28, "crossAlign": "center", "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "gridColumn": i, "gridRow": 0});
-            let pill = flow_frame(lang, grid, p)?;
-            state_instance(lang, pill, states, Approval::Pending)?;
-            let mut col = FlowSpec::new("Text", 100.0, "vertical");
-            col.gap = 2.0;
-            col.extra = json!({"sizingH": "fill"});
-            let col = flow_frame(lang, pill, col)?;
-            text_with(lang, col, t(lang, *role), LINE_SIZE, pal::TEXT, "Area", json!({"fontStyle": "Bold", "sizingH": "fill", "textAutoResize": "height"}))?;
-            text_with(lang, col, t(lang, Key::CoverGuideNameDate), LINE_SIZE, pal::GUIDE, "Guide", fill_text())?;
+        let area = t(lang, Key::ApprPropArea);
+        for role in [Key::RoleDesigner, Key::RoleEngineering, Key::RoleQa, Key::RoleWriters, Key::RolePo, Key::RolePm] {
+            let made = host(lang, "instance.create", &json!({"component": set, "parent": grid}))?;
+            let inst = id_of(lang, &made, "instance.create")?;
+            host(lang, "instance.setProperties", &json!({"ids": [inst], "properties": {area: t(lang, role)}}))?;
         }
-        // 5. The legend of the four states.
-        let mut lg = FlowSpec::new("Legend", USEFUL_W, "horizontal");
-        lg.gap = 32.0;
-        lg.extra = json!({"crossAlign": "center"});
-        let legend = flow_frame(lang, frame, lg)?;
-        for a in Approval::ALL {
-            let mut item = FlowSpec::new("Legend item", 20.0, "horizontal");
-            item.gap = 10.0;
-            item.extra = json!({"sizingH": "hug", "crossAlign": "center"});
-            let item = flow_frame(lang, legend, item)?;
-            state_instance(lang, item, states, a)?;
-            text_with(lang, item, t(lang, a.label_key()), LINE_SIZE, pal::TEXT2, "State", json!({}))?;
-        }
+    }
+    // 5. The legend of the four states: drawn, not components.
+    let mut lg = FlowSpec::new("Legend", USEFUL_W, "horizontal");
+    lg.gap = 32.0;
+    lg.extra = json!({"crossAlign": "center"});
+    let legend = flow_frame(lang, frame, lg)?;
+    for a in Approval::ALL {
+        let mut item = FlowSpec::new("Legend item", 20.0, "horizontal");
+        item.gap = 10.0;
+        item.extra = json!({"sizingH": "hug", "crossAlign": "center"});
+        let item = flow_frame(lang, legend, item)?;
+        state_circle(lang, item, a)?;
+        text_with(lang, item, t(lang, a.label_key()), LINE_SIZE, pal::TEXT2, "State", json!({}))?;
     }
     Ok(())
 }
@@ -677,39 +664,59 @@ fn build_master(c: &Ctx, frame: u64) -> Result<(u64, bool)> {
     Ok((moved, wide))
 }
 
-/// The support components: a note that says not to delete it, and the set of four approval states.
-/// Returns the set's id.
+/// The set of approval pills, made inside `frame`: four variants (Estado = pendente, aprovado, ressalvas, reprovado), each the pill
+/// itself (a circle with the state's symbol, and the area and a "name · date" guide), with the text properties "Area" and
+/// "Name · date" bound to those two texts in every variant. Returns the set's id.
+fn build_approval_set(c: &Ctx, frame: u64) -> Result<u64> {
+    let lang = c.lang;
+    // The pills are made in a row (so the set is a row, not a column), and the set is moved into the frame.
+    let mut row = FlowSpec::new("Pills", 20.0, "horizontal");
+    row.gap = 24.0;
+    row.extra = json!({"sizingH": "hug"});
+    let row = flow_frame(lang, frame, row)?;
+    let (area, name_date) = (t(lang, Key::ApprPropArea), t(lang, Key::ApprPropName));
+    let (mut areas, mut guides, mut pills) = (Vec::new(), Vec::new(), Vec::new());
+    for a in Approval::ALL {
+        let vname = a.variant_name();
+        let mut p = FlowSpec::new(&vname, PILL_W, "horizontal");
+        p.gap = 12.0;
+        p.padding = json!(14);
+        p.fill = Some(pal::CARD);
+        p.extra = json!({"cornerRadius": 28, "crossAlign": "center", "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside"});
+        let pill = flow_frame(lang, row, p)?;
+        state_circle(lang, pill, a)?;
+        let mut col = FlowSpec::new("Text", 100.0, "vertical");
+        col.gap = 2.0;
+        col.extra = json!({"sizingH": "fill"});
+        let col = flow_frame(lang, pill, col)?;
+        areas.push(text_with(lang, col, area, LINE_SIZE, pal::TEXT, "Area", json!({"fontStyle": "Bold", "sizingH": "fill", "textAutoResize": "height"}))?);
+        guides.push(text_with(lang, col, t(lang, Key::CoverGuideNameDate), LINE_SIZE, pal::GUIDE, "Guide", fill_text())?);
+        pills.push(pill);
+    }
+    for id in &pills {
+        host(lang, "component.create", &json!({"ids": [id]}))?;
+    }
+    let combined = host(lang, "component.combineVariants", &json!({"ids": pills}))?;
+    let set = id_of(lang, &combined, "component.combineVariants")?;
+    host(lang, "node.reparent", &json!({"ids": [set], "parent": frame}))?;
+    host(lang, "edit.delete", &json!({"ids": [row]}))?;
+    // The property goes on the first variant's text and is bound to the other three.
+    host(lang, "component.addProperty", &json!({"id": set, "name": area, "type": "text", "default": area, "layer": areas[0]}))?;
+    host(lang, "component.addProperty", &json!({"id": set, "name": name_date, "type": "text", "default": t(lang, Key::CoverGuideNameDate), "layer": guides[0]}))?;
+    for (a, g) in areas.iter().zip(&guides).skip(1) {
+        host(lang, "component.bindProperty", &json!({"layer": a, "property": area, "field": "characters"}))?;
+        host(lang, "component.bindProperty", &json!({"layer": g, "property": name_date, "field": "characters"}))?;
+    }
+    host(lang, "node.set", &json!({"ids": [set], "props": {"name": t(lang, Key::KitSetName), "pluginData": {APPROVAL_SET_MARK: "1"}}}))?;
+    Ok(set)
+}
+
+/// The support components: a note that says not to delete it, and the set of approval pills.
 fn build_kit(c: &Ctx, frame: u64) -> Result<u64> {
     let lang = c.lang;
     header(c, frame, t(lang, Key::SecKit))?;
     text_with(lang, frame, t(lang, Key::KitNote), LINE_SIZE, pal::COND, "Warning", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
-    // The four circles are made in a row (so the set is a row, not a column), and the set is moved into the frame.
-    let mut row = FlowSpec::new("States", 20.0, "horizontal");
-    row.gap = 16.0;
-    row.extra = json!({"sizingH": "hug"});
-    let row = flow_frame(lang, frame, row)?;
-    let mut ids = Vec::new();
-    for a in Approval::ALL {
-        let made = host(
-            lang,
-            "frame.create",
-            &json!({"parent": row, "width": STATE_D, "height": STATE_D, "name": a.variant_name(), "select": false,
-                "props": {"fill": a.colour(), "layout": "horizontal", "mainAlign": "center", "crossAlign": "center", "cornerRadius": STATE_D / 2.0, "padding": 0,
-                    "sizingH": "fixed", "sizingV": "fixed", "clip": false}}),
-        )?;
-        let id = id_of(lang, &made, "frame.create")?;
-        text_with(lang, id, a.symbol(), 24.0, pal::ON_STATE, "Symbol", bold())?;
-        ids.push(id);
-    }
-    for id in &ids {
-        host(lang, "component.create", &json!({"ids": [id]}))?;
-    }
-    let combined = host(lang, "component.combineVariants", &json!({"ids": ids}))?;
-    let set = id_of(lang, &combined, "component.combineVariants")?;
-    host(lang, "node.reparent", &json!({"ids": [set], "parent": frame}))?;
-    host(lang, "edit.delete", &json!({"ids": [row]}))?;
-    host(lang, "node.set", &json!({"ids": [set], "props": {"name": t(lang, Key::KitSetName), "pluginData": {STATE_SET_MARK: "1"}}}))?;
-    Ok(set)
+    build_approval_set(c, frame)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -790,26 +797,23 @@ pub fn generate(input: Input) -> Result<Value> {
         }
     };
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
-    let mut kit_state: Option<StateSet> = None;
-    let mut kit_frame: Option<(u64, &str)> = None;
+    // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
+    let mut ctx = Ctx { lang, target: &target, pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false } };
+    let kit_frame: Option<(u64, &str)>;
+    let mut set_added = false;
     if let Some(e) = old(Sec::Kit) {
-        kit_state = read_state_set(lang, e.id)?;
-        if kit_state.is_some() {
-            kit_frame = Some((e.id, "kept"));
+        ctx.pills = read_approval_set(lang, e.id)?;
+        if ctx.pills.is_none() {
+            ctx.pills = Some(build_approval_set(&ctx, e.id)?);
+            set_added = true;
         }
-    }
-    let mut ctx = Ctx { lang, target: &target, states: None, stage: StageChoice { dark: false, lowest: None, auto: false } };
-    if kit_frame.is_none() {
-        if let Some(e) = old(Sec::Kit) {
-            host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
-        }
+        kit_frame = Some((e.id, "kept"));
+    } else {
         let kit_name = tf(lang, Key::SectionFrameName, &[("title", t(lang, Sec::Kit.title_key())), ("name", &name)]);
         let frame = new_frame(lang, section, SECTION_PAD, &kit_name, &comp_key, Sec::Kit)?;
-        build_kit(&ctx, frame)?;
-        kit_frame = Some((frame, if old(Sec::Kit).is_some() { "replaced" } else { "created" }));
-        kit_state = read_state_set(lang, frame)?;
+        ctx.pills = Some(build_kit(&ctx, frame)?);
+        kit_frame = Some((frame, "created"));
     }
-    ctx.states = kit_state;
     // 6. The stage of the Master, over every variant, when the Master is made now.
     if will_make(Sec::Master) {
         ctx.stage = choose_stage(lang, &target, page.settings.stage_mode())?;
@@ -878,8 +882,8 @@ pub fn generate(input: Input) -> Result<Value> {
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
         "frame_size": {"w": SECTION_W}, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
-        "stage": {"dark": ctx.stage.dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "state_set": ctx.states.as_ref().map(|s| s.set), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "stage": {"name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
+        "pill_set": ctx.pills, "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
@@ -927,15 +931,12 @@ mod tests {
         assert_eq!(
             all,
             [
-                ("Estado=pendente".to_string(), "…", "#8E8E93"),
-                ("Estado=aprovado".to_string(), "✓", "#5CCB98"),
-                ("Estado=ressalvas".to_string(), "!", "#E8B64F"),
-                ("Estado=reprovado".to_string(), "✕", "#F0786C"),
+                ("Estado=pendente".to_string(), "…", "#74747B"),
+                ("Estado=aprovado".to_string(), "✓", "#167A4C"),
+                ("Estado=ressalvas".to_string(), "!", "#9A6410"),
+                ("Estado=reprovado".to_string(), "✕", "#C13B30"),
             ]
         );
-        for a in Approval::ALL {
-            assert_eq!(Approval::from_variant_name(&a.variant_name()), Some(a));
-        }
     }
 
     #[test]
@@ -1002,62 +1003,73 @@ mod tests {
         (0..3).flat_map(|_| rows.iter().map(|(b, e)| v(*b, e))).collect()
     }
 
+    fn near(l: Option<f64>, want: f64) -> bool {
+        l.is_some_and(|l| (l - want).abs() < 0.001)
+    }
+
     #[test]
     fn the_demo_buttons_outline_without_its_hover_and_pressed_asks_for_the_light_stage() {
         // Enabled, Disabled and Focus of the Outline: no fill, dark text: the light stage, at 15.66:1.
         let quiet: Vec<Judged> = demo_button("Outline").into_iter().filter(|j| j.backdrop.is_none()).collect();
         let pick = pick_union(&quiet, None);
-        assert!(!pick.dark);
-        assert!(pick.lowest.is_some_and(|l| (l - 15.66).abs() < 0.01), "{pick:?}");
+        assert_eq!(pick.stage, Stage::Light);
+        assert!(near(pick.lowest, 15.656), "{pick:?}");
     }
 
     #[test]
-    fn the_whole_outline_of_the_demo_button_has_no_stage_that_serves_it_because_of_its_pale_hover_and_pressed_fills() {
-        // Hover (#F1F3F3) and Pressed (#DADADB) are as pale as the light stage, and the text #090B0C is as dark as the dark one:
-        // the dark stage wins with 1.23:1, which is under 3:1, so the panel warns.
+    fn the_whole_outline_of_the_demo_button_gets_the_mid_grey_stage_at_3_21_to_1() {
+        // Hover (#F1F3F3) and Pressed (#DADADB) are as pale as the light stage and the text #090B0C is as dark as the dark one:
+        // only the mid-grey #777777 keeps all of them apart, at 3.21:1, over the 3:1 line: no warning.
         let pick = pick_union(&demo_button("Outline"), None);
-        assert!(pick.dark);
-        assert!(pick.lowest.is_some_and(|l| (l - 1.2347).abs() < 0.001), "{pick:?}");
-        assert!(StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true }.too_low());
+        assert_eq!(pick.stage, Stage::Mid);
+        assert!(near(pick.lowest, 3.2056), "{pick:?}");
+        assert!(!StageChoice { stage: pick.stage, lowest: pick.lowest, auto: true }.too_low());
     }
 
     #[test]
     fn the_demo_buttons_secondary_asks_for_the_dark_stage() {
         let pick = pick_union(&demo_button("Secondary"), None);
-        assert!(pick.dark);
-        assert!(pick.lowest.is_some_and(|l| (l - 11.434).abs() < 0.001), "{pick:?}");
+        assert_eq!(pick.stage, Stage::Dark);
+        assert!(near(pick.lowest, 11.434), "{pick:?}");
     }
 
     #[test]
     fn the_demo_buttons_primary_and_destructive_ask_for_the_light_stage() {
         let primary = pick_union(&demo_button("Primary"), None);
-        assert!(!primary.dark && primary.lowest.is_some_and(|l| (l - 4.688).abs() < 0.001), "{primary:?}");
+        assert_eq!(primary.stage, Stage::Light);
+        assert!(near(primary.lowest, 4.688), "{primary:?}");
         let destructive = pick_union(&demo_button("Destructive"), None);
-        assert!(!destructive.dark && destructive.lowest.is_some_and(|l| (l - 3.787).abs() < 0.001), "{destructive:?}");
+        assert_eq!(destructive.stage, Stage::Light);
+        assert!(near(destructive.lowest, 3.787), "{destructive:?}");
     }
 
     #[test]
-    fn the_whole_demo_button_gets_the_dark_stage_with_1_23_to_1_and_the_warning() {
+    fn the_whole_demo_button_still_has_no_stage_that_serves_it_and_the_panel_warns() {
+        // The pale Secondary fills, the dark Primary and Destructive fills and the black outline text: dark wins with 1.23:1
+        // (mid-grey gets 1.07, light 1.02).
         let all: Vec<Judged> = ["Primary", "Secondary", "Outline", "Destructive"].iter().flat_map(|k| demo_button(k)).collect();
         assert_eq!(all.len(), 60);
         let pick = pick_union(&all, None);
-        assert!(pick.dark);
-        assert!(pick.lowest.is_some_and(|l| (l - 1.2347).abs() < 0.001), "{pick:?}");
-        assert!(StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true }.too_low(), "no stage serves every variant: the panel says so");
+        assert_eq!(pick.stage, Stage::Dark);
+        assert!(near(pick.lowest, 1.2347), "{pick:?}");
+        assert!(StageChoice { stage: pick.stage, lowest: pick.lowest, auto: true }.too_low(), "no stage serves every variant: the panel says so");
     }
 
     #[test]
     fn the_demo_card_the_icon_and_the_accordion() {
-        // Card: three variants with a white fill: the dark stage (15.97:1). Icon: 30 variants with no fill and a dark glyph: the light
-        // stage (15.66:1). Accordion: no fill, dark text and a grey: the light stage (3.66:1, over the 3:1).
+        // Card: three variants with a white fill: the dark stage (15.97:1; mid-grey would be 4.48). Icon: 30 variants with no fill
+        // and a dark glyph: the light stage (15.66:1). Accordion: no fill, dark text and a grey: the light stage (3.66:1).
         let card = pick_union(&[v(Some("#FFFFFF"), &[]), v(Some("#FFFFFF"), &[]), v(Some("#FFFFFF"), &[])], None);
-        assert!(card.dark && card.lowest.is_some_and(|l| (l - 15.974).abs() < 0.001), "{card:?}");
+        assert_eq!(card.stage, Stage::Dark);
+        assert!(near(card.lowest, 15.974), "{card:?}");
         let icon: Vec<Judged> = (0..30).map(|_| v(None, &["#090B0C"])).collect();
         let icon = pick_union(&icon, None);
-        assert!(!icon.dark && icon.lowest.is_some_and(|l| (l - 15.656).abs() < 0.001), "{icon:?}");
+        assert_eq!(icon.stage, Stage::Light);
+        assert!(near(icon.lowest, 15.656), "{icon:?}");
         let accordion = pick_union(&[v(None, &["#090B0C", "#67787C"]), v(None, &["#090B0C", "#67787C"]), v(None, &["#090B0C", "#67787C"])], None);
-        assert!(!accordion.dark && accordion.lowest.is_some_and(|l| (l - 3.660).abs() < 0.001), "{accordion:?}");
-        assert!(!StageChoice { dark: accordion.dark, lowest: accordion.lowest, auto: true }.too_low());
+        assert_eq!(accordion.stage, Stage::Light);
+        assert!(near(accordion.lowest, 3.660), "{accordion:?}");
+        assert!(!StageChoice { stage: accordion.stage, lowest: accordion.lowest, auto: true }.too_low());
     }
 
     #[test]
@@ -1069,13 +1081,15 @@ mod tests {
     }
 
     #[test]
-    fn a_union_that_no_stage_serves_is_under_three_to_one() {
-        let both = [only_elements(&["#FFFFFF"]), only_elements(&["#14213D"])];
-        let pick = pick_union(&both, None);
-        let choice = StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true };
-        assert!(choice.too_low(), "{pick:?}");
-        assert!(!StageChoice { dark: false, lowest: Some(3.0), auto: true }.too_low());
-        assert!(!StageChoice { dark: true, lowest: Some(1.0), auto: false }.too_low(), "a forced stage never warns");
-        assert_eq!(pick_union(&[], None), Pick { dark: false, lowest: None }, "nothing to judge: light");
+    fn a_tie_goes_to_light_then_mid_grey_then_dark_and_a_forced_stage_never_warns() {
+        // A union with nothing to judge, or the same on every stage, is light.
+        assert_eq!(pick_union(&[], None), Pick3 { stage: Stage::Light, lowest: None });
+        // White, navy and the mid-grey itself: each stage loses one of them (light 1.2:1 on white, dark 1.0 on navy, mid-grey 1.0 on itself).
+        let all = [only_elements(&["#FFFFFF"]), only_elements(&["#14213D"]), only_elements(&["#777777"])];
+        let pick = pick_union(&all, None);
+        assert!(StageChoice { stage: pick.stage, lowest: pick.lowest, auto: true }.too_low(), "{pick:?}");
+        assert!(!StageChoice { stage: Stage::Dark, lowest: Some(1.0), auto: false }.too_low());
+        assert!(!StageChoice { stage: Stage::Light, lowest: Some(3.0), auto: true }.too_low());
+        assert_eq!(StageChoice { stage: Stage::Mid, lowest: None, auto: true }.fill(), "#777777");
     }
 }

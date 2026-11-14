@@ -36,6 +36,8 @@ pub const MIN_SIZE: f64 = 14.0;
 /// Sizes of the title of the report, of a section and of the metadata line.
 pub const TITLE_SIZE: f64 = 32.0;
 pub const SECTION_SIZE: f64 = 24.0;
+/// The mid-grey stage of the Component Master (the automatic choice's third candidate).
+pub const STAGE_MID: &str = "#777777";
 /// The light stage (Alabaster).
 pub const STAGE_LIGHT: &str = "#E5E5E5";
 /// The redlines on the light stage (Prussian blue), with the default line colour.

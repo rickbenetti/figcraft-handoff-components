@@ -87,6 +87,49 @@ pub fn pick_stage(backdrop: Option<Rgba>, elements: &[Rgba]) -> Pick {
     if dark > light + 1e-9 { Pick { dark: true, lowest: Some(dark) } } else { Pick { dark: false, lowest: Some(light) } }
 }
 
+/// The mid-grey stage, #777777 ("cinza médio"): a third candidate for the Component Master's automatic stage.
+pub const MID_STAGE: Rgba = Rgba { r: 119.0 / 255.0, g: 119.0 / 255.0, b: 119.0 / 255.0, a: 1.0 };
+
+/// The three stages the automatic Master stage chooses among.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stage {
+    Light,
+    Mid,
+    Dark,
+}
+
+impl Stage {
+    /// In the order a tie is settled: light, then mid-grey, then dark.
+    pub const ORDER: [Stage; 3] = [Stage::Light, Stage::Mid, Stage::Dark];
+
+    pub fn colour(self) -> Rgba {
+        match self {
+            Stage::Light => LIGHT_STAGE,
+            Stage::Mid => MID_STAGE,
+            Stage::Dark => DARK_STAGE,
+        }
+    }
+}
+
+/// What the three-stage choice decides: the stage and the lowest contrast on it (None when there is nothing to judge: light).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Pick3 {
+    pub stage: Stage,
+    pub lowest: Option<f64>,
+}
+
+/// The stage whose lowest contrast over `judged` is the highest; a tie is settled light, then mid-grey, then dark.
+pub fn pick_stage3(judged: &[Rgba]) -> Pick3 {
+    let mut best: Option<(Stage, f64)> = None;
+    for st in Stage::ORDER {
+        let Some(low) = lowest_against(judged, st.colour()) else { return Pick3 { stage: Stage::Light, lowest: None } };
+        if best.is_none_or(|(_, b)| low > b + 1e-9) {
+            best = Some((st, low));
+        }
+    }
+    best.map_or(Pick3 { stage: Stage::Light, lowest: None }, |(stage, low)| Pick3 { stage, lowest: Some(low) })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
