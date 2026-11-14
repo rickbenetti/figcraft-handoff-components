@@ -29,6 +29,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | DeltaMore | +{n} more differences | +{n} outras diferenças |
 | DeltaMoreOne | +{n} more difference | +{n} outra diferença |
 | DeltaNone | No differences from default | Sem diferenças em relação ao padrão |
+| DeltaOneLine | {n} changes are shown on one line | {n} diferenças estão em uma linha só |
+| DeltaOneLineOne | {n} change is shown on one line | {n} diferença está em uma linha só |
 | DeltaOpacity | Opacity | Opacidade |
 | DeltaStrokeWeight | Stroke weight | Espessura do traço |
 | DeltaVisible | visible | visível |
@@ -60,6 +62,14 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | LayerBlockHeader | Block header | Cabeçalho do bloco |
 | LayerBody | Properties | Propriedades |
 | LayerChip | Token chip | Chip de token |
+| LayerDeltaArrow | Arrow | Seta |
+| LayerDeltaColor | Color | Cor |
+| LayerDeltaHex | Hex | Hex |
+| LayerDeltaLabel | Label | Rótulo |
+| LayerDeltaSwatch | Swatch | Amostra |
+| LayerDeltaToken | Token | Token |
+| LayerDeltaTokens | Tokens | Tokens |
+| LayerDeltaValues | Values | Valores |
 | LayerDeltas | Differences | Diferenças |
 | LayerDivider | Divider | Divisor |
 | LayerGroup | Legend: {name} | Legenda: {name} |

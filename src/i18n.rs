@@ -116,7 +116,7 @@ keys! {
     AlignSpaceAround, AlignSpaceBetween, AlignSpaceEvenly, AlignTop, Anatomy,
     Collision, CollisionOne, VariantShown, DeltaContent, DeltaWhitespaceOnly, DeltaNameSeparator,
     DeltaEffectOnly, DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore,
-    DeltaMoreOne, DeltaNone, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
+    DeltaMoreOne, DeltaNone, DeltaOneLine, DeltaOneLineOne, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
     DeltaWidth, DirGrid, DirHorizontal, DirVertical, Done,
     ErrBadLang, ErrBadRerun, ErrBadStage,
     ErrCall,
@@ -124,7 +124,8 @@ keys! {
     ErrNoSelection, ErrNotComponent, ErrNotList, ErrParent,
     FrameName, InstanceOf, LayerAnatomyRow, LayerAnatomySection,
     LayerAxis, LayerAxisNote, LayerAxisRow, LayerBadge, LayerBlockHeader,
-    LayerBody, LayerChip, LayerDeltas, LayerDivider,
+    LayerBody, LayerChip, LayerDeltaArrow, LayerDeltaColor, LayerDeltaHex, LayerDeltaLabel, LayerDeltaSwatch,
+    LayerDeltaToken, LayerDeltaTokens, LayerDeltaValues, LayerDeltas, LayerDivider,
     LayerGroup, LayerHeaderBlock, LayerKind, LayerLeader, LayerLegend,
     LayerMarker, LayerMeasure, LayerMore, LayerNote, LayerProperties,
     LayerPropertyRow, LayerSpacingSection, LayerStage, LayerSubtitle, LayerSummary,
@@ -242,7 +243,7 @@ mod tests {
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();

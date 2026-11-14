@@ -48,3 +48,8 @@ pub const BLOCK_PAD: f64 = 20.0;
 pub const BLOCK_RADIUS: f64 = 12.0;
 /// The weight of its border, which the host counts in the layout like padding.
 pub const BLOCK_BORDER: f64 = 1.0;
+/// A change in the stacked format: the gap between its lines, the room under its divider, and its colour square.
+pub const ENTRY_GAP: f64 = 4.0;
+pub const ENTRY_PAD_TOP: f64 = 6.0;
+pub const SWATCH_SIZE: f64 = 16.0;
+pub const SWATCH_RADIUS: f64 = 3.0;

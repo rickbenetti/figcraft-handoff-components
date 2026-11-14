@@ -6,6 +6,7 @@ mod contrast;
 mod delta;
 mod direct;
 mod gerar;
+mod stacked;
 mod theme;
 mod variants;
 mod glyphs;

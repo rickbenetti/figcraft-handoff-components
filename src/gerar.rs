@@ -8,6 +8,7 @@ use crate::glyphs;
 use crate::i18n::{Key, Lang, override_name, plural, t, tf};
 use crate::contrast::{self, Rgba};
 use crate::delta::{self, LABEL_SEP};
+use crate::stacked;
 use crate::store::{REPORT_KEY, Rerun, Settings, StageMode};
 use crate::theme;
 use crate::variants::{self, Pairs, SetInfo, Variant};
@@ -554,6 +555,22 @@ fn text_with(lang: Lang, parent: u64, s: &str, size: f64, fill: &str, name: &str
     id_of(lang, &r, "text.create")
 }
 
+/// The frame of a token chip: it hugs its text, in the panel colour, with a rounded border. `padding` is the chip's, `extra` more
+/// properties (a cell of a grid). The caller puts the text in it.
+fn token_chip(lang: Lang, parent: u64, padding: Value, stroke: &str, weight: f64, extra: Value) -> Result<u64> {
+    let mut c = FlowSpec::new(t(lang, Key::LayerChip), 20.0, "horizontal");
+    c.padding = padding;
+    c.fill = Some(theme::PANEL);
+    let mut props = json!({"sizingH": "hug", "cornerRadius": 12, "stroke": stroke, "strokeWeight": weight, "strokeAlign": "inside"});
+    if let (Some(p), Some(e)) = (props.as_object_mut(), extra.as_object()) {
+        for (k, v) in e {
+            p.insert(k.clone(), v.clone());
+        }
+    }
+    c.extra = props;
+    flow_frame(lang, parent, c)
+}
+
 /// One property of a layer, in the legend's body. With a token: two lines glued together, "glyph
 /// Label: [chip]" and under it, dimmer, "value · state" (and "· ×N layers" when it is shared).
 /// Without: one line, "glyph Label: value · no token".
@@ -574,13 +591,8 @@ fn draw_prop(lang: Lang, body: u64, width: f64, line: &Line, accent: &str) -> Re
     a.extra = json!({"sizingH": "hug", "crossAlign": "center"});
     let a = flow_frame(lang, pair, a)?;
     text_with(lang, a, &format!("{head}{}", LABEL_SEP.trim_end()), LINE_SIZE, theme::TEXT, label, json!({}))?;
-    let chip_name = t(lang, Key::LayerChip);
-    let mut c = FlowSpec::new(chip_name, 20.0, "horizontal");
-    c.padding = json!([2, 8, 2, 8]);
-    c.fill = Some(theme::PANEL);
-    c.extra = json!({"sizingH": "hug", "cornerRadius": 12, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"});
-    let chip = flow_frame(lang, a, c)?;
-    text_with(lang, chip, &wrap(&line.token, CHIP_CHARS), LINE_SIZE, theme::TEXT, chip_name, json!({}))?;
+    let chip = token_chip(lang, a, json!([2, 8, 2, 8]), theme::BORDER, 1.0, json!({}))?;
+    text_with(lang, chip, &wrap(&line.token, CHIP_CHARS), LINE_SIZE, theme::TEXT, t(lang, Key::LayerChip), json!({}))?;
     let b = format!("{} · {state}", line.value);
     let id = text_with(lang, pair, &b, LINE_SIZE, theme::MUTED_70, label, json!({}))?;
     if accented {
@@ -1678,12 +1690,8 @@ fn draw_properties(lang: Lang, frame: u64, inner: f64, views: &[PropView]) -> Re
         c.extra = json!({"wrap": true, "crossGap": 8});
         let chips = flow_frame(lang, row, c)?;
         for (option, is_default) in &v.options {
-            let mut chip = FlowSpec::new(t(lang, Key::LayerChip), 20.0, "horizontal");
-            chip.padding = json!([3, 10, 3, 10]);
-            chip.fill = Some(theme::PANEL);
             let (stroke, weight) = if *is_default { (theme::TEXT, 1.5) } else { (theme::BORDER, 1.0) };
-            chip.extra = json!({"sizingH": "hug", "cornerRadius": 12, "stroke": stroke, "strokeWeight": weight, "strokeAlign": "inside"});
-            let chip = flow_frame(lang, chips, chip)?;
+            let chip = token_chip(lang, chips, json!([3, 10, 3, 10]), stroke, weight, json!({}))?;
             let extra = if *is_default { json!({"fontStyle": "Bold"}) } else { json!({}) };
             text_with(lang, chip, option, LINE_SIZE, if *is_default { theme::TEXT } else { theme::MUTED_70 }, t(lang, Key::LayerChip), extra)?;
         }
@@ -1700,6 +1708,11 @@ struct AxesDrawn {
     undefined: Vec<String>,
     /// For each row: its name, the lowest contrast found (in auto) and whether its stage is dark.
     info: Vec<Value>,
+    /// The changes the budget of the stacked format left as one line, and the nodes it spent.
+    capped: usize,
+    stack_used: usize,
+    stack_measured: usize,
+    stack_redrawn: usize,
 }
 
 /// The variables and styles of the file, read the first time a layer needs them (the default's walk may
@@ -1709,6 +1722,8 @@ struct Caches {
     vars_loaded: bool,
     styles: Styles,
     styles_loaded: bool,
+    /// The nodes the run may still spend on the stacked format of the changes.
+    budget: stacked::Budget,
 }
 
 impl Caches {
@@ -1737,6 +1752,199 @@ fn legend_text(lang: Lang, parent: u64, s: &str, fill: &str, name: &str, bold: b
     id_of(lang, &r, "text.create")
 }
 
+/// More properties merged over a base set of them.
+fn merged(base: Value, more: Value) -> Value {
+    let mut out = base;
+    if let (Some(o), Some(m)) = (out.as_object_mut(), more.as_object()) {
+        for (k, v) in m {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+    out
+}
+
+/// A cell of a grid: its column and row, centred on its line.
+fn at(col: usize, row: usize) -> Value {
+    json!({"gridColumn": col, "gridRow": row, "gridAlignV": "center"})
+}
+
+/// A colour: its square (empty when the colour has an alpha, which the hex says) and its hex. `anchor` is its place in a grid.
+fn colour_cell(lang: Lang, parent: u64, cell: &delta::Cell, anchor: Value) -> Result<u64> {
+    let mut f = FlowSpec::new(t(lang, Key::LayerDeltaColor), 20.0, "horizontal");
+    f.gap = stacked::SWATCH_GAP;
+    f.extra = merged(json!({"sizingH": "hug", "crossAlign": "center"}), anchor);
+    let frame = flow_frame(lang, parent, f)?;
+    let fill = if cell.colour == Some(delta::Swatch::Solid) { json!(cell.value) } else { Value::Null };
+    host(
+        lang,
+        "shape.rectangle",
+        &json!({"x": 0, "y": 0, "width": theme::SWATCH_SIZE, "height": theme::SWATCH_SIZE, "parent": frame, "name": t(lang, Key::LayerDeltaSwatch), "select": false,
+            "props": {"fill": fill, "cornerRadius": theme::SWATCH_RADIUS, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}),
+    )?;
+    // The hex is light: where the font has no light face the host draws it regular.
+    text_with(lang, frame, &cell.value, LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaHex), json!({"fontStyle": "Light"}))?;
+    Ok(frame)
+}
+
+/// The value of a side: its colour, or the number or text (a dash, when there is nothing else to say, is dimmer).
+fn value_cell(lang: Lang, parent: u64, cell: &delta::Cell, anchor: Value) -> Result<u64> {
+    if cell.colour.is_some() {
+        return colour_cell(lang, parent, cell, anchor);
+    }
+    let fill = if cell.value == delta::DASH { theme::MUTED_70 } else { theme::TEXT };
+    text_with(lang, parent, &cell.value, LINE_SIZE, fill, t(lang, Key::LayerDeltaValues), anchor)
+}
+
+/// The token of a side as a chip; a side with none says so with a dim dash.
+fn token_cell(lang: Lang, parent: u64, cell: &delta::Cell, anchor: Value) -> Result<u64> {
+    match &cell.token {
+        Some(token) => {
+            let chip = token_chip(lang, parent, json!([2, 8, 2, 8]), theme::BORDER, 1.0, anchor)?;
+            text_with(lang, chip, &wrap(token, CHIP_CHARS), LINE_SIZE, theme::TEXT, t(lang, Key::LayerChip), json!({}))?;
+            Ok(chip)
+        }
+        None => text_with(lang, parent, delta::DASH, LINE_SIZE, theme::MUTED_70, t(lang, Key::LayerDeltaToken), anchor),
+    }
+}
+
+fn arrow(lang: Lang, parent: u64, anchor: Value) -> Result<u64> {
+    text_with(lang, parent, "→", LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaArrow), anchor)
+}
+
+/// The frame of a change: it is the legend's width and its lines are `ENTRY_GAP` apart; with a divider it has a line on its top.
+fn entry_frame(lang: Lang, legend: u64, name: &str, divider: bool) -> Result<u64> {
+    let mut f = FlowSpec::new(name, LEGEND_W, "vertical");
+    f.gap = theme::ENTRY_GAP;
+    if divider {
+        f.padding = json!([theme::ENTRY_PAD_TOP, 0, 0, 0]);
+        f.extra = json!({"stroke": theme::BORDER, "strokeWeight": 1, "strokeSides": [true, false, false, false], "strokeAlign": "inside"});
+    }
+    flow_frame(lang, legend, f)
+}
+
+/// A line of items that hug their content, one after the other.
+fn row_frame(lang: Lang, parent: u64, name: &str) -> Result<u64> {
+    let mut r = FlowSpec::new(name, 20.0, "horizontal");
+    r.gap = stacked::COL_GAP;
+    r.extra = json!({"sizingH": "hug", "crossAlign": "center"});
+    flow_frame(lang, parent, r)
+}
+
+/// A change in the stacked format: its label in bold, then its tokens, then its values. In a grid the old side, the arrow and the new
+/// side are columns (as wide as the wider of their two lines), so the arrows of the two lines are one under the other; in the
+/// fallback the arrow and the new token start the second line, and the values keep their one line. Returns the frame and what is
+/// measured to see whether it fits the legend: the grid, or the line of values.
+fn draw_stacked(lang: Lang, legend: u64, c: &delta::Cells, layout: stacked::Layout, divider: bool) -> Result<(u64, u64)> {
+    let entry = entry_frame(lang, legend, &c.label, divider)?;
+    text_with(lang, entry, &format!("{}{}", c.label, LABEL_SEP.trim_end()), LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaLabel), json!({"fontStyle": "Bold"}))?;
+    let tokens = c.from.token.is_some() || c.to.token.is_some();
+    if layout == stacked::Layout::Fallback {
+        if tokens {
+            token_cell(lang, entry, &c.from, json!({}))?;
+            let r = row_frame(lang, entry, t(lang, Key::LayerDeltaTokens))?;
+            arrow(lang, r, json!({}))?;
+            token_cell(lang, r, &c.to, json!({}))?;
+        }
+        let r = row_frame(lang, entry, t(lang, Key::LayerDeltaValues))?;
+        value_cell(lang, r, &c.from, json!({}))?;
+        arrow(lang, r, json!({}))?;
+        value_cell(lang, r, &c.to, json!({}))?;
+        return Ok((entry, r));
+    }
+    let mut g = FlowSpec::new(t(lang, Key::LayerDeltaValues), LEGEND_W, "grid");
+    // `gap` is the one between columns; the one between the two lines is `rowGap`.
+    g.gap = stacked::COL_GAP;
+    g.extra = json!({"gridColumns": 3, "columnTracks": ["auto", "auto", "auto"], "rowGap": theme::ENTRY_GAP});
+    let grid = flow_frame(lang, entry, g)?;
+    let values_row = usize::from(tokens);
+    if tokens {
+        token_cell(lang, grid, &c.from, at(0, 0))?;
+        arrow(lang, grid, at(1, 0))?;
+        token_cell(lang, grid, &c.to, at(2, 0))?;
+    }
+    value_cell(lang, grid, &c.from, at(0, values_row))?;
+    arrow(lang, grid, at(1, values_row))?;
+    value_cell(lang, grid, &c.to, at(2, values_row))?;
+    Ok((entry, grid))
+}
+
+/// Whether what was drawn goes past the right edge of the legend: for a grid, any of its cells past the grid's edge; for a line of
+/// values (which hugs its content), the line past the entry's edge.
+fn goes_past_the_edge(lang: Lang, layout: stacked::Layout, entry: u64, probe: u64) -> Result<bool> {
+    if layout == stacked::Layout::Fallback {
+        let (e, r) = (host(lang, "node.get", &json!({"id": entry, "fields": ["absoluteBounds"]}))?, host(lang, "node.get", &json!({"id": probe, "fields": ["absoluteBounds"]}))?);
+        return Ok(matches!((bounds(&e), bounds(&r)), (Some(e), Some(r)) if r.right() > e.right() + 0.5));
+    }
+    let g = host(lang, "node.get", &json!({"id": probe, "fields": ["absoluteBounds", "children"]}))?;
+    let Some(b) = bounds(&g) else { return Ok(false) };
+    let right = g.get("children").and_then(Value::as_array).map_or(f64::MIN, |a| a.iter().filter_map(bounds).map(Rect::right).fold(f64::MIN, f64::max));
+    Ok(right > b.right() + 0.5)
+}
+
+/// A line of text, in a frame with a divider on its top when it has one.
+fn draw_text_line(lang: Lang, legend: u64, text: &str, divider: bool, heading: bool) -> Result<()> {
+    let parent = if divider { entry_frame(lang, legend, t(lang, Key::LayerDeltas), true)? } else { legend };
+    legend_text(lang, parent, text, heading_fill(heading), t(lang, Key::LayerDeltas), heading)?;
+    Ok(())
+}
+
+/// The colour of a line of a list: a group's heading (in bold) is in the secondary text colour, so it ranks under the label of a
+/// property, which is white.
+fn heading_fill(heading: bool) -> &'static str {
+    if heading { theme::MUTED_70 } else { theme::TEXT }
+}
+
+/// The lines of a variant's list. A change of a property is drawn stacked when it has a token or a colour and the budget of the
+/// run allows (see [`stacked`]), else as one line of text. A divider is the line on the top of a block: it is on every group's
+/// heading (the heading and the changes under it stay together, so the first change under a heading has none), on every change
+/// that has no heading over it (a change of the component itself, a layer shown or hidden, an instance swapped: each is a
+/// block of one line), and on none of the first block. `capped` counts the changes that would have been stacked and the budget
+/// left as a line.
+fn draw_listing(lang: Lang, legend: u64, listing: &delta::Listing, budget: &mut stacked::Budget, capped: &mut usize) -> Result<()> {
+    let kinds: Vec<(bool, bool)> = listing.lines.iter().map(|l| (l.heading, l.entry)).collect();
+    for (l, divider) in listing.lines.iter().zip(stacked::dividers(&kinds)) {
+        let heading = l.heading;
+        let line_cost = usize::from(divider) * stacked::LINE_COST;
+        let plain = |lang: Lang, legend: u64| legend_text(lang, legend, &l.text, heading_fill(heading), t(lang, Key::LayerDeltas), heading);
+        // A heading, a layer shown or hidden, a swap, and a change with nothing to stack: one line.
+        let Some(cells) = l.cells.as_ref().filter(|_| l.entry) else {
+            if budget.take(line_cost) { draw_text_line(lang, legend, &l.text, divider, heading)? } else { plain(lang, legend)?; }
+            continue;
+        };
+        let mut layout = stacked::plan(cells);
+        if layout == stacked::Layout::Line {
+            if budget.take(line_cost) { draw_text_line(lang, legend, &l.text, divider, false)? } else { plain(lang, legend)?; }
+            continue;
+        }
+        let mut cost = stacked::cost(cells, layout);
+        if !budget.take(cost) {
+            *capped += 1;
+            plain(lang, legend)?;
+            continue;
+        }
+        loop {
+            let (entry, probe) = draw_stacked(lang, legend, cells, layout, divider)?;
+            budget.measured += 1;
+            if !goes_past_the_edge(lang, layout, entry, probe)? {
+                break;
+            }
+            // Over the legend's width: the entry is drawn again in the layout that fits.
+            host(lang, "edit.delete", &json!({"ids": [entry]}))?;
+            budget.redrawn += 1;
+            layout = stacked::after_overflow(cells, layout);
+            if layout == stacked::Layout::Line {
+                budget.spend(line_cost.saturating_sub(cost));
+                draw_text_line(lang, legend, &l.text, divider, false)?;
+                break;
+            }
+            let next = stacked::cost(cells, layout);
+            budget.spend(next.saturating_sub(cost));
+            cost = next;
+        }
+    }
+    Ok(())
+}
+
 /// The variant axes: a section for each variant property, with a row for each option. On the left of
 /// a row, what that variant changes from the default (the default says "Default" and nothing else); on
 /// the right, a new instance of the variant. The other properties stay at the default. Missing
@@ -1755,7 +1963,7 @@ fn draw_axes(
     base_walked: &[(Value, usize)],
     caches: &mut Caches,
 ) -> Result<AxesDrawn> {
-    let mut drawn = AxesDrawn { narrow: Vec::new(), rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new() };
+    let mut drawn = AxesDrawn { narrow: Vec::new(), rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new(), capped: 0, stack_used: 0, stack_measured: 0, stack_redrawn: 0 };
     let mut last_section: Option<u64> = None;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
     let base_snap = delta::snapshot(lang, base_walked, &caches.vars, &caches.styles);
@@ -1768,6 +1976,8 @@ fn draw_axes(
         // the "Property=Option" spelling.
         let mut missing: Vec<String> = Vec::new();
         let mut missing_named: Vec<String> = Vec::new();
+        // The changes of this section that the budget of the stacked format left as one line.
+        let mut capped_section = 0usize;
         for opt in &axis.options {
             let Some(variant) = &opt.variant else {
                 missing.push(opt.option.clone());
@@ -1815,9 +2025,7 @@ fn draw_axes(
                 caches.load_for(lang, &walked)?;
                 let diff = delta::compare(&base_snap, &delta::snapshot(lang, &walked, &caches.vars, &caches.styles));
                 let listing = delta::list(lang, &diff);
-                for l in &listing.lines {
-                    legend_text(lang, legend, &l.text, theme::TEXT, t(lang, Key::LayerDeltas), l.heading)?;
-                }
+                draw_listing(lang, legend, &listing, &mut caches.budget, &mut capped_section)?;
                 if listing.more > 0 {
                     legend_text(lang, legend, &tf(lang, plural(listing.more, Key::DeltaMoreOne, Key::DeltaMore), &[("n", &listing.more.to_string())]), theme::MUTED, t(lang, Key::LayerMore), false)?;
                 }
@@ -1856,11 +2064,19 @@ fn draw_axes(
         if let (Some(sec), false) = (section, missing.is_empty()) {
             text(lang, sec, &tf(lang, Key::NotDefined, &[("list", &missing.join(", "))]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
         }
+        if let (Some(sec), true) = (section, capped_section > 0) {
+            let note = tf(lang, plural(capped_section, Key::DeltaOneLineOne, Key::DeltaOneLine), &[("n", &capped_section.to_string())]);
+            text(lang, sec, &note, 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
+        }
+        drawn.capped += capped_section;
         drawn.undefined.extend(missing_named);
     }
     if let (Some(sec), true) = (last_section, drawn.skipped > 0) {
         text(lang, sec, &tf(lang, plural(drawn.skipped, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
     }
+    drawn.stack_used = caches.budget.used;
+    drawn.stack_measured = caches.budget.measured;
+    drawn.stack_redrawn = caches.budget.redrawn;
     Ok(drawn)
 }
 
@@ -2168,7 +2384,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let calls_legends = HOST_CALLS.load(Ordering::Relaxed) - calls_before;
 
     // The variant axes close the report.
-    let mut caches = Caches { vars, vars_loaded, styles, styles_loaded };
+    let mut caches = Caches { vars, vars_loaded, styles, styles_loaded, budget: stacked::Budget::new() };
     let axes_drawn = if axes_list.is_empty() { None } else { Some(draw_axes(lang, frame, inner, stage_w, x, &axes_list, MAX_AXIS_ROWS, mode, set_fill, &walked, &mut caches)?) };
     if let Some(a) = &axes_drawn {
         narrow.extend(a.narrow.iter().cloned());
@@ -2206,7 +2422,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "spacing": spacing_info, "spacing_wrapper": wrapper, "export": {"format": "svg", "size": "1x", "result": export_result, "frame_height": frame_h}, "badges": badge_layers,
         "properties": views.iter().map(|v| json!({"name": v.name, "type": v.kind, "options": v.options.iter().map(|(o, d)| json!({"option": o, "default": d})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
         "default_variant": target.set.as_ref().map(|sp| json!({"pairs": variants::join(&sp.default), "source": format!("{:?}", sp.source)})),
-        "axes": axes_drawn.as_ref().map(|a| json!({"rows": a.rows, "skipped": a.skipped, "undefined": a.undefined, "planned": variants::within_limit(&axes_list, MAX_AXIS_ROWS).0, "stages": a.info})),
+        "axes": axes_drawn.as_ref().map(|a| json!({"rows": a.rows, "skipped": a.skipped, "undefined": a.undefined, "stacked": {"limit": stacked::BUDGET, "used": a.stack_used, "capped": a.capped, "measured": a.stack_measured, "redrawn": a.stack_redrawn}, "planned": variants::within_limit(&axes_list, MAX_AXIS_ROWS).0, "stages": a.info})),
         "effects": {"reach": reach, "cap": EFFECT_CAP, "slack": EFFECT_SLACK, "narrow": narrow.iter().map(|(n, w)| json!({"name": n, "needed_width": w, "stage_width": stage_w})).collect::<Vec<_>>()}, "stage_mode": mode.name(), "anatomy_stage": {"dark": anatomy_dark, "lowest_contrast": anatomy_ratio}, "host_calls": HOST_CALLS.load(Ordering::Relaxed), "badge_info": badges.info, "badges_dropped": badges.dropped, "unnumbered_layers": unnumbered,
         "anatomy_blocks": anatomy_blocks.iter().map(|b| json!({"title": block_name(&walked, b), "badge": b.badge, "count": b.nodes.len()})).collect::<Vec<_>>(),
         "hidden_paints": nodes.iter().map(audit::hidden_paints).sum::<usize>(),

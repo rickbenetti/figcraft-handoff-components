@@ -440,6 +440,74 @@ pub struct Line {
     pub text: String,
     /// A layer's name over its changes.
     pub heading: bool,
+    /// A change of a property ("Label: from → to"), as against a heading or a layer shown or hidden.
+    pub entry: bool,
+    /// The change as its parts, when it has a token or a colour on one of its sides (the stacked format draws it; `text` is
+    /// the same change on one line, for when it does not).
+    pub cells: Option<Cells>,
+}
+
+/// How a colour is drawn: a square of the colour, or (when the colour has an alpha) an empty square.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Swatch {
+    Solid,
+    Hollow,
+}
+
+/// One side of a change as two lines: its token (when it has one) and its value.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Cell {
+    pub token: Option<String>,
+    /// The value as it is said: the colour's hex (with its alpha, written), a number, a text, the word for "none", or a dash
+    /// when the token is all there is to say.
+    pub value: String,
+    /// Set when the value is a colour: its square.
+    pub colour: Option<Swatch>,
+}
+
+/// A change split into its label and its two sides (see [`Line::cells`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Cells {
+    pub label: String,
+    pub from: Cell,
+    pub to: Cell,
+}
+
+/// What stands where a side has no token, or no value to say.
+pub const DASH: &str = "—";
+
+/// The colour a value says: `#RRGGBB` is solid; one with an alpha (`#RRGGBBAA` below FF) or an opacity after it ("at 50%") is
+/// hollow; anything else (a word, a number, a gradient's kind) is no colour.
+fn colour_of(value: &str) -> Option<Swatch> {
+    let rest = value.strip_prefix('#')?;
+    let digits = rest.chars().take_while(char::is_ascii_hexdigit).count();
+    if digits != 6 && digits != 8 {
+        return None;
+    }
+    let tail = &rest[digits..];
+    if !tail.is_empty() && !tail.starts_with(' ') {
+        return None;
+    }
+    let opaque = digits == 6 || rest[6..8].eq_ignore_ascii_case("ff");
+    Some(if opaque && tail.is_empty() { Swatch::Solid } else { Swatch::Hollow })
+}
+
+/// A side as a cell.
+fn cell_of(s: &Side, label: Label, lang: Lang) -> Cell {
+    let shown = show_value(&s.value, label, lang);
+    let alone = shown.trim().is_empty() || shown == DASH || s.token.as_deref() == Some(shown.as_str());
+    let colour = matches!(label, Label::Prop(Prop::Fill | Prop::Stroke)).then(|| colour_of(&shown)).flatten();
+    Cell { token: s.token.clone(), value: if alone { DASH.to_string() } else { shown }, colour }
+}
+
+/// The parts of a change, when it is drawn stacked: a fill or stroke with a colour on a side, or any property with a token on a
+/// side. A text's change (it has quotes of its own) and the rest (a size, an opacity, a stroke weight) are one line.
+fn cells_of(lang: Lang, label: Label, from: &Side, to: &Side) -> Option<Cells> {
+    if label == Label::Content {
+        return None;
+    }
+    let (a, b) = (cell_of(from, label, lang), cell_of(to, label, lang));
+    (a.token.is_some() || b.token.is_some() || a.colour.is_some() || b.colour.is_some()).then(|| Cells { label: t(lang, label.key()).to_string(), from: a, to: b })
 }
 
 /// The lines a variant shows: at most [`MAX_LINES`], and how many changes did not fit.
@@ -664,7 +732,7 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
         let mut first = true;
         for c in changes.iter().zip(&picked).filter(|(c, p)| **p && c.layer.as_ref() == *layer).map(|(c, _)| c) {
             if first && headed(*layer) {
-                lines.push(Line { text: format!("↳ {name}"), heading: true });
+                lines.push(Line { text: format!("↳ {name}"), heading: true, entry: false, cells: None });
             }
             first = false;
             let text = match &c.kind {
@@ -672,7 +740,12 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
                 Kind::Shown(on) => format!("↳ {name}{LABEL_SEP}{}", t(lang, if *on { Key::DeltaVisible } else { Key::DeltaHidden })),
                 Kind::Swapped(text) => format!("↳ {name}{LABEL_SEP}{text}"),
             };
-            lines.push(Line { text, heading: false });
+            let cells = match &c.kind {
+                Kind::Changed { label, from, to } => cells_of(lang, *label, from, to),
+                _ => None,
+            };
+            let entry = matches!(c.kind, Kind::Changed { .. });
+            lines.push(Line { text, heading: false, entry, cells });
             shown += 1;
         }
     }
@@ -1366,5 +1439,99 @@ mod tests {
         let root = || sized(100.0, 36.0, Some(("hug", "hug"))).remove(0);
         let (a, b) = (vec![root(), child(100.0, "hug")], vec![root(), child(100.0, "fill")]);
         assert_eq!(texts(&diff_of(&a, &b)), vec!["↳ Box", "Horizontal resizing: Hug → Fill"]);
+    }
+
+    fn side_with(token: Option<&str>, value: &str) -> Side {
+        Side { token: token.map(ToString::to_string), value: value.to_string() }
+    }
+
+    fn changed(label: Label, from: Side, to: Side) -> Listing {
+        let diff = Diff { changes: vec![Change { layer: None, kind: Kind::Changed { label, from, to }, minor: false }], unreadable_effect: false };
+        list(Lang::En, &diff)
+    }
+
+    #[test]
+    fn a_change_with_a_token_or_a_colour_comes_as_its_parts_and_its_text_stays() {
+        let fill = Label::Prop(Prop::Fill);
+        let l = changed(fill, side_with(Some("Colors/color/primary"), "#C6005C"), side_with(Some("Colors/color/secondary"), "#F4F4F5"));
+        let line = &l.lines[0];
+        assert!(line.entry && !line.heading);
+        let c = line.cells.as_ref().unwrap();
+        assert_eq!(c.label, "Fill");
+        assert_eq!(c.from, Cell { token: Some("Colors/color/primary".into()), value: "#C6005C".into(), colour: Some(Swatch::Solid) });
+        assert_eq!(c.to.token.as_deref(), Some("Colors/color/secondary"));
+        // The text, which the baseline records, is what it was.
+        assert_eq!(l.texts(Lang::En), vec!["Fill: Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)"]);
+        // A property with a token and no colour is also stacked: a number is a value.
+        let r = changed(Label::Prop(Prop::Radius), side_with(Some("Radius/radius/default"), "10"), side_with(None, "8"));
+        let c = r.lines[0].cells.as_ref().unwrap();
+        assert_eq!((c.from.value.as_str(), c.to.value.as_str(), c.from.colour), ("10", "8", None));
+        assert_eq!(r.texts(Lang::En), vec!["Radius: Radius/radius/default (10) → 8"]);
+    }
+
+    #[test]
+    fn a_change_with_no_token_and_no_colour_is_one_line() {
+        for (label, a, b) in [(Label::StrokeWeight, "0", "1"), (Label::Opacity, "100%", "50%"), (Label::Width, "384", "320"), (Label::Prop(Prop::Typography), "Inter 14/20", "Inter 12/16")] {
+            let l = changed(label, side_with(None, a), side_with(None, b));
+            assert!(l.lines[0].entry, "{label:?}");
+            assert_eq!(l.lines[0].cells, None, "{label:?}");
+        }
+        // A text's change has quotes of its own: one line, whatever the sides are.
+        let t = changed(Label::Content, side_with(None, "Button"), side_with(None, "Cancel"));
+        assert_eq!(t.lines[0].cells, None);
+        // A fill that goes from none to none (no colour on either side) has none to draw.
+        assert_eq!(changed(Label::Prop(Prop::Fill), side_with(None, "none"), side_with(None, "none")).lines[0].cells, None);
+    }
+
+    #[test]
+    fn a_side_with_no_token_says_so_and_a_token_alone_has_a_dash_for_its_value() {
+        let l = changed(Label::Prop(Prop::Fill), side_with(Some("Colors/color/primary"), "#C6005C"), side_with(None, "none"));
+        let c = l.lines[0].cells.as_ref().unwrap();
+        assert_eq!(c.to.token, None);
+        assert_eq!((c.to.value.as_str(), c.to.colour), ("none", None));
+        // A token whose value is its own name (or empty) has nothing else to say.
+        let t = changed(Label::Prop(Prop::Radius), side_with(Some("Radius/radius/default"), "Radius/radius/default"), side_with(Some("Radius/radius/small"), ""));
+        let c = t.lines[0].cells.as_ref().unwrap();
+        assert_eq!((c.from.value.as_str(), c.to.value.as_str()), (DASH, DASH));
+    }
+
+    #[test]
+    fn a_colour_with_an_alpha_is_an_empty_square_and_the_alpha_is_in_the_hex() {
+        assert_eq!(colour_of("#C6005C"), Some(Swatch::Solid));
+        assert_eq!(colour_of("#c6005cff"), Some(Swatch::Solid));
+        assert_eq!(colour_of("#0000000D"), Some(Swatch::Hollow));
+        assert_eq!(colour_of("#C6005C at 50%"), Some(Swatch::Hollow));
+        let l = changed(Label::Prop(Prop::Fill), side_with(None, "#0000000D"), side_with(None, "#FFFFFF"));
+        let c = l.lines[0].cells.as_ref().unwrap();
+        assert_eq!((c.from.value.as_str(), c.from.colour), ("#0000000D", Some(Swatch::Hollow)));
+        assert_eq!(c.to.colour, Some(Swatch::Solid));
+    }
+
+    #[test]
+    fn a_gradient_an_image_or_none_has_no_square_only_its_word() {
+        for word in ["linearGradient", "image", "none", "#12", "#GGGGGG", "red"] {
+            assert_eq!(colour_of(word), None, "{word}");
+        }
+        let l = changed(Label::Prop(Prop::Fill), side_with(None, "linearGradient"), side_with(None, "#FFFFFF"));
+        let c = l.lines[0].cells.as_ref().unwrap();
+        assert_eq!((c.from.value.as_str(), c.from.colour), ("linearGradient", None));
+        // A colour is only a colour in a fill or a stroke.
+        let r = changed(Label::Prop(Prop::Radius), side_with(Some("Radius/x"), "#FFFFFF"), side_with(None, "8"));
+        assert_eq!(r.lines[0].cells.as_ref().unwrap().from.colour, None);
+    }
+
+    #[test]
+    fn headings_and_layers_shown_or_hidden_are_not_entries() {
+        let diff = Diff {
+            changes: vec![
+                Change { layer: Some("/Box".into()), kind: Kind::Changed { label: Label::StrokeWeight, from: side_with(None, "0"), to: side_with(None, "1") }, minor: false },
+                Change { layer: Some("/Box".into()), kind: Kind::Changed { label: Label::Opacity, from: side_with(None, "100%"), to: side_with(None, "50%") }, minor: false },
+                Change { layer: Some("/Other".into()), kind: Kind::Shown(false), minor: false },
+            ],
+            unreadable_effect: false,
+        };
+        let l = list(Lang::En, &diff);
+        let kinds: Vec<(bool, bool)> = l.lines.iter().map(|x| (x.heading, x.entry)).collect();
+        assert_eq!(kinds, vec![(true, false), (false, true), (false, true), (false, false)]);
     }
 }

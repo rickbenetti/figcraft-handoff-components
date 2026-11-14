@@ -570,7 +570,7 @@
     "lines": 8,
     "sections": 7,
     "instances": 14,
-    "fuel": 154452852,
+    "fuel": 221464249,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
@@ -1010,7 +1010,7 @@
     "lines": 8,
     "sections": 0,
     "instances": 14,
-    "fuel": 157860687,
+    "fuel": 224943450,
     "deltas": {
       "Type=Primary, Size=Medium, State=Enabled": [],
       "Type=Secondary, Size=Medium, State=Enabled": [
