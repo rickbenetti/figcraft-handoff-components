@@ -50,6 +50,10 @@ pub const BLOCK_RADIUS: f64 = 12.0;
 pub const BLOCK_BORDER: f64 = 1.0;
 /// A change in the stacked format: the gap between its lines, the room under its divider, and its colour square.
 pub const ENTRY_GAP: f64 = 4.0;
-pub const ENTRY_PAD_TOP: f64 = 6.0;
+/// A block of a variant's list (a group's heading and the first change under it, or one change) has this padding on its four sides;
+/// every other block (the 2nd, the 4th…) has this fill and corner radius, which tells one block from the next.
+pub const STRIPE_PAD: f64 = 8.0;
+pub const STRIPE_FILL: &str = "#4C4C4C";
+pub const STRIPE_RADIUS: f64 = 12.0;
 pub const SWATCH_SIZE: f64 = 16.0;
 pub const SWATCH_RADIUS: f64 = 3.0;

@@ -442,6 +442,12 @@ pub struct Line {
     pub heading: bool,
     /// A change of a property ("Label: from → to"), as against a heading or a layer shown or hidden.
     pub entry: bool,
+    /// How many characters at the start of `text` are drawn in bold, the rest as it is: the label of a property and its colon
+    /// ("Stroke weight:"), or, in a line of a layer shown or hidden or an instance swapped, the layer's title and its colon
+    /// ("↳ Content / Features:"). 0 for a heading (all of it is bold) and for a line with nothing to set apart.
+    pub label_len: usize,
+    /// Whether that part is a layer's title (drawn in the colour of a group's heading) and not the label of a property (white).
+    pub label_is_layer: bool,
     /// The change as its parts, when it has a token or a colour on one of its sides (the stacked format draws it; `text` is
     /// the same change on one line, for when it does not).
     pub cells: Option<Cells>,
@@ -732,7 +738,7 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
         let mut first = true;
         for c in changes.iter().zip(&picked).filter(|(c, p)| **p && c.layer.as_ref() == *layer).map(|(c, _)| c) {
             if first && headed(*layer) {
-                lines.push(Line { text: format!("↳ {name}"), heading: true, entry: false, cells: None });
+                lines.push(Line { text: format!("↳ {name}"), heading: true, entry: false, label_len: 0, label_is_layer: false, cells: None });
             }
             first = false;
             let text = match &c.kind {
@@ -744,8 +750,15 @@ pub fn list(lang: Lang, diff: &Diff) -> Listing {
                 Kind::Changed { label, from, to } => cells_of(lang, *label, from, to),
                 _ => None,
             };
+            // A change of a property says its label first (see `change_text`), then a colon; a layer shown, hidden or swapped says its
+            // title (`↳ name`), then a colon.
+            let colon = LABEL_SEP.trim_end().chars().count();
+            let (label_len, label_is_layer) = match &c.kind {
+                Kind::Changed { label, .. } => (t(lang, label.key()).chars().count() + colon, false),
+                Kind::Shown(_) | Kind::Swapped(_) => (format!("↳ {name}").chars().count() + colon, true),
+            };
             let entry = matches!(c.kind, Kind::Changed { .. });
-            lines.push(Line { text, heading: false, entry, cells });
+            lines.push(Line { text, heading: false, entry, label_len, label_is_layer, cells });
             shown += 1;
         }
     }
@@ -1533,5 +1546,39 @@ mod tests {
         let l = list(Lang::En, &diff);
         let kinds: Vec<(bool, bool)> = l.lines.iter().map(|x| (x.heading, x.entry)).collect();
         assert_eq!(kinds, vec![(true, false), (false, true), (false, true), (false, false)]);
+    }
+
+    #[test]
+    fn the_label_of_a_change_is_counted_so_it_can_be_drawn_in_bold() {
+        let l = changed(Label::StrokeWeight, side_with(None, "0"), side_with(None, "1"));
+        assert_eq!(l.lines[0].text, "Stroke weight: 0 → 1");
+        assert_eq!(l.lines[0].label_len, "Stroke weight:".chars().count());
+        // Stacked or not, a change of a property has it; the text still starts with the label and its colon.
+        let f = changed(Label::Prop(Prop::Fill), side_with(Some("Colors/color/primary"), "#C6005C"), side_with(None, "none"));
+        assert!(f.lines[0].text.starts_with(&f.lines[0].text[..f.lines[0].label_len]) && f.lines[0].text[..f.lines[0].label_len].ends_with(':'));
+        let diff = Diff { changes: vec![Change { layer: None, kind: Kind::Changed { label: Label::StrokeWeight, from: side_with(None, "0"), to: side_with(None, "1") }, minor: false }], unreadable_effect: false };
+        let pt = list(Lang::Pt, &diff);
+        assert_eq!(&pt.lines[0].text[..pt.lines[0].text.char_indices().nth(pt.lines[0].label_len).map_or(0, |(i, _)| i)], "Espessura do traço:");
+        // A layer shown or hidden has its title in bold, up to the colon, and the state as it is.
+        let o = list(Lang::En, &Diff { changes: vec![Change { layer: Some("/Content/Features".into()), kind: Kind::Shown(false), minor: false }], unreadable_effect: false });
+        let l = &o.lines[0];
+        assert_eq!(l.text, "↳ Content / Features: hidden");
+        assert_eq!((&l.text[..l.text.char_indices().nth(l.label_len).map_or(l.text.len(), |(i, _)| i)], l.label_is_layer), ("↳ Content / Features:", true));
+        // A property's label is not a layer's.
+        assert!(!changed(Label::StrokeWeight, side_with(None, "0"), side_with(None, "1")).lines[0].label_is_layer);
+    }
+
+    #[test]
+    fn a_layer_hidden_shown_or_swapped_says_the_same_in_every_language_and_its_title_is_counted() {
+        let hidden = |lang| list(lang, &Diff { changes: vec![Change { layer: Some("/Content/Features".into()), kind: Kind::Shown(false), minor: false }], unreadable_effect: false });
+        assert_eq!(hidden(Lang::Pt).lines[0].text, "↳ Content / Features: oculto");
+        assert_eq!(hidden(Lang::Pt).lines[0].label_len, "↳ Content / Features:".chars().count());
+        let swapped = list(Lang::En, &Diff { changes: vec![Change { layer: Some("/Leading icon".into()), kind: Kind::Swapped("Size: 16 → 20".into()), minor: false }], unreadable_effect: false });
+        let l = &swapped.lines[0];
+        assert_eq!(l.text, "↳ Leading icon: Size: 16 → 20");
+        assert_eq!((l.label_len, l.label_is_layer, l.entry, l.heading), ("↳ Leading icon:".chars().count(), true, false, false));
+        // A heading is all bold: no part to set apart.
+        let heading = list(Lang::En, &Diff { changes: vec![Change { layer: Some("/Box".into()), kind: Kind::Changed { label: Label::StrokeWeight, from: side_with(None, "0"), to: side_with(None, "1") }, minor: false }, Change { layer: Some("/Box".into()), kind: Kind::Changed { label: Label::Opacity, from: side_with(None, "100%"), to: side_with(None, "50%") }, minor: false }], unreadable_effect: false });
+        assert_eq!((heading.lines[0].heading, heading.lines[0].label_len), (true, 0));
     }
 }

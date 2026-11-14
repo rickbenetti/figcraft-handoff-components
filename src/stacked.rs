@@ -4,8 +4,8 @@
 
 use crate::delta::{Cell, Cells, DASH};
 
-/// The legend's width, in px (the same as `gerar.rs`'s `LEGEND_W`).
-pub const WIDTH: f64 = 520.0;
+/// The room a block gives its lines, in px: the legend's width (the same as `gerar.rs`'s `LEGEND_W`) less the block's padding.
+pub const WIDTH: f64 = 520.0 - 2.0 * crate::theme::STRIPE_PAD;
 /// What a character of the 15 px text takes, in px (an estimate: only the entries near the limit are measured).
 pub const CHAR_W: f64 = 7.7;
 /// What a chip adds to its text: the padding (8 + 8) and the border (1 + 1).
@@ -18,7 +18,7 @@ pub const ARROW_W: f64 = 15.0;
 /// An estimate this many times the width is trusted: such an entry is not drawn in the grid to be measured. Every other grid is
 /// drawn and measured (the estimate is only the average character; a token of wide letters can be far wider than it says).
 pub const OBVIOUS: f64 = 1.3;
-/// The most nodes the stacked format may create in a run (its entries and their dividers).
+/// The most nodes the stacked format may create in a run (its changes).
 pub const BUDGET: usize = 400;
 
 /// How a change is drawn.
@@ -97,29 +97,35 @@ pub fn cost(c: &Cells, layout: Layout) -> usize {
         }
         // The frame, the label, the old chip, the row with the arrow and the new chip, and the row of values.
         Layout::Fallback => 2 + token_cost(&c.from) + 1 + 1 + token_cost(&c.to) + 1 + values,
-        Layout::Line => LINE_COST,
+        // One line of text in a block's frame: not counted in the budget (the budget is for the stacked format).
+        Layout::Line => 0,
     }
 }
 
-/// Which lines of a list have a divider on their top. `lines` says for each line whether it is a heading (`.0`) and whether it is a
-/// change of a property (`.1`). A divider is the line on the top of a block: every heading has one (the heading and the changes
-/// under it stay together, so the first change right under a heading has none), every other line has one (a change of the
-/// component itself, a layer shown or hidden, an instance swapped: each is a block of its own), and the first line has none.
-pub fn dividers(lines: &[(bool, bool)]) -> Vec<bool> {
+/// The colour of a group's heading, and of a layer's title in a line of a layer shown, hidden or swapped: the secondary text colour,
+/// at full strength on the stripe's fill (the dimmer one would not keep its contrast there) and dimmed on a block with no fill.
+pub fn title_colour(filled: bool) -> &'static str {
+    if filled { crate::theme::MUTED } else { crate::theme::MUTED_70 }
+}
+
+/// The block each line of a list is in. `lines` says for each line whether it is a heading (`.0`) and whether it is a change of a
+/// property (`.1`). A block is a group's heading with the first change right under it, or one line on its own (a change of the
+/// component itself, a layer shown or hidden, an instance swapped). The blocks are numbered from 0 in order.
+pub fn blocks(lines: &[(bool, bool)]) -> Vec<usize> {
+    let mut block = 0;
     let mut under_heading = false;
     lines
         .iter()
         .enumerate()
         .map(|(i, &(heading, entry))| {
-            let divider = i > 0 && !(under_heading && entry);
+            if i > 0 && !(under_heading && entry) {
+                block += 1;
+            }
             under_heading = heading;
-            divider
+            block
         })
         .collect()
 }
-
-/// What a change that is one line of text adds to make room for its divider: the frame around its text.
-pub const LINE_COST: usize = 1;
 
 /// The nodes the run may still spend on the stacked format. Once an entry does not fit, it and every later one are one line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -211,16 +217,31 @@ mod tests {
     }
 
     #[test]
-    fn a_heading_has_the_divider_and_the_first_change_under_it_has_none() {
+    fn a_title_is_the_secondary_colour_at_full_strength_on_a_stripe_and_dimmed_on_a_plain_block() {
+        assert_eq!(title_colour(true), "#E5E5E5");
+        assert_eq!(title_colour(false), "#E5E5E5B3");
+        // On the stripe's fill the full colour has the contrast the dimmed one lacks (4.28 : 1 against #4C4C4C): the full one has 6.8 : 1.
+        let lum = |h: &str| {
+            let c = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).map_or(0.0, |v| f64::from(v) / 255.0);
+            let f = |v: f64| if v <= 0.03928 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) };
+            0.2126 * f(c(1)) + 0.7152 * f(c(3)) + 0.0722 * f(c(5))
+        };
+        let ratio = |a: &str, b: &str| (lum(a).max(lum(b)) + 0.05) / (lum(a).min(lum(b)) + 0.05);
+        assert!(ratio(title_colour(true), crate::theme::STRIPE_FILL) > 6.5);
+        assert!(ratio("#B7B7B7", crate::theme::STRIPE_FILL) < 4.5);
+    }
+
+    #[test]
+    fn a_heading_and_the_change_under_it_are_one_block() {
         // (heading, change of a property)
         let (h, e, o) = ((true, false), (false, true), (false, false));
-        assert_eq!(dividers(&[e, e]), [false, true]);
-        assert_eq!(dividers(&[h, e, e]), [false, false, true]);
-        assert_eq!(dividers(&[e, h, e, e]), [false, true, false, true]);
-        // A layer shown or hidden or an instance swapped is a block of one line: its divider is on top, and after a heading too.
-        assert_eq!(dividers(&[e, o, h, e, o]), [false, true, true, false, true]);
-        assert_eq!(dividers(&[o, o]), [false, true]);
-        assert_eq!(dividers(&[]), Vec::<bool>::new());
+        assert_eq!(blocks(&[e, e]), [0, 1]);
+        assert_eq!(blocks(&[h, e, e]), [0, 0, 1]);
+        assert_eq!(blocks(&[e, h, e, e]), [0, 1, 1, 2]);
+        // A layer shown or hidden or an instance swapped is a block of one line, after a heading too.
+        assert_eq!(blocks(&[e, o, h, e, o]), [0, 1, 2, 2, 3]);
+        assert_eq!(blocks(&[o, o]), [0, 1]);
+        assert_eq!(blocks(&[]), Vec::<usize>::new());
     }
 
     #[test]

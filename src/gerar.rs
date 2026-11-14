@@ -35,6 +35,10 @@ const SECTION_GAP: f64 = 56.0;
 /// The legend's width, the space between it and the stage, and the stage's room around the
 /// instance (in all, per axis) and least height.
 const LEGEND_W: f64 = 520.0;
+/// The gap between the blocks of a variant row's legend, and what a block's lines have room for: the legend's width less the block's
+/// padding on both sides.
+const LEGEND_GAP: f64 = 4.0;
+const BLOCK_W: f64 = LEGEND_W - 2.0 * theme::STRIPE_PAD;
 const ANATOMY_GAP: f64 = 32.0;
 const STAGE_ROOM: f64 = 192.0;
 const MIN_STAGE_H: f64 = 240.0;
@@ -1744,11 +1748,16 @@ impl Caches {
 
 /// A text of the legend's width (it wraps), with more properties than `text` gives.
 fn legend_text(lang: Lang, parent: u64, s: &str, fill: &str, name: &str, bold: bool) -> Result<u64> {
+    legend_text_in(lang, parent, s, fill, name, bold, LEGEND_W)
+}
+
+/// The same, `width` wide.
+fn legend_text_in(lang: Lang, parent: u64, s: &str, fill: &str, name: &str, bold: bool, width: f64) -> Result<u64> {
     let mut props = json!({"fontSize": LINE_SIZE.max(theme::MIN_SIZE), "fill": fill, "fontFamily": theme::FONT_FAMILY});
     if let (true, Some(p)) = (bold, props.as_object_mut()) {
         p.insert("fontStyle".into(), json!("Bold"));
     }
-    let r = host(lang, "text.create", &json!({"text": s, "x": 0, "y": 0, "width": LEGEND_W, "parent": parent, "name": name, "select": false, "props": props}))?;
+    let r = host(lang, "text.create", &json!({"text": s, "x": 0, "y": 0, "width": width, "parent": parent, "name": name, "select": false, "props": props}))?;
     id_of(lang, &r, "text.create")
 }
 
@@ -1811,13 +1820,15 @@ fn arrow(lang: Lang, parent: u64, anchor: Value) -> Result<u64> {
     text_with(lang, parent, "→", LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaArrow), anchor)
 }
 
-/// The frame of a change: it is the legend's width and its lines are `ENTRY_GAP` apart; with a divider it has a line on its top.
-fn entry_frame(lang: Lang, legend: u64, name: &str, divider: bool) -> Result<u64> {
+/// The frame of a block: it is the legend's wide, with `STRIPE_PAD` on its four sides and its lines `ENTRY_GAP` apart. Every other block
+/// has the stripe's fill and corner radius.
+fn entry_frame(lang: Lang, legend: u64, name: &str, filled: bool) -> Result<u64> {
     let mut f = FlowSpec::new(name, LEGEND_W, "vertical");
     f.gap = theme::ENTRY_GAP;
-    if divider {
-        f.padding = json!([theme::ENTRY_PAD_TOP, 0, 0, 0]);
-        f.extra = json!({"stroke": theme::BORDER, "strokeWeight": 1, "strokeSides": [true, false, false, false], "strokeAlign": "inside"});
+    f.padding = json!(theme::STRIPE_PAD);
+    if filled {
+        f.fill = Some(theme::STRIPE_FILL);
+        f.extra = json!({"cornerRadius": theme::STRIPE_RADIUS});
     }
     flow_frame(lang, legend, f)
 }
@@ -1834,8 +1845,11 @@ fn row_frame(lang: Lang, parent: u64, name: &str) -> Result<u64> {
 /// side are columns (as wide as the wider of their two lines), so the arrows of the two lines are one under the other; in the
 /// fallback the arrow and the new token start the second line, and the values keep their one line. Returns the frame and what is
 /// measured to see whether it fits the legend: the grid, or the line of values.
-fn draw_stacked(lang: Lang, legend: u64, c: &delta::Cells, layout: stacked::Layout, divider: bool) -> Result<(u64, u64)> {
-    let entry = entry_frame(lang, legend, &c.label, divider)?;
+fn draw_stacked(lang: Lang, legend: u64, c: &delta::Cells, layout: stacked::Layout, filled: bool, heading: Option<&delta::Line>) -> Result<(u64, u64)> {
+    let entry = entry_frame(lang, legend, &c.label, filled)?;
+    if let Some(h) = heading {
+        line_text(lang, entry, h, filled)?;
+    }
     text_with(lang, entry, &format!("{}{}", c.label, LABEL_SEP.trim_end()), LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaLabel), json!({"fontStyle": "Bold"}))?;
     let tokens = c.from.token.is_some() || c.to.token.is_some();
     if layout == stacked::Layout::Fallback {
@@ -1851,7 +1865,7 @@ fn draw_stacked(lang: Lang, legend: u64, c: &delta::Cells, layout: stacked::Layo
         value_cell(lang, r, &c.to, json!({}))?;
         return Ok((entry, r));
     }
-    let mut g = FlowSpec::new(t(lang, Key::LayerDeltaValues), LEGEND_W, "grid");
+    let mut g = FlowSpec::new(t(lang, Key::LayerDeltaValues), BLOCK_W, "grid");
     // `gap` is the one between columns; the one between the two lines is `rowGap`.
     g.gap = stacked::COL_GAP;
     g.extra = json!({"gridColumns": 3, "columnTracks": ["auto", "auto", "auto"], "rowGap": theme::ENTRY_GAP});
@@ -1873,7 +1887,7 @@ fn draw_stacked(lang: Lang, legend: u64, c: &delta::Cells, layout: stacked::Layo
 fn goes_past_the_edge(lang: Lang, layout: stacked::Layout, entry: u64, probe: u64) -> Result<bool> {
     if layout == stacked::Layout::Fallback {
         let (e, r) = (host(lang, "node.get", &json!({"id": entry, "fields": ["absoluteBounds"]}))?, host(lang, "node.get", &json!({"id": probe, "fields": ["absoluteBounds"]}))?);
-        return Ok(matches!((bounds(&e), bounds(&r)), (Some(e), Some(r)) if r.right() > e.right() + 0.5));
+        return Ok(matches!((bounds(&e), bounds(&r)), (Some(e), Some(r)) if r.right() > e.right() - theme::STRIPE_PAD + 0.5));
     }
     let g = host(lang, "node.get", &json!({"id": probe, "fields": ["absoluteBounds", "children"]}))?;
     let Some(b) = bounds(&g) else { return Ok(false) };
@@ -1881,68 +1895,83 @@ fn goes_past_the_edge(lang: Lang, layout: stacked::Layout, entry: u64, probe: u6
     Ok(right > b.right() + 0.5)
 }
 
-/// A line of text, in a frame with a divider on its top when it has one.
-fn draw_text_line(lang: Lang, legend: u64, text: &str, divider: bool, heading: bool) -> Result<()> {
-    let parent = if divider { entry_frame(lang, legend, t(lang, Key::LayerDeltas), true)? } else { legend };
-    legend_text(lang, parent, text, heading_fill(heading), t(lang, Key::LayerDeltas), heading)?;
-    Ok(())
-}
-
-/// The colour of a line of a list: a group's heading (in bold) is in the secondary text colour, so it ranks under the label of a
-/// property, which is white.
-fn heading_fill(heading: bool) -> &'static str {
-    if heading { theme::MUTED_70 } else { theme::TEXT }
-}
-
-/// The lines of a variant's list. A change of a property is drawn stacked when it has a token or a colour and the budget of the
-/// run allows (see [`stacked`]), else as one line of text. A divider is the line on the top of a block: it is on every group's
-/// heading (the heading and the changes under it stay together, so the first change under a heading has none), on every change
-/// that has no heading over it (a change of the component itself, a layer shown or hidden, an instance swapped: each is a
-/// block of one line), and on none of the first block. `capped` counts the changes that would have been stacked and the budget
-/// left as a line.
-fn draw_listing(lang: Lang, legend: u64, listing: &delta::Listing, budget: &mut stacked::Budget, capped: &mut usize) -> Result<()> {
-    let kinds: Vec<(bool, bool)> = listing.lines.iter().map(|l| (l.heading, l.entry)).collect();
-    for (l, divider) in listing.lines.iter().zip(stacked::dividers(&kinds)) {
-        let heading = l.heading;
-        let line_cost = usize::from(divider) * stacked::LINE_COST;
-        let plain = |lang: Lang, legend: u64| legend_text(lang, legend, &l.text, heading_fill(heading), t(lang, Key::LayerDeltas), heading);
-        // A heading, a layer shown or hidden, a swap, and a change with nothing to stack: one line.
-        let Some(cells) = l.cells.as_ref().filter(|_| l.entry) else {
-            if budget.take(line_cost) { draw_text_line(lang, legend, &l.text, divider, heading)? } else { plain(lang, legend)?; }
-            continue;
-        };
-        let mut layout = stacked::plan(cells);
-        if layout == stacked::Layout::Line {
-            if budget.take(line_cost) { draw_text_line(lang, legend, &l.text, divider, false)? } else { plain(lang, legend)?; }
-            continue;
-        }
-        let mut cost = stacked::cost(cells, layout);
-        if !budget.take(cost) {
-            *capped += 1;
-            plain(lang, legend)?;
-            continue;
-        }
-        loop {
-            let (entry, probe) = draw_stacked(lang, legend, cells, layout, divider)?;
-            budget.measured += 1;
-            if !goes_past_the_edge(lang, layout, entry, probe)? {
-                break;
-            }
-            // Over the legend's width: the entry is drawn again in the layout that fits.
-            host(lang, "edit.delete", &json!({"ids": [entry]}))?;
-            budget.redrawn += 1;
-            layout = stacked::after_overflow(cells, layout);
-            if layout == stacked::Layout::Line {
-                budget.spend(line_cost.saturating_sub(cost));
-                draw_text_line(lang, legend, &l.text, divider, false)?;
-                break;
-            }
-            let next = stacked::cost(cells, layout);
-            budget.spend(next.saturating_sub(cost));
-            cost = next;
-        }
+/// A block of one or two lines of text: a heading, a change, or both, in a frame of their own.
+fn draw_lines(lang: Lang, legend: u64, heading: Option<&delta::Line>, body: Option<&delta::Line>, filled: bool) -> Result<()> {
+    let frame = entry_frame(lang, legend, t(lang, Key::LayerDeltas), filled)?;
+    for l in heading.into_iter().chain(body) {
+        line_text(lang, frame, l, filled)?;
     }
     Ok(())
+}
+
+/// A line of the list as text. A heading is in bold and the title colour of its block (`stacked::title_colour`). A change of a property has
+/// its label (and colon) in bold and the rest as it is; a layer shown, hidden or swapped has its title (and colon) in bold and the title
+/// colour, and the rest as it is. Each is a range of the same text, so the text still wraps as one and no node is added.
+fn line_text(lang: Lang, parent: u64, l: &delta::Line, filled: bool) -> Result<()> {
+    let fill = if l.heading { stacked::title_colour(filled) } else { theme::TEXT };
+    let id = legend_text_in(lang, parent, &l.text, fill, t(lang, Key::LayerDeltas), l.heading, BLOCK_W)?;
+    if l.label_len > 0 {
+        let mut style = json!({"id": id, "start": 0, "end": l.label_len, "fontStyle": "Bold"});
+        if let (true, Some(o)) = (l.label_is_layer, style.as_object_mut()) {
+            o.insert("textFills".into(), json!([{"type": "solid", "color": stacked::title_colour(filled)}]));
+        }
+        host(lang, "text.style", &style)?;
+    }
+    Ok(())
+}
+
+/// The lines of a variant's list, in blocks (see [`stacked::blocks`]): a group's heading with the first change under it, or one line
+/// on its own. A block is a frame with the same padding as every other; every other block (the 2nd, the 4th…) has a fill, which
+/// tells one from the next, and the first has none. A change of a property is drawn stacked when it has a token or a colour and the
+/// budget of the run allows (see [`stacked`]), else as one line of text. `capped` counts the changes that would have been stacked and
+/// the budget left as a line.
+fn draw_listing(lang: Lang, legend: u64, listing: &delta::Listing, budget: &mut stacked::Budget, capped: &mut usize) -> Result<()> {
+    let kinds: Vec<(bool, bool)> = listing.lines.iter().map(|l| (l.heading, l.entry)).collect();
+    let blocks = stacked::blocks(&kinds);
+    let mut i = 0;
+    while i < listing.lines.len() {
+        let mut j = i + 1;
+        while j < listing.lines.len() && blocks[j] == blocks[i] {
+            j += 1;
+        }
+        let group = &listing.lines[i..j];
+        let heading = group.first().filter(|l| l.heading);
+        let body = group.iter().find(|l| !l.heading);
+        draw_change_block(lang, legend, heading, body, blocks[i] % 2 == 1, budget, capped)?;
+        i = j;
+    }
+    Ok(())
+}
+
+/// One block of the list.
+fn draw_change_block(lang: Lang, legend: u64, heading: Option<&delta::Line>, body: Option<&delta::Line>, filled: bool, budget: &mut stacked::Budget, capped: &mut usize) -> Result<()> {
+    let Some(cells) = body.and_then(|l| l.cells.as_ref().filter(|_| l.entry)) else { return draw_lines(lang, legend, heading, body, filled) };
+    let mut layout = stacked::plan(cells);
+    if layout == stacked::Layout::Line {
+        return draw_lines(lang, legend, heading, body, filled);
+    }
+    let mut cost = stacked::cost(cells, layout);
+    if !budget.take(cost) {
+        *capped += 1;
+        return draw_lines(lang, legend, heading, body, filled);
+    }
+    loop {
+        let (entry, probe) = draw_stacked(lang, legend, cells, layout, filled, heading)?;
+        budget.measured += 1;
+        if !goes_past_the_edge(lang, layout, entry, probe)? {
+            return Ok(());
+        }
+        // Over the block's width: the block is drawn again in the layout that fits.
+        host(lang, "edit.delete", &json!({"ids": [entry]}))?;
+        budget.redrawn += 1;
+        layout = stacked::after_overflow(cells, layout);
+        if layout == stacked::Layout::Line {
+            return draw_lines(lang, legend, heading, body, filled);
+        }
+        let next = stacked::cost(cells, layout);
+        budget.spend(next.saturating_sub(cost));
+        cost = next;
+    }
 }
 
 /// The variant axes: a section for each variant property, with a row for each option. On the left of
@@ -2006,7 +2035,7 @@ fn draw_axes(
             r.extra = json!({"cornerRadius": theme::BLOCK_RADIUS, "stroke": theme::BORDER, "strokeWeight": theme::BLOCK_BORDER, "strokeAlign": "inside"});
             let row = flow_frame(lang, sec, r)?;
             let mut lg = FlowSpec::new(t(lang, Key::LayerLegend), LEGEND_W, "vertical");
-            lg.gap = 8.0;
+            lg.gap = LEGEND_GAP;
             let legend = flow_frame(lang, row, lg)?;
             let title = glyphs::with_word(glyphs::VARIANT, &opt.option);
             text_with(lang, legend, &title, HEADER_SIZE, theme::TEXT, &rname, json!({"fontStyle": "Bold"}))?;
