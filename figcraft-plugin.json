@@ -33,7 +33,10 @@
       "node.create",
       "component.create",
       "component.combineVariants",
-      "instance.create"
+      "instance.create",
+      "component.addProperty",
+      "component.bindProperty",
+      "instance.setProperties"
     ]
   },
   "commands": [
