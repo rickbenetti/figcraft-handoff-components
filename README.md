@@ -52,6 +52,8 @@ scripts/build.sh
 It writes `dist/` (the `.wasm` is about 479 KB) and prints the absolute path of the manifest to import. The manifest asks for `write` access and 21 commands. In FigCraft:
 **Plugins ▸ Development ▸ Import plugin from manifest…** (in the Portuguese app: **Plugins ▸ Desenvolvimento ▸ Importar plugin a partir do manifesto…**), pick `dist/figcraft-plugin.json`.
 
+To make the release zip, run `scripts/package.sh`: it builds, then writes `dist/handoff-components-<version>.zip` (the manifest, the `.wasm`, `LICENSE` and `THIRD_PARTY_NOTICES.md` at the root, with fixed timestamps so the same build gives the same zip) and prints its SHA-256; it does not tag or publish anything.
+
 ## Usage
 
 Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a panel (it needs a FigCraft that supports plugin API 2) that stays open until you close it:
