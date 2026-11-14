@@ -29,7 +29,8 @@
       "export.add",
       "style.list",
       "view.get",
-      "view.set"
+      "view.set",
+      "node.create"
     ]
   },
   "commands": [

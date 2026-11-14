@@ -162,6 +162,8 @@ keys! {
     PanelRestored, PanelTitleMessages,
     VersionStatusLine, ToBeDefined,
     PanelTitleDocumentation, PanelBlankHint, PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelFreezeNote, PanelGenerate,
+    SectionName, SectionFrameName,
+    SecCover, SecMaster, SecProperties, SecAnatomy, SecVariants, SecLayouts, SecTokens, SecChangelog, ReservedB, ReservedC, CoverDescription, CoverLastDesigner, CoverUpdatedOn, CoverGuideDescription, CoverGuideDesigner, CoverGuideUpdated, CoverApprovals, ApprArea, ApprOwner, ApprState, ApprVersion, ApprDate, ApprNote, RoleDesigner, RoleEngineering, RoleQa, RoleWriters, RolePo, RolePm, ApprPending, ApprGuide, ChipVersion, ChipStatus, MasterFrameName, MasterDescription, MasterNote, ChangelogVersion, ChangelogDate, ChangelogChange, ChangelogGuideVersion, ChangelogGuideDate, ChangelogGuideChange, PanelTitleSections, PanelSectionsManual, PanelSectionsMaster, PanelGoMaster, PanelNoMaster, PanelAtMaster, PanelNoneChosen, PanelWarnWide, PanelWarnLegacy, ErrMainGone,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
@@ -243,7 +245,7 @@ mod tests {
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus", "ChangelogGuideVersion", "ChipStatus", "RoleDesigner", "RolePm", "RolePo", "RoleQa", "RoleWriters", "SecChangelog", "SecTokens", "SectionFrameName", "SectionName"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();

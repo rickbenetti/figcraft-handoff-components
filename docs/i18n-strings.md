@@ -227,3 +227,57 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação. |
 | PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
 | PanelGenerate | Generate documentation | Gerar documentação |
+| SectionName | Handoff · {name} | Handoff · {name} |
+| SectionFrameName | {title} · {name} | {title} · {name} |
+| SecCover | Cover | Visão geral |
+| SecMaster | Component Master | Componente base |
+| SecProperties | Properties | Propriedades |
+| SecAnatomy | Anatomy | Anatomia |
+| SecVariants | States and Variants | Estados e variações |
+| SecLayouts | Layouts | Layouts (espaçamento) |
+| SecTokens | Tokens | Tokens |
+| SecChangelog | Changelog | Changelog |
+| ReservedB | Generated in the next step (B). | Gerado na próxima etapa (B). |
+| ReservedC | Generated in the next step (C). | Gerado na próxima etapa (C). |
+| CoverDescription | Description | Descrição |
+| CoverLastDesigner | Last designer | Último designer |
+| CoverUpdatedOn | Updated on | Atualizado em |
+| CoverGuideDescription | Write a short description here that product owners and managers can read. | Escreva aqui uma descrição curta que PO e PM consigam ler. |
+| CoverGuideDesigner | Name of the last designer | Nome de quem desenhou por último |
+| CoverGuideUpdated | Date, typed by hand | Data, digitada à mão |
+| CoverApprovals | Approvals | Aprovações |
+| ApprArea | Area | Área |
+| ApprOwner | Owner | Responsável |
+| ApprState | State | Estado |
+| ApprVersion | Approved version | Versão aprovada |
+| ApprDate | Date | Data |
+| ApprNote | Note | Observação |
+| RoleDesigner | Designer | Designer |
+| RoleEngineering | Engineering | Engenharia |
+| RoleQa | QA | QA |
+| RoleWriters | Writers | Writers |
+| RolePo | PO | PO |
+| RolePm | PM | PM |
+| ApprPending | Pending | Pendente |
+| ApprGuide | Fill in | Preencher |
+| ChipVersion | Version: {value} | Versão: {value} |
+| ChipStatus | Status: {value} | Status: {value} |
+| MasterFrameName | Component Master · {name} | Componente base · {name} |
+| MasterDescription | The original component lives here. The instances in this file stay linked to it. | O componente original fica aqui. As instâncias deste arquivo continuam ligadas a ele. |
+| MasterNote | Do not delete this frame or the Section: they hold the original component. | Não apague este quadro nem a Section: contêm o componente original. |
+| ChangelogVersion | Version | Versão |
+| ChangelogDate | Date | Data |
+| ChangelogChange | Change | Mudança |
+| ChangelogGuideVersion | x.y.z | x.y.z |
+| ChangelogGuideDate | Date, typed by hand | Data, digitada à mão |
+| ChangelogGuideChange | What changed in this version. | O que mudou nesta versão. |
+| PanelTitleSections | SECTIONS | SEÇÕES |
+| PanelSectionsManual | Cover and Changelog keep text typed by hand: ticking them replaces it. | Cover e Changelog guardam texto digitado à mão: marcá-los substitui esse texto. |
+| PanelSectionsMaster | The Component Master is made once. If its frame already exists, its switch is ignored. | O Component Master é criado uma vez. Se o quadro já existir, o interruptor dele é ignorado. |
+| PanelGoMaster | Go to Component Master | Ir para o Component Master |
+| PanelNoMaster | No Component Master found for this component. Select the component and try again. | Nenhum Component Master encontrado para este componente. Selecione o componente e tente de novo. |
+| PanelAtMaster | At the Component Master of {name}. Select the component again before generating. | No Component Master de {name}. Selecione o componente de novo antes de gerar. |
+| PanelNoneChosen | No section is ticked. Tick at least one section. | Nenhuma seção marcada. Marque ao menos uma seção. |
+| PanelWarnWide | The component is wider than 1824 px and goes past the Component Master frame. | O componente é mais largo que 1824 px e passa da borda do quadro do Component Master. |
+| PanelWarnLegacy | A loose documentation from version 0.10.0 was found for this component and left as it was; delete it by hand when you no longer need it. | Foi achada uma documentação solta da versão 0.10.0 para este componente; ela ficou como estava. Apague-a à mão quando não precisar mais. |
+| ErrMainGone | The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?). | O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?). |
