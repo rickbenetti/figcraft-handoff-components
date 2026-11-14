@@ -34,10 +34,10 @@ was when the settings are saved (`store.rs` `Settings::from_plugin_data`, `to_te
 | `fill_opacity` | opacity of the measure highlight | ignored, kept | same |
 | `fill` | colour of the measure highlight | ignored, kept | `panel.rs` `plan()` comment; test `a_field_the_user_did_not_change_keeps_its_stored_text_exactly` |
 
-**Restore defaults** (panel): clears `on_rerun` and `stage`, keeps `lang`, and when all restorable fields are cleared it empties
-`other` too, so the leftover keys above are removed (`panel.rs` `Form::restore_page_defaults`, `plan()`; test
-`restore_defaults_keeps_the_language_and_removes_the_other_keys_that_are_stored`). Gap in the docs: the README names only `tz`, `line` and
-`fill_opacity` as removed by Restore defaults; by the code `fill` goes too.
+**Restore defaults** (panel): marks `on_rerun` and `stage` as cleared and keeps `lang` (`panel.rs` `Field::RESTORABLE`,
+`Form::restore_page_defaults`). Nothing is written until the next documentation is generated; then, when both restorable fields are
+still marked, `plan()` empties `other` as well, so every leftover key (`tz`, `line`, `fill`, `fill_opacity` and any other unknown key)
+is removed (test `restore_defaults_keeps_the_language_and_removes_the_other_keys_that_are_stored`). The README says the same.
 
 ### Parameters of the direct run (no panel)
 

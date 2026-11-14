@@ -61,7 +61,7 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 - The **purple outline** of the instance on the stage.
 - The **8,000 px rule** and **PNG** export (only SVG now).
 - The adjustable **fill colour** and **line colour** of the guides and measures: `line`, `fill` and `fill_opacity`
-  are no longer settings. A value an earlier version stored is ignored and kept as it was; **Restore defaults** drops it.
+  are no longer settings. A value an earlier version stored is ignored and kept as it was; **Restore defaults** drops it when the next documentation is generated.
 - The permissions `comment.list`, `comment.add` and `comment.delete`.
 
 ### Fixed
@@ -71,12 +71,11 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 
 ### Known limitations
 
-- **Not seen in the app with a window.** Everything above that depends on how the documentation looks (images, fuel,
-  SVG) was checked with `figcraft-cli` (headless). The panel was exercised through the CLI's panel sequence
-  (`scripts/panel_sequence.py`), not by clicking in the app.
-- The hex values of the colour swatches use the font Inter Light; without it installed, they fall back to Regular
-  (not verified in the app).
-- Not tested in a shared (collaborative) session or in a file opened for viewing only.
+- **How it was tested.** The sample images, the measurements and the fuel in this repository come from
+  `figcraft-cli 0.18.1` without a window (synthetic). The panel and the generated documentation were checked by hand in
+  FigCraft 0.18.1.
+- **Not tested:** other FigCraft versions; a shared (collaborative) session; a file opened for viewing only; the font
+  Inter Light of the hex values without the font installed (it falls back to Regular).
 - The screen freezes while the documentation is generated.
 - See the README for the rest.
 

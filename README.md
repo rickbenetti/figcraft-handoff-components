@@ -86,7 +86,7 @@ The run returns a JSON object. Among its fields: `settings.palette` (`{anatomy, 
 The documentation does not show a generation date. The plugin host gives a plugin only the instant in UTC, with no time zone and
 no local time, so a date would be wrong for many people; it will come back when the plugin API offers a clock.
 
-- **Old files.** Earlier versions saved a `tz` (time zone), a `fill` colour, a `line` colour and a `fill_opacity` on the page, and a `handoff-meta` sheet on each component (version, status, default variant, and a typed `date` before 0.9.6). The plugin ignores them and does not erase them: they stay in the file as they were. **Restore defaults** removes the page's keys that the plugin ignores, `tz`, `line` and `fill_opacity` included.
+- **Old files.** Earlier versions saved a `tz` (time zone), a `fill` colour, a `line` colour and a `fill_opacity` on the page, and a `handoff-meta` sheet on each component (version, status, default variant, and a typed `date` before 0.9.6). The plugin ignores them and does not erase them: they stay in the file as they were. **Restore defaults** marks the stage and “on rerun” to go back to their defaults and keeps the language; when the next documentation is generated, and as long as no edit has taken both back, it also drops every key on the page that the plugin ignores (`tz`, `line`, `fill`, `fill_opacity` and any other).
 
 ## Demo
 
