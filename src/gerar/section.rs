@@ -1,38 +1,66 @@
-//! The 0.11 document: one Section for the component, with a frame for each section of the handoff (Cover, Component Master,
-//! Properties, Anatomy, States and Variants, Layouts, Tokens, Changelog), 1920 px wide with 256 px of room around and between
-//! them. A rerun works section by section: a ticked section's frame is replaced in its place, an unticked one is left alone,
-//! and the Section and the Component Master frame are never deleted (the original component lives in the Master).
+//! The 0.11 document: one Section for the component, with a frame for each part of the handoff (Cover, Component Master,
+//! Properties, Anatomy, States and Variants, Layouts, Tokens, Changelog and the support components), 1920 px wide, 64 px
+//! apart, with 256 px of room around them inside the Section.
 //!
-//! In this step only Cover, Component Master and Changelog have their content; the other five frames carry their title and a
-//! line that says when they are made.
+//! The first generation makes everything. A rerun replaces only the frames "Update" names (the five that are drawn from the
+//! component); Cover, Component Master, Changelog and the support components are made once, never replaced, and made again
+//! only when they were deleted by hand. "New Section" makes another Section beside the first, with every frame but the Master.
+//!
+//! In this step Cover, Component Master, Changelog and the support components have their content; the other five frames carry
+//! their title and a line that says when they are made.
+
+#![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
 use super::*;
+use crate::contrast::{self, Pick};
 
 /// The frame's width, its padding and the useful width inside it.
 pub const FRAME_W: f64 = 1920.0;
 pub const FRAME_PAD: f64 = 48.0;
 pub const USEFUL_W: f64 = FRAME_W - 2.0 * FRAME_PAD;
-/// The room around the frames inside the Section, and between them.
+/// The room around the frames inside the Section, and the gap between them.
 pub const SECTION_PAD: f64 = 256.0;
-pub const FRAME_GAP: f64 = 256.0;
+pub const FRAME_GAP: f64 = 64.0;
 /// The Section's width.
 pub const SECTION_W: f64 = FRAME_W + 2.0 * SECTION_PAD;
-/// The Section's background.
-const SECTION_FILL: &str = "#161616";
-/// The mark of the Section on the page (the value is the id of the component) and the mark of a frame's section.
+/// The mark of the Section on the page (the value is the id of the component), of a frame's section, and of the set of approval states.
 pub const SECTION_MARK: &str = "handoff-report-section";
 pub const NAME_MARK: &str = "handoff-section";
+pub const STATE_SET_MARK: &str = "handoff-state-set";
+/// The stage inside the Component Master frame.
+const STAGE_PAD: f64 = 48.0;
+/// The lowest contrast the automatic stage should reach for every variant (WCAG graphics: 3:1).
+pub const MIN_STAGE_CONTRAST: f64 = 3.0;
+
+/// The colours of the new frames (the dark palette; the 0.10.0 tables keep theirs).
+pub mod pal {
+    pub const SECTION: &str = "#242424";
+    pub const FRAME: &str = "#2E2E2E";
+    pub const CARD: &str = "#383838";
+    pub const LINE: &str = "#4A4A4A";
+    pub const TEXT: &str = "#F0F0F1";
+    pub const TEXT2: &str = "#B0B0B4";
+    pub const GUIDE: &str = "#929297";
+    pub const OK: &str = "#5CCB98";
+    pub const COND: &str = "#E8B64F";
+    pub const BAD: &str = "#F0786C";
+    pub const PEND: &str = "#8E8E93";
+    /// The symbol inside a state circle.
+    pub const ON_STATE: &str = "#1B1B1D";
+}
 
 const CELL_PAD: [f64; 4] = [12.0, 16.0, 12.0, 16.0];
 const TABLE_RADIUS: f64 = 8.0;
-const APPROVALS_COLS: [f64; 6] = [240.0, 360.0, 220.0, 240.0, 240.0, 524.0];
 const CHANGELOG_COLS: [f64; 3] = [200.0, 240.0, 1384.0];
+/// The circle of a state, and the name of the property of the set that holds the four.
+const STATE_D: f64 = 44.0;
+const STATE_PROP: &str = "Estado";
 
 // ---------------------------------------------------------------------------------------------
-// The sections and which of them to make
+// The sections, what to update, the approval states
 // ---------------------------------------------------------------------------------------------
 
-/// A section of the handoff, in the order of the frames.
+/// A frame of the Section, in order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sec {
     Cover,
@@ -43,12 +71,13 @@ pub enum Sec {
     Layouts,
     Tokens,
     Changelog,
+    Kit,
 }
 
 impl Sec {
-    pub const ALL: [Sec; 8] = [Sec::Cover, Sec::Master, Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens, Sec::Changelog];
+    pub const ALL: [Sec; 9] = [Sec::Cover, Sec::Master, Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens, Sec::Changelog, Sec::Kit];
 
-    /// The value of the frame's `handoff-section` data, and the key in the `sections` parameter.
+    /// The value of the frame's `handoff-section` data.
     pub fn key(self) -> &'static str {
         match self {
             Sec::Cover => "cover",
@@ -59,20 +88,7 @@ impl Sec {
             Sec::Layouts => "layouts",
             Sec::Tokens => "tokens",
             Sec::Changelog => "changelog",
-        }
-    }
-
-    /// The name of the panel's switch.
-    pub fn control(self) -> &'static str {
-        match self {
-            Sec::Cover => "sec_cover",
-            Sec::Master => "sec_master",
-            Sec::Properties => "sec_properties",
-            Sec::Anatomy => "sec_anatomy",
-            Sec::Variants => "sec_variants",
-            Sec::Layouts => "sec_layouts",
-            Sec::Tokens => "sec_tokens",
-            Sec::Changelog => "sec_changelog",
+            Sec::Kit => "kit",
         }
     }
 
@@ -86,6 +102,7 @@ impl Sec {
             Sec::Layouts => Key::SecLayouts,
             Sec::Tokens => Key::SecTokens,
             Sec::Changelog => Key::SecChangelog,
+            Sec::Kit => Key::SecKit,
         }
     }
 
@@ -93,69 +110,146 @@ impl Sec {
         Sec::ALL.into_iter().find(|s| s.key() == key)
     }
 
-    fn index(self) -> usize {
-        Sec::ALL.iter().position(|s| *s == self).unwrap_or(0)
+    /// Made once, never replaced by a rerun, made again only when it was deleted by hand.
+    pub fn permanent(self) -> bool {
+        matches!(self, Sec::Cover | Sec::Master | Sec::Changelog | Sec::Kit)
     }
 }
 
-/// Which sections are ticked.
+/// What the panel's "Update" asks a rerun to replace.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Picks(pub [bool; 8]);
+pub enum Update {
+    All,
+    Tables,
+    Tokens,
+    Properties,
+    Anatomy,
+    Variants,
+    Layouts,
+}
 
-impl Picks {
-    /// The first generation: everything.
-    pub fn first_run() -> Picks {
-        Picks([true; 8])
-    }
+impl Update {
+    pub const ALL: [Update; 7] = [Update::All, Update::Tables, Update::Tokens, Update::Properties, Update::Anatomy, Update::Variants, Update::Layouts];
 
-    /// A rerun: Cover and Changelog hold text typed by hand, and the Master is already made; the rest is made again.
-    pub fn rerun() -> Picks {
-        let mut p = [true; 8];
-        for s in [Sec::Cover, Sec::Master, Sec::Changelog] {
-            p[s.index()] = false;
+    /// The value of the `update` parameter.
+    pub fn key(self) -> &'static str {
+        match self {
+            Update::All => "all",
+            Update::Tables => "tables",
+            Update::Tokens => "tokens",
+            Update::Properties => "properties",
+            Update::Anatomy => "anatomy",
+            Update::Variants => "variants",
+            Update::Layouts => "layouts",
         }
-        Picks(p)
     }
 
-    pub fn get(&self, s: Sec) -> bool {
-        self.0[s.index()]
+    pub fn from_key(key: &str) -> Option<Update> {
+        Update::ALL.into_iter().find(|u| u.key() == key)
     }
 
-    pub fn set(&mut self, s: Sec, on: bool) {
-        self.0[s.index()] = on;
-    }
-
-    pub fn any(&self) -> bool {
-        self.0.iter().any(|b| *b)
-    }
-
-    pub fn to_json(self) -> Value {
-        Value::Object(Sec::ALL.iter().map(|s| (s.key().to_string(), Value::Bool(self.get(*s)))).collect())
-    }
-
-    /// The picks a `sections` parameter says (a section it leaves out is not ticked); none when it is not an object.
-    pub fn from_json(v: &Value) -> Option<Picks> {
-        let o = v.as_object()?;
-        let mut p = Picks([false; 8]);
-        for s in Sec::ALL {
-            p.set(s, o.get(s.key()).and_then(Value::as_bool).unwrap_or(false));
+    pub fn label_key(self) -> Key {
+        match self {
+            Update::All => Key::UpdAll,
+            Update::Tables => Key::UpdTables,
+            Update::Tokens => Key::UpdTokens,
+            Update::Properties => Key::UpdProperties,
+            Update::Anatomy => Key::UpdAnatomy,
+            Update::Variants => Key::UpdVariants,
+            Update::Layouts => Key::UpdLayouts,
         }
-        Some(p)
+    }
+
+    /// The frames a rerun replaces.
+    pub fn sections(self) -> &'static [Sec] {
+        match self {
+            Update::All => &[Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens],
+            Update::Tables => &[Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts],
+            Update::Tokens => &[Sec::Tokens],
+            Update::Properties => &[Sec::Properties],
+            Update::Anatomy => &[Sec::Anatomy],
+            Update::Variants => &[Sec::Variants],
+            Update::Layouts => &[Sec::Layouts],
+        }
     }
 }
 
-/// Something the person should know after a run.
+/// One of the four approval states.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Approval {
+    Pending,
+    Approved,
+    Conditional,
+    Rejected,
+}
+
+impl Approval {
+    pub const ALL: [Approval; 4] = [Approval::Pending, Approval::Approved, Approval::Conditional, Approval::Rejected];
+
+    /// The value of the variant property "Estado" (fixed: it is the name of a property of a component, not a text of the panel).
+    pub fn value(self) -> &'static str {
+        match self {
+            Approval::Pending => "pendente",
+            Approval::Approved => "aprovado",
+            Approval::Conditional => "ressalvas",
+            Approval::Rejected => "reprovado",
+        }
+    }
+
+    pub fn symbol(self) -> &'static str {
+        match self {
+            Approval::Pending => "…",
+            Approval::Approved => "✓",
+            Approval::Conditional => "!",
+            Approval::Rejected => "✕",
+        }
+    }
+
+    pub fn colour(self) -> &'static str {
+        match self {
+            Approval::Pending => pal::PEND,
+            Approval::Approved => pal::OK,
+            Approval::Conditional => pal::COND,
+            Approval::Rejected => pal::BAD,
+        }
+    }
+
+    pub fn label_key(self) -> Key {
+        match self {
+            Approval::Pending => Key::StatePending,
+            Approval::Approved => Key::StateApproved,
+            Approval::Conditional => Key::StateConditional,
+            Approval::Rejected => Key::StateRejected,
+        }
+    }
+
+    /// The name of the variant: "Estado=pendente".
+    pub fn variant_name(self) -> String {
+        format!("{STATE_PROP}={}", self.value())
+    }
+
+    fn from_variant_name(name: &str) -> Option<Approval> {
+        Approval::ALL.into_iter().find(|a| a.variant_name() == name)
+    }
+}
+
+/// Something the person should know after a run, most important first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Warn {
-    /// The component is wider than the useful width of its Master frame.
+    /// No stage suits every variant (the automatic stage's lowest contrast is under 3:1).
+    NoStage,
+    /// The component is wider than the stage's useful width.
     WideMaster,
     /// A loose documentation of version 0.10.0 was found and left as it was.
     LegacyDoc,
 }
 
 impl Warn {
+    pub const ALL: [Warn; 3] = [Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc];
+
     pub fn code(self) -> &'static str {
         match self {
+            Warn::NoStage => "no_stage",
             Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
         }
@@ -163,6 +257,7 @@ impl Warn {
 
     pub fn text(self, lang: Lang) -> &'static str {
         t(lang, match self {
+            Warn::NoStage => Key::PanelWarnNoStage,
             Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
         })
@@ -170,21 +265,124 @@ impl Warn {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The automatic stage over every variant
+// ---------------------------------------------------------------------------------------------
+
+/// What a variant shows the stage: its own background (its root's solid fill, else the set's), else the colours of its elements.
+#[derive(Clone, Debug, Default)]
+pub struct Judged {
+    pub backdrop: Option<Rgba>,
+    pub elements: Vec<Rgba>,
+}
+
+/// The colours the stage has to stand out from, over all variants: each variant's background when it has one, else its elements.
+pub fn union_colours(variants: &[Judged], set_fill: Option<Rgba>) -> Vec<Rgba> {
+    let mut out = Vec::new();
+    for v in variants {
+        match v.backdrop.or(set_fill) {
+            Some(b) => out.push(b),
+            None => out.extend(v.elements.iter().copied()),
+        }
+    }
+    out
+}
+
+/// The automatic stage for those variants: the light or dark stage that maximises the lowest contrast over the union (a tie is light).
+pub fn pick_union(variants: &[Judged], set_fill: Option<Rgba>) -> Pick {
+    contrast::pick_stage(None, &union_colours(variants, set_fill))
+}
+
+/// The stage the panel's "Stage" asks for: whether it is dark, and the lowest contrast when it is automatic.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StageChoice {
+    pub dark: bool,
+    pub lowest: Option<f64>,
+    pub auto: bool,
+}
+
+impl StageChoice {
+    pub fn fill(self) -> &'static str {
+        if self.dark { theme::PANEL } else { theme::STAGE_LIGHT }
+    }
+
+    /// Whether the automatic stage leaves some variant under 3:1.
+    pub fn too_low(self) -> bool {
+        self.auto && self.lowest.is_some_and(|l| l < MIN_STAGE_CONTRAST)
+    }
+}
+
+/// The colours of one variant, as the layers under it say.
+fn judge(nodes: &[Value]) -> Judged {
+    Judged { backdrop: nodes.first().and_then(solid_fill), elements: element_colours(nodes) }
+}
+
+/// The most variants, and the most layers in all of them, the automatic stage looks at (each layer is a host call).
+const MAX_STAGE_VARIANTS: usize = 80;
+const MAX_STAGE_NODES: usize = 1_200;
+
+/// The layers under `root` (itself first), as far as `budget` allows, with only what the stage's colours need: their paints, their
+/// opacity and whether they are visible.
+fn colour_nodes(lang: Lang, root: u64, budget: usize) -> Result<Vec<Value>> {
+    let mut nodes = Vec::new();
+    let mut stack = vec![root];
+    while let Some(id) = stack.pop() {
+        if nodes.len() >= budget.max(1) {
+            break;
+        }
+        let node = host(lang, "node.get", &json!({"id": id, "fields": ["fills", "strokes", "opacity", "visible", "children"]}))?;
+        if let Some(children) = node.get("children").and_then(Value::as_array) {
+            stack.extend(children.iter().rev().filter_map(|c| c.get("id").and_then(Value::as_u64)));
+        }
+        nodes.push(node);
+    }
+    Ok(nodes)
+}
+
+/// The stage of the Component Master for `target` in `mode`.
+fn choose_stage(lang: Lang, target: &Picked, mode: StageMode) -> Result<StageChoice> {
+    match mode {
+        StageMode::Light => Ok(StageChoice { dark: false, lowest: None, auto: false }),
+        StageMode::Dark => Ok(StageChoice { dark: true, lowest: None, auto: false }),
+        StageMode::Auto => {
+            let ids: Vec<u64> = match &target.set {
+                Some(s) => s.info.variants.iter().map(|v| v.id).take(MAX_STAGE_VARIANTS).collect(),
+                None => vec![target.component],
+            };
+            let set_fill = set_backdrop(lang, target)?;
+            let mut judged = Vec::new();
+            let mut seen = 0usize;
+            for id in ids {
+                let nodes = colour_nodes(lang, id, MAX_STAGE_NODES.saturating_sub(seen))?;
+                seen += nodes.len();
+                judged.push(judge(&nodes));
+            }
+            let pick = pick_union(&judged, set_fill);
+            Ok(StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true })
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Finding what is already there
 // ---------------------------------------------------------------------------------------------
 
-/// The id of the Section of `key` among the page's own children.
+fn mark_of<'a>(node: &'a Value, key: &str) -> Option<&'a str> {
+    node.get("pluginData").and_then(|d| d.get(key)).and_then(Value::as_str)
+}
+
+/// The id of the first Section of `key` among the page's own children.
 pub fn find_section(page: &PageInfo, key: &str) -> Option<u64> {
-    page.children
-        .iter()
-        .rev()
-        .find(|c| c.get("pluginData").and_then(|d| d.get(SECTION_MARK)).and_then(Value::as_str) == Some(key))
-        .and_then(|c| c.get("id").and_then(Value::as_u64))
+    sections_of(page, key).first().copied()
+}
+
+/// The ids of every Section of `key` on the page, in the page's order.
+pub fn sections_of(page: &PageInfo, key: &str) -> Vec<u64> {
+    page.children.iter().filter(|c| mark_of(c, SECTION_MARK) == Some(key)).filter_map(|c| c.get("id").and_then(Value::as_u64)).collect()
 }
 
 /// A loose documentation of version 0.10.0: a frame on the page with the old mark and no Section.
 fn has_legacy_frame(page: &PageInfo, key: &str) -> bool {
-    page.children.iter().any(|c| c.get("pluginData").and_then(|d| d.get(REPORT_KEY)).and_then(Value::as_str) == Some(key))
+    page.children.iter().any(|c| mark_of(c, REPORT_KEY) == Some(key))
 }
 
 /// A frame of the Section: its id, its place in the Section (y) and its height.
@@ -202,7 +400,7 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
     let sb = bounds(&node).unwrap_or_default();
     let mut out: Vec<Existing> = Vec::new();
     for c in node.get("children").and_then(Value::as_array).into_iter().flatten() {
-        let Some(sec) = c.get("pluginData").and_then(|d| d.get(NAME_MARK)).and_then(Value::as_str).and_then(Sec::from_key) else { continue };
+        let Some(sec) = mark_of(c, NAME_MARK).and_then(Sec::from_key) else { continue };
         let (Some(id), Some(b)) = (c.get("id").and_then(Value::as_u64), bounds(c)) else { continue };
         if out.iter().any(|e| e.sec == sec) {
             continue;
@@ -212,11 +410,33 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
     Ok((sb, out))
 }
 
-/// Whether the component the selection stands for already has a Section on the current page (false when the selection says nothing).
-pub fn section_exists(lang: Lang, selection: &[u64]) -> bool {
-    let Ok(target) = resolve(lang, selection) else { return false };
-    let Ok(page) = page_info() else { return false };
-    find_section(&page, &target.key.to_string()).is_some()
+/// The set of approval states in the support frame, with the id of each of its variants.
+struct StateSet {
+    set: u64,
+    variants: Vec<(Approval, u64)>,
+}
+
+impl StateSet {
+    fn variant(&self, a: Approval) -> Option<u64> {
+        self.variants.iter().find(|(x, _)| *x == a).map(|(_, id)| *id)
+    }
+}
+
+/// The set of states of a support frame: the child that carries the `handoff-state-set` mark, and its variants named "Estado=…".
+fn read_state_set(lang: Lang, kit: u64) -> Result<Option<StateSet>> {
+    let node = host(lang, "node.get", &json!({"id": kit, "fields": ["children", "pluginData"]}))?;
+    let Some(set) = node.get("children").and_then(Value::as_array).into_iter().flatten().find(|c| mark_of(c, STATE_SET_MARK).is_some()).and_then(|c| c.get("id").and_then(Value::as_u64)) else {
+        return Ok(None);
+    };
+    let s = host(lang, "node.get", &json!({"id": set, "fields": ["children", "name"]}))?;
+    let variants: Vec<(Approval, u64)> = s
+        .get("children")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|c| Some((Approval::from_variant_name(c.get("name")?.as_str()?)?, c.get("id")?.as_u64()?)))
+        .collect();
+    Ok((variants.len() == Approval::ALL.len()).then_some(StateSet { set, variants }))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -229,17 +449,15 @@ fn new_frame(lang: Lang, section: u64, y: f64, name: &str, comp_key: &str, sec: 
         lang,
         "frame.create",
         &json!({"parent": section, "x": SECTION_PAD, "y": y, "width": FRAME_W, "height": 200, "name": name, "select": false,
-            "props": {"fill": theme::BG, "layout": "vertical", "gap": 32, "padding": FRAME_PAD, "crossAlign": "min", "sizingH": "fixed", "sizingV": "hug", "cornerRadius": TABLE_RADIUS, "clip": false,
+            "props": {"fill": pal::FRAME, "layout": "vertical", "gap": 32, "padding": FRAME_PAD, "crossAlign": "min", "sizingH": "fixed", "sizingV": "hug", "cornerRadius": TABLE_RADIUS, "clip": false,
                 "pluginData": {REPORT_KEY: comp_key, NAME_MARK: sec.key()}}}),
     )?;
     id_of(lang, &created, "frame.create")
 }
 
-/// What a table cell holds: a text, a guide (grey, for the person to replace), or nothing.
+/// What a table cell holds: a text, or a guide (grey, for the person to replace).
 enum Cv {
-    Text(String),
     Guide(String),
-    Blank,
 }
 
 fn cell(lang: Lang, grid: u64, col: usize, row: usize, fill: Option<&str>) -> Result<u64> {
@@ -261,7 +479,7 @@ fn separator(lang: Lang, grid: u64, row: usize, cols: usize) -> Result<()> {
         lang,
         "shape.rectangle",
         &json!({"x": 0, "y": 0, "width": 100, "height": 1, "parent": grid, "name": "Separator", "select": false,
-            "props": {"fill": theme::BORDER, "gridColumn": 0, "gridRow": row, "gridColumnSpan": cols, "sizingH": "fill"}}),
+            "props": {"fill": pal::LINE, "gridColumn": 0, "gridRow": row, "gridColumnSpan": cols, "sizingH": "fill"}}),
     )?;
     Ok(())
 }
@@ -280,28 +498,21 @@ fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], r
         "frame.create",
         &json!({"parent": frame, "width": USEFUL_W, "height": 40, "name": name, "select": false,
             "props": {"layout": "grid", "gridColumns": n, "gridRows": 2 + 2 * rows.len(), "columnTracks": cols, "rowTracks": tracks, "gap": 0, "rowGap": 0, "strokesIncluded": false,
-                "padding": 0, "sizingH": "fixed", "sizingV": "hug", "fill": theme::BG, "cornerRadius": TABLE_RADIUS, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside", "clip": true}}),
+                "padding": 0, "sizingH": "fixed", "sizingV": "hug", "fill": pal::FRAME, "cornerRadius": TABLE_RADIUS, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "clip": true}}),
     )?;
     let grid = id_of(lang, &created, "frame.create")?;
     for (col, h) in headers.iter().enumerate() {
-        let c = cell(lang, grid, col, 0, Some(theme::BLOCK_FILL))?;
-        cell_text(lang, c, h, theme::MUTED, true)?;
+        let c = cell(lang, grid, col, 0, Some(pal::CARD))?;
+        cell_text(lang, c, h, pal::TEXT2, true)?;
     }
     separator(lang, grid, 1, n)?;
     for (i, row) in rows.iter().enumerate() {
         let gr = 2 + 2 * i;
         for (col, v) in row.iter().enumerate() {
+            let c = cell(lang, grid, col, gr, None)?;
             match v {
-                Cv::Blank => {}
-                Cv::Text(s) => {
-                    let c = cell(lang, grid, col, gr, None)?;
-                    cell_text(lang, c, s, theme::TEXT, false)?;
-                }
-                Cv::Guide(s) => {
-                    let c = cell(lang, grid, col, gr, None)?;
-                    cell_text(lang, c, s, theme::MUTED_70, false)?;
-                }
-            }
+                Cv::Guide(s) => cell_text(lang, c, s, pal::GUIDE, false)?,
+            };
         }
         separator(lang, grid, gr + 1, n)?;
     }
@@ -312,68 +523,127 @@ fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], r
 struct Ctx<'a> {
     lang: Lang,
     target: &'a Picked,
-    version: String,
-    status: String,
+    states: Option<StateSet>,
+    stage: StageChoice,
 }
 
-/// The frame's header: the component's name and the title of the section (the Cover adds the Version and Status chips).
-fn header(c: &Ctx, frame: u64, sec: Sec) -> Result<()> {
+fn bold() -> Value {
+    json!({"fontStyle": "Bold"})
+}
+
+fn fill_text() -> Value {
+    json!({"sizingH": "fill", "textAutoResize": "height"})
+}
+
+/// The head of a frame: a small grey label with the component's name, and under it the big title of the section.
+fn header(c: &Ctx, frame: u64, title: &str) -> Result<()> {
     let lang = c.lang;
     let mut hd = FlowSpec::new("Header", USEFUL_W, "vertical");
-    hd.gap = 12.0;
+    hd.gap = 8.0;
     let hd = flow_frame(lang, frame, hd)?;
-    text_with(lang, hd, &c.target.title, theme::TITLE_SIZE, theme::TEXT, "Title", json!({}))?;
-    if sec == Sec::Cover {
-        let mut cr = FlowSpec::new("Chips", 20.0, "horizontal");
-        cr.gap = 12.0;
-        cr.extra = json!({"sizingH": "hug"});
-        let cr = flow_frame(lang, hd, cr)?;
-        let (version, status) = (shown_or_blank(lang, &c.version), shown_or_blank(lang, &c.status));
-        for text in [tf(lang, Key::ChipVersion, &[("value", &version)]), tf(lang, Key::ChipStatus, &[("value", &status)])] {
-            let chip = token_chip(lang, cr, json!([4, 12, 4, 12]), theme::BORDER, 1.0, json!({}))?;
-            text_with(lang, chip, &text, LINE_SIZE, theme::TEXT, "Chip", json!({}))?;
-        }
-    }
-    text_with(lang, hd, t(lang, sec.title_key()), theme::SECTION_SIZE, theme::MUTED, "Section title", json!({}))?;
+    text_with(lang, hd, &c.target.title, LINE_SIZE, pal::TEXT2, "Component", json!({}))?;
+    text_with(lang, hd, title, theme::TITLE_SIZE, pal::TEXT, "Title", bold())?;
     Ok(())
 }
 
-fn shown_or_blank(lang: Lang, s: &str) -> String {
-    if s.trim().is_empty() { t(lang, Key::ToBeDefined).to_string() } else { s.trim().to_string() }
+/// A dashed chip with a guide in it (the person writes over it on the canvas).
+fn guide_chip(lang: Lang, parent: u64, s: &str) -> Result<()> {
+    let mut f = FlowSpec::new("Chip", 20.0, "horizontal");
+    f.padding = json!([6, 14, 6, 14]);
+    f.fill = Some(pal::CARD);
+    f.extra = json!({"sizingH": "hug", "cornerRadius": 14, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "dashes": [4, 4]});
+    let chip = flow_frame(lang, parent, f)?;
+    text_with(lang, chip, s, LINE_SIZE, pal::GUIDE, "Guide", json!({}))?;
+    Ok(())
 }
 
-/// A label with the grey guide under it (the person writes over the guide on the canvas).
-fn guide(lang: Lang, parent: u64, label: Key, hint: Key) -> Result<()> {
-    let mut g = FlowSpec::new("Field", USEFUL_W, "vertical");
+/// A small upper-case label with the grey guide under it; `right` aligns both to the right edge.
+fn labelled_guide(lang: Lang, parent: u64, label: Key, hint: Key, width: Option<f64>, right: bool) -> Result<()> {
+    let mut g = FlowSpec::new("Field", width.unwrap_or(20.0), "vertical");
     g.gap = 4.0;
+    g.extra = if width.is_some() { json!({}) } else { json!({"sizingH": "hug", "crossAlign": if right { "max" } else { "min" }}) };
     let g = flow_frame(lang, parent, g)?;
-    text_with(lang, g, t(lang, label), LINE_SIZE, theme::MUTED, "Label", json!({"fontStyle": "Bold"}))?;
-    text_with(lang, g, t(lang, hint), LINE_SIZE, theme::MUTED_70, "Guide", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
+    let label_extra = if right { json!({"textAlign": "right", "fontStyle": "Bold"}) } else { bold() };
+    text_with(lang, g, &t(lang, label).to_uppercase(), LINE_SIZE, pal::TEXT2, "Label", label_extra)?;
+    let mut guide = if width.is_some() { json!({"width": width, "textAutoResize": "height"}) } else { json!({}) };
+    if right && let Some(o) = guide.as_object_mut() {
+        o.insert("textAlign".into(), json!("right"));
+    }
+    text_with(lang, g, t(lang, hint), LINE_SIZE, pal::GUIDE, "Guide", guide)?;
     Ok(())
+}
+
+/// An instance of one of the states, 44 × 44.
+fn state_instance(lang: Lang, parent: u64, states: &StateSet, a: Approval) -> Result<u64> {
+    let variant = states.variant(a).ok_or_else(|| t(lang, Key::ErrNoId).to_string())?;
+    let made = host(lang, "instance.create", &json!({"component": variant, "parent": parent}))?;
+    id_of(lang, &made, "instance.create")
 }
 
 fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
     let lang = c.lang;
-    header(c, frame, Sec::Cover)?;
-    guide(lang, frame, Key::CoverDescription, Key::CoverGuideDescription)?;
-    guide(lang, frame, Key::CoverLastDesigner, Key::CoverGuideDesigner)?;
-    guide(lang, frame, Key::CoverUpdatedOn, Key::CoverGuideUpdated)?;
-    text_with(lang, frame, t(lang, Key::CoverApprovals), theme::SECTION_SIZE, theme::TEXT, "Approvals title", json!({}))?;
-    let headers: Vec<String> = [Key::ApprArea, Key::ApprOwner, Key::ApprState, Key::ApprVersion, Key::ApprDate, Key::ApprNote].iter().map(|k| t(lang, *k).to_string()).collect();
-    let rows: Vec<Vec<Cv>> = [Key::RoleDesigner, Key::RoleEngineering, Key::RoleQa, Key::RoleWriters, Key::RolePo, Key::RolePm]
-        .iter()
-        .map(|role| {
-            let g = || Cv::Guide(t(lang, Key::ApprGuide).to_string());
-            vec![Cv::Text(t(lang, *role).to_string()), g(), Cv::Text(t(lang, Key::ApprPending).to_string()), g(), g(), g()]
-        })
-        .collect();
-    table(lang, frame, "Approvals", &APPROVALS_COLS, &headers, &rows)?;
+    // 1. Overview: the small label, the big title (the component's name) and the two chips.
+    let mut hd = FlowSpec::new("Header", USEFUL_W, "vertical");
+    hd.gap = 12.0;
+    let hd = flow_frame(lang, frame, hd)?;
+    text_with(lang, hd, t(lang, Key::CoverOverview), LINE_SIZE, pal::TEXT2, "Overview", json!({}))?;
+    text_with(lang, hd, &c.target.title, 48.0, pal::TEXT, "Title", bold())?;
+    let mut chips = FlowSpec::new("Chips", 20.0, "horizontal");
+    chips.gap = 12.0;
+    chips.extra = json!({"sizingH": "hug"});
+    let chips = flow_frame(lang, hd, chips)?;
+    guide_chip(lang, chips, t(lang, Key::CoverGuideVersion))?;
+    guide_chip(lang, chips, t(lang, Key::CoverGuideStatus))?;
+    // 2. The last designer on the left, the date on the right, on one line.
+    let mut meta = FlowSpec::new("Meta", USEFUL_W, "horizontal");
+    meta.extra = json!({"mainAlign": "spaceBetween", "crossAlign": "min"});
+    let meta = flow_frame(lang, frame, meta)?;
+    labelled_guide(lang, meta, Key::CoverLastDesigner, Key::CoverGuideDesigner, None, false)?;
+    labelled_guide(lang, meta, Key::CoverUpdatedOn, Key::CoverGuideUpdated, None, true)?;
+    // 3. The description.
+    labelled_guide(lang, frame, Key::CoverDescription, Key::CoverGuideDescription, Some(USEFUL_W), false)?;
+    // 4. The approvals: six equal chips, each with the state's instance, the area and a guide line.
+    text_with(lang, frame, t(lang, Key::CoverApprovals), theme::SECTION_SIZE, pal::TEXT, "Approvals title", bold())?;
+    if let Some(states) = &c.states {
+        let mut g = FlowSpec::new("Approvals", USEFUL_W, "grid");
+        g.extra = json!({"gridColumns": 6, "gridRows": 1, "columnTracks": ["1fr", "1fr", "1fr", "1fr", "1fr", "1fr"], "rowTracks": ["auto"], "rowGap": 0, "sizingH": "fixed"});
+        g.gap = 16.0;
+        let grid = flow_frame(lang, frame, g)?;
+        for (i, role) in [Key::RoleDesigner, Key::RoleEngineering, Key::RoleQa, Key::RoleWriters, Key::RolePo, Key::RolePm].iter().enumerate() {
+            let mut p = FlowSpec::new("Approval", 100.0, "horizontal");
+            p.gap = 12.0;
+            p.padding = json!(14);
+            p.fill = Some(pal::CARD);
+            p.extra = json!({"sizingH": "fill", "sizingV": "hug", "cornerRadius": 28, "crossAlign": "center", "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "gridColumn": i, "gridRow": 0});
+            let pill = flow_frame(lang, grid, p)?;
+            state_instance(lang, pill, states, Approval::Pending)?;
+            let mut col = FlowSpec::new("Text", 100.0, "vertical");
+            col.gap = 2.0;
+            col.extra = json!({"sizingH": "fill"});
+            let col = flow_frame(lang, pill, col)?;
+            text_with(lang, col, t(lang, *role), LINE_SIZE, pal::TEXT, "Area", json!({"fontStyle": "Bold", "sizingH": "fill", "textAutoResize": "height"}))?;
+            text_with(lang, col, t(lang, Key::CoverGuideNameDate), LINE_SIZE, pal::GUIDE, "Guide", fill_text())?;
+        }
+        // 5. The legend of the four states.
+        let mut lg = FlowSpec::new("Legend", USEFUL_W, "horizontal");
+        lg.gap = 32.0;
+        lg.extra = json!({"crossAlign": "center"});
+        let legend = flow_frame(lang, frame, lg)?;
+        for a in Approval::ALL {
+            let mut item = FlowSpec::new("Legend item", 20.0, "horizontal");
+            item.gap = 10.0;
+            item.extra = json!({"sizingH": "hug", "crossAlign": "center"});
+            let item = flow_frame(lang, legend, item)?;
+            state_instance(lang, item, states, a)?;
+            text_with(lang, item, t(lang, a.label_key()), LINE_SIZE, pal::TEXT2, "State", json!({}))?;
+        }
+    }
     Ok(())
 }
 
 fn build_changelog(c: &Ctx, frame: u64) -> Result<()> {
     let lang = c.lang;
-    header(c, frame, Sec::Changelog)?;
+    header(c, frame, t(lang, Key::SecChangelog))?;
     let headers: Vec<String> = [Key::ChangelogVersion, Key::ChangelogDate, Key::ChangelogChange].iter().map(|k| t(lang, *k).to_string()).collect();
     let rows = vec![vec![Cv::Guide(t(lang, Key::ChangelogGuideVersion).to_string()), Cv::Guide(t(lang, Key::ChangelogGuideDate).to_string()), Cv::Guide(t(lang, Key::ChangelogGuideChange).to_string())]];
     table(lang, frame, "Changelog", &CHANGELOG_COLS, &headers, &rows)?;
@@ -382,31 +652,85 @@ fn build_changelog(c: &Ctx, frame: u64) -> Result<()> {
 
 /// A section that is not made yet: its title and a line that says when it will be.
 fn build_reserved(c: &Ctx, frame: u64, sec: Sec) -> Result<()> {
-    header(c, frame, sec)?;
+    header(c, frame, t(c.lang, sec.title_key()))?;
     let step = if sec == Sec::Tokens { Key::ReservedC } else { Key::ReservedB };
-    text_with(c.lang, frame, t(c.lang, step), LINE_SIZE, theme::MUTED_70, "Note", json!({}))?;
+    text_with(c.lang, frame, t(c.lang, step), LINE_SIZE, pal::GUIDE, "Note", json!({}))?;
     Ok(())
 }
 
-/// The Component Master: the title, a line about it, the fixed warning, and the original component moved inside.
-/// Returns the moved layer's id and whether it is wider than the frame's useful width.
+/// The Component Master: the title, a line about it, the fixed warning, and the stage with the original component moved onto it.
+/// Returns the moved layer's id and whether it is wider than the stage's useful width.
 fn build_master(c: &Ctx, frame: u64) -> Result<(u64, bool)> {
     let lang = c.lang;
-    header(c, frame, Sec::Master)?;
-    text_with(lang, frame, t(lang, Key::MasterDescription), LINE_SIZE, theme::MUTED, "Description", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
-    text_with(lang, frame, t(lang, Key::MasterNote), LINE_SIZE, theme::WARN_LINE, "Warning", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
+    header(c, frame, t(lang, Key::MasterTitle))?;
+    text_with(lang, frame, t(lang, Key::MasterDescription), LINE_SIZE, pal::TEXT2, "Description", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
+    text_with(lang, frame, t(lang, Key::MasterNote), LINE_SIZE, pal::COND, "Warning", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
+    let mut st = FlowSpec::new("Stage", USEFUL_W, "vertical");
+    st.padding = json!(STAGE_PAD);
+    st.fill = Some(c.stage.fill());
+    st.extra = json!({"sizingH": "fill", "sizingV": "hug", "cornerRadius": 12, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside"});
+    let stage = flow_frame(lang, frame, st)?;
     let moved = c.target.holder;
-    host(lang, "node.reparent", &json!({"ids": [moved], "parent": frame}))?;
+    host(lang, "node.reparent", &json!({"ids": [moved], "parent": stage}))?;
     let node = host(lang, "node.get", &json!({"id": moved, "fields": ["absoluteBounds"]}))?;
-    let wide = bounds(&node).is_some_and(|b| b.w > USEFUL_W + 0.5);
+    let wide = bounds(&node).is_some_and(|b| b.w > USEFUL_W - 2.0 * STAGE_PAD + 0.5);
     Ok((moved, wide))
+}
+
+/// The support components: a note that says not to delete it, and the set of four approval states.
+/// Returns the set's id.
+fn build_kit(c: &Ctx, frame: u64) -> Result<u64> {
+    let lang = c.lang;
+    header(c, frame, t(lang, Key::SecKit))?;
+    text_with(lang, frame, t(lang, Key::KitNote), LINE_SIZE, pal::COND, "Warning", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
+    // The four circles are made in a row (so the set is a row, not a column), and the set is moved into the frame.
+    let mut row = FlowSpec::new("States", 20.0, "horizontal");
+    row.gap = 16.0;
+    row.extra = json!({"sizingH": "hug"});
+    let row = flow_frame(lang, frame, row)?;
+    let mut ids = Vec::new();
+    for a in Approval::ALL {
+        let made = host(
+            lang,
+            "frame.create",
+            &json!({"parent": row, "width": STATE_D, "height": STATE_D, "name": a.variant_name(), "select": false,
+                "props": {"fill": a.colour(), "layout": "horizontal", "mainAlign": "center", "crossAlign": "center", "cornerRadius": STATE_D / 2.0, "padding": 0,
+                    "sizingH": "fixed", "sizingV": "fixed", "clip": false}}),
+        )?;
+        let id = id_of(lang, &made, "frame.create")?;
+        text_with(lang, id, a.symbol(), 24.0, pal::ON_STATE, "Symbol", bold())?;
+        ids.push(id);
+    }
+    for id in &ids {
+        host(lang, "component.create", &json!({"ids": [id]}))?;
+    }
+    let combined = host(lang, "component.combineVariants", &json!({"ids": ids}))?;
+    let set = id_of(lang, &combined, "component.combineVariants")?;
+    host(lang, "node.reparent", &json!({"ids": [set], "parent": frame}))?;
+    host(lang, "edit.delete", &json!({"ids": [row]}))?;
+    host(lang, "node.set", &json!({"ids": [set], "props": {"name": t(lang, Key::KitSetName), "pluginData": {STATE_SET_MARK: "1"}}}))?;
+    Ok(set)
 }
 
 // ---------------------------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------------------------
 
-/// Make or update the document: the Section of the selected component and the frames of the ticked sections.
+/// Whether another Section of the component already holds the Component Master.
+fn other_has_master(lang: Lang, page: &PageInfo, key: &str, this: Option<u64>) -> Result<bool> {
+    for s in sections_of(page, key).into_iter().filter(|s| Some(*s) != this) {
+        let (_, frames) = read_frames(lang, s)?;
+        if frames.iter().any(|f| f.sec == Sec::Master) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Make or update the document: the Section of the selected component and its frames.
+///
+/// Parameters: `update` (a key of [`Update`], default `all`) says which frames a rerun replaces; `new_section` (bool) makes another
+/// Section beside the first, with every frame but the Component Master. The first generation ignores `update`.
 pub fn generate(input: Input) -> Result<Value> {
     // 1. The page's settings come first: they give the language, even for an error.
     let page = page_info()?;
@@ -421,15 +745,15 @@ pub fn generate(input: Input) -> Result<Value> {
     }
     let comp_key = target.key.to_string();
     let name = target.title.clone();
-    let ctx = Ctx { lang, target: &target, version: meta_text(input.str("version")), status: meta_text(input.str("status")) };
-    // 2. Which Section and which sections. "New" makes a second Section beside everything; "replace" works on the one that is there.
-    let section_id = if page.settings.rerun() == Rerun::Replace { find_section(&page, &comp_key) } else { None };
-    let picks = input.params.get("sections").and_then(Picks::from_json).unwrap_or(if section_id.is_some() { Picks::rerun() } else { Picks::first_run() });
-    if !picks.any() {
-        return Err(t(lang, Key::PanelNoneChosen).to_string());
-    }
+    let update = input.str("update").and_then(Update::from_key).unwrap_or(Update::All);
+    let new_section = input.params.get("new_section").and_then(Value::as_bool).unwrap_or(false);
+    // 2. Which Section: the first one of the component, unless a new one is asked for (or there is none).
+    let found = find_section(&page, &comp_key);
+    let first_run = found.is_none();
+    let beside = found.is_some() && new_section;
+    let section_id = if beside { None } else { found };
     let mut warnings: Vec<Warn> = Vec::new();
-    if section_id.is_none() && has_legacy_frame(&page, &comp_key) {
+    if first_run && has_legacy_frame(&page, &comp_key) {
         warnings.push(Warn::LegacyDoc);
     }
     let right = page.children.iter().filter_map(bounds).map(Rect::right).fold(None, |r: Option<f64>, v| Some(r.map_or(v, |r| r.max(v))));
@@ -446,55 +770,100 @@ pub fn generate(input: Input) -> Result<Value> {
                 lang,
                 "node.create",
                 &json!({"type": "section", "name": tf(lang, Key::SectionName, &[("name", &name)]), "x": x, "y": y, "width": SECTION_W, "height": 400, "select": false,
-                    "props": {"fill": SECTION_FILL, "pluginData": {SECTION_MARK: comp_key}}}),
+                    "props": {"fill": pal::SECTION, "pluginData": {SECTION_MARK: comp_key}}}),
             )?;
             (id_of(lang, &made, "node.create")?, x, y, Vec::new(), true)
         }
     };
-    // 4. The frames, in order: a ticked section is made again in its place, an unticked one stays, a missing ticked one is made.
+    let old = |sec: Sec| existing.iter().find(|e| e.sec == sec);
+    // 4. What is made. The first generation and a new Section make everything (a new Section: not the Master); a rerun replaces
+    // what "Update" names and makes again any permanent frame that is missing. The Master moves the original component, so
+    // it is made only when no other Section of the component holds it.
+    let master_allowed = !beside && old(Sec::Master).is_none() && !other_has_master(lang, &page, &comp_key, section_id)?;
+    let will_make = |sec: Sec| -> bool {
+        match (old(sec), sec) {
+            (_, Sec::Master) => master_allowed,
+            (None, s) if s.permanent() => true,
+            (None, _) => created,
+            (Some(_), s) if s.permanent() => false,
+            (Some(_), s) => update.sections().contains(&s),
+        }
+    };
+    // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
+    let mut kit_state: Option<StateSet> = None;
+    let mut kit_frame: Option<(u64, &str)> = None;
+    if let Some(e) = old(Sec::Kit) {
+        kit_state = read_state_set(lang, e.id)?;
+        if kit_state.is_some() {
+            kit_frame = Some((e.id, "kept"));
+        }
+    }
+    let mut ctx = Ctx { lang, target: &target, states: None, stage: StageChoice { dark: false, lowest: None, auto: false } };
+    if kit_frame.is_none() {
+        if let Some(e) = old(Sec::Kit) {
+            host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
+        }
+        let kit_name = tf(lang, Key::SectionFrameName, &[("title", t(lang, Sec::Kit.title_key())), ("name", &name)]);
+        let frame = new_frame(lang, section, SECTION_PAD, &kit_name, &comp_key, Sec::Kit)?;
+        build_kit(&ctx, frame)?;
+        kit_frame = Some((frame, if old(Sec::Kit).is_some() { "replaced" } else { "created" }));
+        kit_state = read_state_set(lang, frame)?;
+    }
+    ctx.states = kit_state;
+    // 6. The stage of the Master, over every variant, when the Master is made now.
+    if will_make(Sec::Master) {
+        ctx.stage = choose_stage(lang, &target, page.settings.stage_mode())?;
+        if ctx.stage.too_low() {
+            warnings.push(Warn::NoStage);
+        }
+    }
+    // 7. The frames, in order.
     let mut y = SECTION_PAD;
     let mut report: Vec<Value> = Vec::new();
     let mut master_moved: Option<u64> = None;
     for sec in Sec::ALL {
-        let old = existing.iter().find(|e| e.sec == sec);
-        let want = picks.get(sec);
-        let (id, h, action): (u64, f64, &str) = match (old, sec, want) {
-            // The Master is never deleted nor made again: it holds the original component.
-            (Some(e), Sec::Master, _) => (e.id, e.h, "kept"),
-            (Some(e), _, false) => (e.id, e.h, "kept"),
-            (None, _, false) => continue,
-            (old, _, true) => {
-                if let Some(e) = old {
-                    host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
-                }
-                let frame_name = if sec == Sec::Master { tf(lang, Key::MasterFrameName, &[("name", &name)]) } else { tf(lang, Key::SectionFrameName, &[("title", t(lang, sec.title_key())), ("name", &name)]) };
-                let frame = new_frame(lang, section, y, &frame_name, &comp_key, sec)?;
-                match sec {
-                    Sec::Cover => build_cover(&ctx, frame)?,
-                    Sec::Changelog => build_changelog(&ctx, frame)?,
-                    Sec::Master => {
-                        let (moved, wide) = build_master(&ctx, frame)?;
-                        master_moved = Some(moved);
-                        if wide {
-                            warnings.push(Warn::WideMaster);
-                        }
+        let (id, h, action): (u64, f64, &str) = if sec == Sec::Kit {
+            let (id, action) = kit_frame.unwrap_or((0, "kept"));
+            (id, height_of(lang, id)?, action)
+        } else if will_make(sec) {
+            let frame_name = if sec == Sec::Master { tf(lang, Key::MasterFrameName, &[("name", &name)]) } else { tf(lang, Key::SectionFrameName, &[("title", t(lang, sec.title_key())), ("name", &name)]) };
+            let replaced = old(sec).is_some();
+            if let Some(e) = old(sec) {
+                host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
+            }
+            let frame = new_frame(lang, section, y, &frame_name, &comp_key, sec)?;
+            match sec {
+                Sec::Cover => build_cover(&ctx, frame)?,
+                Sec::Changelog => build_changelog(&ctx, frame)?,
+                Sec::Master => {
+                    let (moved, wide) = build_master(&ctx, frame)?;
+                    master_moved = Some(moved);
+                    if wide {
+                        warnings.push(Warn::WideMaster);
                     }
-                    other => build_reserved(&ctx, frame, other)?,
                 }
-                (frame, height_of(lang, frame)?, if old.is_some() { "replaced" } else { "created" })
+                other => build_reserved(&ctx, frame, other)?,
             }
+            (frame, height_of(lang, frame)?, if replaced { "replaced" } else { "created" })
+        } else if let Some(e) = old(sec) {
+            (e.id, e.h, "kept")
+        } else {
+            continue;
         };
-        if action == "kept" {
-            let current = existing.iter().find(|e| e.id == id).map_or(y, |e| e.y);
-            if (current - y).abs() > 0.5 {
-                host(lang, "node.set", &json!({"ids": [id], "props": {"y": y}}))?;
-            }
+        // A frame that is not where it should be (kept, or the support frame made at the top) moves to its place.
+        let at = match (sec, action) {
+            (Sec::Kit, "created" | "replaced") => SECTION_PAD,
+            (_, "created" | "replaced") => y,
+            _ => old(sec).map_or(y, |e| e.y),
+        };
+        if (at - y).abs() > 0.5 {
+            host(lang, "node.set", &json!({"ids": [id], "props": {"y": y}}))?;
         }
         report.push(json!({"key": sec.key(), "id": id, "y": y, "h": h, "action": action}));
         y += h + FRAME_GAP;
     }
-    // 5. The Section is as tall as its frames and the room around them (`y` already holds the last gap).
-    let section_h = y.max(2.0 * SECTION_PAD);
+    // 8. The Section is as tall as its frames and the room around them (`y` already holds the last gap).
+    let section_h = (y - FRAME_GAP + SECTION_PAD).max(2.0 * SECTION_PAD);
     host(lang, "node.set", &json!({"ids": [section], "props": {"height": section_h}}))?;
     let export_result = if created {
         match call("export.add", &json!({"ids": [section], "setting": {"size": "1x", "suffix": "", "format": "svg"}})) {
@@ -504,74 +873,86 @@ pub fn generate(input: Input) -> Result<Value> {
     } else {
         "kept".to_string()
     };
+    warnings.sort_by_key(|w| Warn::ALL.iter().position(|x| x == w));
     Ok(json!({
-        "name": name, "frame": section, "section": section, "created": created, "rerun": !created, "x": sx, "y": sy, "frame_size": {"w": SECTION_W}, "section_size": {"w": SECTION_W, "h": section_h},
-        "frames": report, "master_moved": master_moved, "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result,
-        "picks": picks.to_json(), "lang": lang.code(), "meta": {"version": ctx.version, "status": ctx.status}, "component": target.key, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
+        "frame_size": {"w": SECTION_W}, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
+        "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
+        "stage": {"dark": ctx.stage.dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
+        "state_set": ctx.states.as_ref().map(|s| s.set), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
-}
-
-/// "Go to Component Master": find the Master frame of the selected component, take the screen to it and select it.
-/// Returns what it did, with the view before and after.
-pub fn go_to_master(lang: Lang, selection: &[u64]) -> Result<Value> {
-    let target = resolve(lang, selection)?;
-    let page = page_info()?;
-    let key = target.key.to_string();
-    let Some(section) = find_section(&page, &key) else { return Ok(json!({"found": false, "reason": "no section"})) };
-    let (_, frames) = read_frames(lang, section)?;
-    let Some(master) = frames.iter().find(|e| e.sec == Sec::Master) else { return Ok(json!({"found": false, "reason": "no master frame"})) };
-    let node = host(lang, "node.get", &json!({"id": master.id, "fields": ["absoluteBounds"]}))?;
-    let Some(b) = bounds(&node) else { return Ok(json!({"found": false, "reason": "no bounds"})) };
-    let before = host(lang, "view.get", &json!({}))?;
-    let num = |v: &Value, k: &str| v.get(k).and_then(Value::as_f64);
-    let (vw, vh) = (num(&before, "vw").unwrap_or(0.0), num(&before, "vh").unwrap_or(0.0));
-    let (zoom, cx, cy) = crate::panel::view_for(vw, vh, b.x, b.y, b.w);
-    host(lang, "view.set", &json!({"zoom": zoom, "cx": cx, "cy": cy}))?;
-    host(lang, "select.set", &json!({"ids": [master.id]}))?;
-    let after = host(lang, "view.get", &json!({}))?;
-    let view = |v: &Value| json!({"zoom": v.get("zoom"), "cx": v.get("cx"), "cy": v.get("cy")});
-    Ok(json!({"found": true, "name": target.title, "frame": master.id, "bounds": {"x": b.x, "y": b.y, "w": b.w, "h": b.h}, "view_before": view(&before), "view_after": view(&after), "asked": {"zoom": zoom, "cx": cx, "cy": cy}}))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn hex(s: &str) -> Rgba {
+        contrast::parse_hex(s, 1.0).unwrap_or(contrast::LIGHT_STAGE)
+    }
+
     #[test]
     fn the_sections_come_in_the_order_of_the_frames_with_their_own_keys() {
         let keys: Vec<&str> = Sec::ALL.iter().map(|s| s.key()).collect();
-        assert_eq!(keys, ["cover", "master", "properties", "anatomy", "variants", "layouts", "tokens", "changelog"]);
+        assert_eq!(keys, ["cover", "master", "properties", "anatomy", "variants", "layouts", "tokens", "changelog", "kit"]);
         for s in Sec::ALL {
             assert_eq!(Sec::from_key(s.key()), Some(s));
-            assert!(s.control().starts_with("sec_"));
         }
         assert_eq!(Sec::from_key("nope"), None);
     }
 
     #[test]
-    fn a_first_run_ticks_everything_and_a_rerun_leaves_the_manual_sections_and_the_master() {
-        assert!(Sec::ALL.iter().all(|s| Picks::first_run().get(*s)));
-        let r = Picks::rerun();
-        for s in Sec::ALL {
-            let manual_or_master = matches!(s, Sec::Cover | Sec::Master | Sec::Changelog);
-            assert_eq!(r.get(s), !manual_or_master, "{s:?}");
+    fn four_frames_are_made_once_and_the_other_five_are_the_ones_a_rerun_replaces() {
+        let permanent: Vec<Sec> = Sec::ALL.into_iter().filter(|s| s.permanent()).collect();
+        assert_eq!(permanent, [Sec::Cover, Sec::Master, Sec::Changelog, Sec::Kit]);
+        assert_eq!(Update::All.sections(), [Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens]);
+        assert!(Update::ALL.iter().all(|u| u.sections().iter().all(|s| !s.permanent())), "no choice of Update replaces a permanent frame");
+    }
+
+    #[test]
+    fn every_option_of_update_names_its_frames() {
+        let keys: Vec<&str> = Update::ALL.iter().map(|u| u.key()).collect();
+        assert_eq!(keys, ["all", "tables", "tokens", "properties", "anatomy", "variants", "layouts"]);
+        assert_eq!(Update::Tables.sections(), [Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts]);
+        assert_eq!(Update::Tokens.sections(), [Sec::Tokens]);
+        for u in Update::ALL {
+            assert_eq!(Update::from_key(u.key()), Some(u));
+        }
+        assert_eq!(Update::from_key("cover"), None);
+    }
+
+    #[test]
+    fn the_four_states_have_their_property_value_symbol_and_colour() {
+        let all: Vec<(String, &str, &str)> = Approval::ALL.iter().map(|a| (a.variant_name(), a.symbol(), a.colour())).collect();
+        assert_eq!(
+            all,
+            [
+                ("Estado=pendente".to_string(), "…", "#8E8E93"),
+                ("Estado=aprovado".to_string(), "✓", "#5CCB98"),
+                ("Estado=ressalvas".to_string(), "!", "#E8B64F"),
+                ("Estado=reprovado".to_string(), "✕", "#F0786C"),
+            ]
+        );
+        for a in Approval::ALL {
+            assert_eq!(Approval::from_variant_name(&a.variant_name()), Some(a));
         }
     }
 
     #[test]
-    fn the_sections_parameter_round_trips_and_a_missing_key_is_not_ticked() {
-        let p = Picks::rerun();
-        assert_eq!(Picks::from_json(&p.to_json()), Some(p));
-        let partial = Picks::from_json(&json!({"cover": true}));
-        assert!(partial.is_some_and(|p| p.get(Sec::Cover) && !p.get(Sec::Tokens) && p.any()));
-        assert_eq!(Picks::from_json(&json!("x")), None);
-        assert!(Picks::from_json(&json!({})).is_some_and(|p| !p.any()));
+    fn the_section_is_as_tall_as_its_frames_plus_the_gaps_plus_the_room_around() {
+        // 9 frames: 256 + sum + 64 × 8 + 256.
+        let hs = [100.0, 200.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0];
+        let mut y = SECTION_PAD;
+        for h in hs {
+            y += h + FRAME_GAP;
+        }
+        let section_h = y - FRAME_GAP + SECTION_PAD;
+        assert_eq!(section_h, SECTION_PAD + hs.iter().sum::<f64>() + FRAME_GAP * 8.0 + SECTION_PAD);
     }
 
     #[test]
-    fn the_columns_of_the_tables_fill_the_useful_width() {
+    fn the_columns_of_the_table_fill_the_useful_width() {
         assert_eq!(USEFUL_W, 1824.0);
-        assert_eq!(APPROVALS_COLS.iter().sum::<f64>(), USEFUL_W);
         assert_eq!(CHANGELOG_COLS.iter().sum::<f64>(), USEFUL_W);
         assert_eq!(SECTION_W, 2432.0);
     }
@@ -581,12 +962,120 @@ mod tests {
         let page = PageInfo {
             id: 1,
             settings: Settings::default(),
-            children: vec![json!({"id": 5, "pluginData": {"handoff-report-section": "10"}}), json!({"id": 6, "pluginData": {"handoff-report": "10"}}), json!({"id": 7, "pluginData": {"handoff-report-section": "11"}})],
+            children: vec![
+                json!({"id": 5, "pluginData": {"handoff-report-section": "10"}}),
+                json!({"id": 6, "pluginData": {"handoff-report": "10"}}),
+                json!({"id": 7, "pluginData": {"handoff-report-section": "11"}}),
+                json!({"id": 8, "pluginData": {"handoff-report-section": "10"}}),
+            ],
         };
-        assert_eq!(find_section(&page, "10"), Some(5));
+        assert_eq!(find_section(&page, "10"), Some(5), "the first Section of the component is the one a rerun works on");
+        assert_eq!(sections_of(&page, "10"), [5, 8]);
         assert_eq!(find_section(&page, "11"), Some(7));
         assert_eq!(find_section(&page, "12"), None);
         assert!(has_legacy_frame(&page, "10"), "a loose frame with the old mark is a 0.10.0 documentation");
         assert!(!has_legacy_frame(&page, "11"));
+    }
+
+    // ---- the automatic stage over every variant ----------------------------------------------
+
+    fn only_elements(cols: &[&str]) -> Judged {
+        Judged { backdrop: None, elements: cols.iter().map(|c| hex(c)).collect() }
+    }
+
+    /// A variant as the demo's Button has it: the fill of its root (if any) and the colours of the layers under it.
+    fn v(backdrop: Option<&str>, elements: &[&str]) -> Judged {
+        Judged { backdrop: backdrop.map(hex), elements: elements.iter().map(|c| hex(c)).collect() }
+    }
+
+    /// The Button of the DS Base Demo, read from the file: 5 states × 3 sizes for each of its four types (the colours are those of the
+    /// root's fill and of the layers under it).
+    fn demo_button(kind: &str) -> Vec<Judged> {
+        let rows: &[(Option<&str>, &[&str])] = match kind {
+            // Primary: the fill changes with the state; the text is the same.
+            "Primary" => &[(Some("#C6005C"), &["#FDF2F8"]), (Some("#B10652"), &["#FDF2F8"]), (Some("#9E0749"), &["#FDF2F8"]), (Some("#C6005C"), &["#FDF2F8"]), (Some("#C6005C"), &["#FDF2F8"])],
+            "Secondary" => &[(Some("#F4F4F5"), &["#18181B"]), (Some("#E7E7E8"), &["#18181B"]), (Some("#DADADB"), &["#18181B"]), (Some("#F4F4F5"), &["#18181B"]), (Some("#F4F4F5"), &["#18181B"])],
+            // Outline: no fill, except on Hover and Pressed.
+            "Outline" => &[(None, &["#090B0C"]), (Some("#F1F3F3"), &["#161B1D"]), (Some("#DADADB"), &["#090B0C"]), (None, &["#090B0C"]), (None, &["#090B0C"])],
+            _ => &[(Some("#E7000B"), &["#FFFFFF"]), (Some("#D10C0F"), &["#FFFFFF"]), (Some("#BD0208"), &["#FFFFFF"]), (Some("#E7000B"), &["#FFFFFF"]), (Some("#E7000B"), &["#FFFFFF"])],
+        };
+        (0..3).flat_map(|_| rows.iter().map(|(b, e)| v(*b, e))).collect()
+    }
+
+    #[test]
+    fn the_demo_buttons_outline_without_its_hover_and_pressed_asks_for_the_light_stage() {
+        // Enabled, Disabled and Focus of the Outline: no fill, dark text: the light stage, at 15.66:1.
+        let quiet: Vec<Judged> = demo_button("Outline").into_iter().filter(|j| j.backdrop.is_none()).collect();
+        let pick = pick_union(&quiet, None);
+        assert!(!pick.dark);
+        assert!(pick.lowest.is_some_and(|l| (l - 15.66).abs() < 0.01), "{pick:?}");
+    }
+
+    #[test]
+    fn the_whole_outline_of_the_demo_button_has_no_stage_that_serves_it_because_of_its_pale_hover_and_pressed_fills() {
+        // Hover (#F1F3F3) and Pressed (#DADADB) are as pale as the light stage, and the text #090B0C is as dark as the dark one:
+        // the dark stage wins with 1.23:1, which is under 3:1, so the panel warns.
+        let pick = pick_union(&demo_button("Outline"), None);
+        assert!(pick.dark);
+        assert!(pick.lowest.is_some_and(|l| (l - 1.2347).abs() < 0.001), "{pick:?}");
+        assert!(StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true }.too_low());
+    }
+
+    #[test]
+    fn the_demo_buttons_secondary_asks_for_the_dark_stage() {
+        let pick = pick_union(&demo_button("Secondary"), None);
+        assert!(pick.dark);
+        assert!(pick.lowest.is_some_and(|l| (l - 11.434).abs() < 0.001), "{pick:?}");
+    }
+
+    #[test]
+    fn the_demo_buttons_primary_and_destructive_ask_for_the_light_stage() {
+        let primary = pick_union(&demo_button("Primary"), None);
+        assert!(!primary.dark && primary.lowest.is_some_and(|l| (l - 4.688).abs() < 0.001), "{primary:?}");
+        let destructive = pick_union(&demo_button("Destructive"), None);
+        assert!(!destructive.dark && destructive.lowest.is_some_and(|l| (l - 3.787).abs() < 0.001), "{destructive:?}");
+    }
+
+    #[test]
+    fn the_whole_demo_button_gets_the_dark_stage_with_1_23_to_1_and_the_warning() {
+        let all: Vec<Judged> = ["Primary", "Secondary", "Outline", "Destructive"].iter().flat_map(|k| demo_button(k)).collect();
+        assert_eq!(all.len(), 60);
+        let pick = pick_union(&all, None);
+        assert!(pick.dark);
+        assert!(pick.lowest.is_some_and(|l| (l - 1.2347).abs() < 0.001), "{pick:?}");
+        assert!(StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true }.too_low(), "no stage serves every variant: the panel says so");
+    }
+
+    #[test]
+    fn the_demo_card_the_icon_and_the_accordion() {
+        // Card: three variants with a white fill: the dark stage (15.97:1). Icon: 30 variants with no fill and a dark glyph: the light
+        // stage (15.66:1). Accordion: no fill, dark text and a grey: the light stage (3.66:1, over the 3:1).
+        let card = pick_union(&[v(Some("#FFFFFF"), &[]), v(Some("#FFFFFF"), &[]), v(Some("#FFFFFF"), &[])], None);
+        assert!(card.dark && card.lowest.is_some_and(|l| (l - 15.974).abs() < 0.001), "{card:?}");
+        let icon: Vec<Judged> = (0..30).map(|_| v(None, &["#090B0C"])).collect();
+        let icon = pick_union(&icon, None);
+        assert!(!icon.dark && icon.lowest.is_some_and(|l| (l - 15.656).abs() < 0.001), "{icon:?}");
+        let accordion = pick_union(&[v(None, &["#090B0C", "#67787C"]), v(None, &["#090B0C", "#67787C"]), v(None, &["#090B0C", "#67787C"])], None);
+        assert!(!accordion.dark && accordion.lowest.is_some_and(|l| (l - 3.660).abs() < 0.001), "{accordion:?}");
+        assert!(!StageChoice { dark: accordion.dark, lowest: accordion.lowest, auto: true }.too_low());
+    }
+
+    #[test]
+    fn a_variant_with_a_background_is_judged_by_it_and_one_without_by_its_elements() {
+        let with_bg = Judged { backdrop: Some(hex("#14213D")), elements: vec![hex("#FFFFFF")] };
+        let without = only_elements(&["#FFFFFF"]);
+        assert_eq!(union_colours(&[with_bg, without], None), [hex("#14213D"), hex("#FFFFFF")]);
+        assert_eq!(union_colours(&[only_elements(&["#FFFFFF"])], Some(hex("#222222"))), [hex("#222222")], "the set's fill stands in for a variant with none");
+    }
+
+    #[test]
+    fn a_union_that_no_stage_serves_is_under_three_to_one() {
+        let both = [only_elements(&["#FFFFFF"]), only_elements(&["#14213D"])];
+        let pick = pick_union(&both, None);
+        let choice = StageChoice { dark: pick.dark, lowest: pick.lowest, auto: true };
+        assert!(choice.too_low(), "{pick:?}");
+        assert!(!StageChoice { dark: false, lowest: Some(3.0), auto: true }.too_low());
+        assert!(!StageChoice { dark: true, lowest: Some(1.0), auto: false }.too_low(), "a forced stage never warns");
+        assert_eq!(pick_union(&[], None), Pick { dark: false, lowest: None }, "nothing to judge: light");
     }
 }

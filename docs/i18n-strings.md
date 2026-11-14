@@ -210,23 +210,14 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelStageLight | Light | Claro |
 | PanelStageDark | Dark | Escuro |
 | PanelStageAuto | Auto | Automático |
-| PanelRerun | On rerun | Ao gerar de novo |
-| PanelRerunReplace | Replace | Substituir a anterior |
-| PanelRerunNew | New | Criar outra |
-| PanelVersion | Version | Versão |
-| PanelStatus | Status | Status |
-| PanelRestored | Stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Palco e “ao gerar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
-| PanelTitleMessages | MESSAGES | MENSAGENS |
+| PanelRestored | Language, Stage and Update are back to the defaults. | Idioma, Palco e Atualizar voltaram ao padrão. |
 | VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
 | ToBeDefined | to be defined | a definir |
-| PanelTitleDocumentation | DOCUMENTATION | DOCUMENTAÇÃO |
-| PanelBlankHint | Left blank, the documentation shows “to be defined”. | Em branco, a documentação mostra “a definir”. |
-| PanelIdle | Select a component, a component set or a variant and press Generate documentation. | Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação. |
+| PanelIdle | Select a component, set or variant and press Generate. | Selecione um componente, conjunto ou variante e clique em Gerar. |
 | PanelGenerated | Documentation generated: {name}. | Documentação gerada: {name}. |
-| PanelNothingSelected | Nothing is selected. Select a component, a component set or a variant and press Generate documentation. | Nada selecionado. Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação. |
-| PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação. |
-| PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
-| PanelGenerate | Generate documentation | Gerar documentação |
+| PanelNothingSelected | Nothing is selected. Select a component, set or variant and press Generate. | Nada selecionado. Selecione um componente, conjunto ou variante e clique em Gerar. |
+| PanelWrongKind | The selection is a {kind}. Select a component, set or variant. | A seleção é do tipo {kind}. Selecione um componente, conjunto ou variante. |
+| PanelGenerate | Generate | Gerar |
 | SectionName | Handoff · {name} | Handoff · {name} |
 | SectionFrameName | {title} · {name} | {title} · {name} |
 | SecCover | Cover | Visão geral |
@@ -246,38 +237,45 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | CoverGuideDesigner | Name of the last designer | Nome de quem desenhou por último |
 | CoverGuideUpdated | Date, typed by hand | Data, digitada à mão |
 | CoverApprovals | Approvals | Aprovações |
-| ApprArea | Area | Área |
-| ApprOwner | Owner | Responsável |
-| ApprState | State | Estado |
-| ApprVersion | Approved version | Versão aprovada |
-| ApprDate | Date | Data |
-| ApprNote | Note | Observação |
 | RoleDesigner | Designer | Designer |
 | RoleEngineering | Engineering | Engenharia |
 | RoleQa | QA | QA |
 | RoleWriters | Writers | Writers |
 | RolePo | PO | PO |
 | RolePm | PM | PM |
-| ApprPending | Pending | Pendente |
-| ApprGuide | Fill in | Preencher |
-| ChipVersion | Version: {value} | Versão: {value} |
-| ChipStatus | Status: {value} | Status: {value} |
 | MasterFrameName | Component Master · {name} | Componente base · {name} |
-| MasterDescription | The original component lives here. The instances in this file stay linked to it. | O componente original fica aqui. As instâncias deste arquivo continuam ligadas a ele. |
-| MasterNote | Do not delete this frame or the Section: they hold the original component. | Não apague este quadro nem a Section: contêm o componente original. |
+| MasterDescription | The original component lives here; the instances in this file stay linked to it. | O componente original mora aqui; as instâncias neste arquivo continuam ligadas a ele. |
+| MasterNote | Do not delete this frame or the Section: they hold the original component. | Não apague este quadro nem a Section: eles guardam o componente original. |
 | ChangelogVersion | Version | Versão |
 | ChangelogDate | Date | Data |
 | ChangelogChange | Change | Mudança |
 | ChangelogGuideVersion | x.y.z | x.y.z |
 | ChangelogGuideDate | Date, typed by hand | Data, digitada à mão |
 | ChangelogGuideChange | What changed in this version. | O que mudou nesta versão. |
-| PanelTitleSections | SECTIONS | SEÇÕES |
-| PanelSectionsManual | Cover and Changelog keep text typed by hand: ticking them replaces it. | Cover e Changelog guardam texto digitado à mão: marcá-los substitui esse texto. |
-| PanelSectionsMaster | The Component Master is made once. If its frame already exists, its switch is ignored. | O Component Master é criado uma vez. Se o quadro já existir, o interruptor dele é ignorado. |
-| PanelGoMaster | Go to Component Master | Ir para o Component Master |
-| PanelNoMaster | No Component Master found for this component. Select the component and try again. | Nenhum Component Master encontrado para este componente. Selecione o componente e tente de novo. |
-| PanelAtMaster | At the Component Master of {name}. Select the component again before generating. | No Component Master de {name}. Selecione o componente de novo antes de gerar. |
-| PanelNoneChosen | No section is ticked. Tick at least one section. | Nenhuma seção marcada. Marque ao menos uma seção. |
-| PanelWarnWide | The component is wider than 1824 px and goes past the Component Master frame. | O componente é mais largo que 1824 px e passa da borda do quadro do Component Master. |
-| PanelWarnLegacy | A loose documentation from version 0.10.0 was found for this component and left as it was; delete it by hand when you no longer need it. | Foi achada uma documentação solta da versão 0.10.0 para este componente; ela ficou como estava. Apague-a à mão quando não precisar mais. |
+| PanelWarnWide | Component wider than 1728 px; it overflows the stage. | Componente mais largo que 1728 px: passa do palco. |
+| PanelWarnLegacy | A 0.10.0 documentation was found and left as it was. | Documentação da 0.10.0 encontrada e mantida como estava. |
 | ErrMainGone | The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?). | O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?). |
+| PanelUpdate | Update | Atualizar |
+| PanelTitleUpdate | UPDATE | ATUALIZAR |
+| UpdAll | All sections | Todas as seções |
+| UpdTables | Tables only | Só tabelas |
+| UpdTokens | Tokens only | Só Tokens |
+| UpdProperties | Properties only | Só Propriedades |
+| UpdAnatomy | Anatomy only | Só Anatomia |
+| UpdVariants | States and variants only | Só Estados e variações |
+| UpdLayouts | Layouts only | Só Layouts |
+| PanelUpdateNote | Cover, Component Master and Changelog are created once and are not updated here. | Cover, Component Master e Changelog são criados uma vez e não são atualizados aqui. |
+| PanelNewSection | New Section | Nova Section |
+| PanelWarnNoStage | No stage suits every variant: change it in Stage. | Nenhum palco serve a todas as variantes: troque em Palco. |
+| SecKit | Support components | Componentes de apoio |
+| KitNote | Do not delete: the approval symbols on the Cover are instances of the component that lives here. | Não apague: os símbolos de aprovação da Cover são instâncias do componente que mora aqui. |
+| KitSetName | Handoff · Approval state | Handoff · Estado de aprovação |
+| StatePending | Pending | Pendente |
+| StateApproved | Approved | Aprovado |
+| StateConditional | With reservations | Com ressalvas |
+| StateRejected | Rejected | Reprovado |
+| CoverOverview | Overview | Visão geral |
+| CoverGuideVersion | v0.0.0 | v0.0.0 |
+| CoverGuideStatus | status: to be defined | status: a definir |
+| CoverGuideNameDate | name · date | nome · data |
+| MasterTitle | Base component | Componente base |

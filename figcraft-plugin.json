@@ -30,7 +30,10 @@
       "style.list",
       "view.get",
       "view.set",
-      "node.create"
+      "node.create",
+      "component.create",
+      "component.combineVariants",
+      "instance.create"
     ]
   },
   "commands": [
