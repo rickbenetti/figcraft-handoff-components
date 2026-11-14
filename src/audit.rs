@@ -329,6 +329,8 @@ fn classify_style(lang: Lang, real: &Real, opacity: f64, id: &str, styles: &Styl
     let Some(def) = styles.by_id.get(id) else { return (State::Missing, id.to_string()) };
     match (&def.paint, real) {
         (Some((color, alpha)), Real::Color(c)) if normal_hex(c) != *color || (opacity - alpha).abs() > 0.01 => {
+            // A style colour's alpha comes from hex, in steps of 1/255: whole percents (one decimal would show noise the
+            // design tool does not). Layer and paint opacity, typed as percentages, keep one decimal (see `delta.rs`).
             let shown = if (alpha - 1.0).abs() > 0.01 { tf(lang, Key::AtPercent, &[("value", color), ("n", &number((alpha * 100.0).round()))]) } else { color.clone() };
             (State::Suspect, tf(lang, Key::StyleSuspect, &[("name", &def.name), ("shown", &shown)]))
         }
@@ -645,11 +647,24 @@ mod tests {
         let text = |l: Lang| classify(l, &Real::Color("#FFFFFF".into()), Want::Color, Some("L1"), &v).1;
         assert_eq!(text(Lang::En), "T/loop (alias loop or broken)");
         // No decision yet on this text: English in pt-BR too.
-        assert_eq!(text(Lang::Pt), "T/loop (alias loop or broken)");
+        assert_eq!(text(Lang::Pt), "T/loop (apelido em ciclo ou quebrado)");
         let styles = Styles::parse(&json!([{"id": "1:1", "name": "brand/primary", "type": "paint", "paints": [{"type": "solid", "color": {"r": 0.23137255, "g": 0.35686275, "b": 0.85882354, "a": 0.5}, "opacity": 1.0, "visible": true}]}]));
         let other = |l: Lang| classify_style(l, &Real::Color("#FF0000".into()), 1.0, "1:1", &styles).1;
         assert_eq!(other(Lang::En), "brand/primary (style: #3B5BDB at 50%)");
         assert_eq!(other(Lang::Pt), "brand/primary (estilo: #3B5BDB a 50%)");
+    }
+
+    #[test]
+    fn a_suspect_style_writes_its_alpha_in_whole_percents() {
+        let style = |a: f64| Styles::parse(&json!([{"id": "1:1", "name": "brand/primary", "type": "paint", "paints": [{"type": "solid", "color": {"r": 0.23137255, "g": 0.35686275, "b": 0.85882354, "a": a}, "opacity": 1.0, "visible": true}]}]));
+        let other = |l: Lang, a: f64| classify_style(l, &Real::Color("#FF0000".into()), 1.0, "1:1", &style(a)).1;
+        for (alpha, text) in [(0.05098, "5%"), (0.333, "33%"), (0.3, "30%"), (0.5, "50%")] {
+            assert_eq!(other(Lang::En, alpha), format!("brand/primary (style: #3B5BDB at {text})"), "{alpha}");
+            assert_eq!(other(Lang::Pt, alpha), format!("brand/primary (estilo: #3B5BDB a {text})"), "{alpha}");
+        }
+        // The limit stays at 0.01 from opaque: near-opaque is written without a suffix, clearly lower with it.
+        assert_eq!(other(Lang::En, 0.9996), "brand/primary (style: #3B5BDB)");
+        assert_eq!(other(Lang::En, 0.98), "brand/primary (style: #3B5BDB at 98%)");
     }
 
     #[test]

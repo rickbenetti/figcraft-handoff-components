@@ -1,11 +1,11 @@
 {
   "id": "me.benetti.handoff-components",
   "name": "Handoff Components",
-  "version": "0.9.6",
+  "version": "0.10.0",
   "description": "Generates documentation for the selected component on the same page: numbered anatomy, properties and tokens, spacing and per-variant differences, in one click.",
   "author": "Rick Benetti",
   "main": "handoff_components.wasm",
-  "api": 1,
+  "api": 2,
   "permissions": {
     "access": "write",
     "commands": [
@@ -28,75 +28,14 @@
       "component.properties",
       "export.add",
       "style.list",
-      "comment.list",
-      "comment.add",
-      "comment.delete"
+      "view.get",
+      "view.set"
     ]
   },
   "commands": [
     {
       "id": "generate",
-      "label": "Generate report"
-    },
-    {
-      "id": "settings",
-      "label": "Settings…",
-      "params": [
-        {
-          "name": "lang",
-          "label": "Language (en or pt-BR)",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "cor_linha",
-          "label": "Line colour",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "cor_preenchimento",
-          "label": "Fill colour (default: the line colour at 30%)",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "stage",
-          "label": "Stage (light, dark or auto)",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "on_rerun",
-          "label": "On rerun (replace or new)",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "tz",
-          "label": "Time zone (hours from UTC, default -3)",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "default_variant",
-          "label": "Default variant",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "versao",
-          "label": "Version",
-          "type": "text",
-          "default": ""
-        },
-        {
-          "name": "status",
-          "label": "Status",
-          "type": "text",
-          "default": ""
-        }
-      ]
+      "label": "Generate documentation…"
     }
   ]
 }

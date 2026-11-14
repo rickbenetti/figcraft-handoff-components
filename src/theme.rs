@@ -12,12 +12,22 @@ pub const TEXT: &str = "#FFFFFF";
 pub const MUTED: &str = "#E5E5E5";
 /// The second line of a property (value and state): the muted text at 70%.
 pub const MUTED_70: &str = "#E5E5E5B3";
-/// The redlines (markers, guides, measures, overlay) unless the settings say otherwise.
-pub const REDLINE: &str = "#FCA311";
-/// The overlay's fill unless the settings say otherwise: the redline at 30% opacity.
-pub const REDLINE_FILL: &str = "#FCA3114D";
-/// The number inside a marker or badge (white on orange is 2.0:1).
+/// The redlines have a fixed palette, by stage and by section (no colour setting): on the light stage the anatomy is
+/// #C54600 (3.92:1 on #E5E5E5) and the spacing #007D00 (4.24:1); on the dark stage the anatomy is #FCA311 (7.90:1 on
+/// #14213D) and the spacing #4ADE80 (9.17:1).
+pub const LIGHT_ANATOMY: &str = "#C54600";
+pub const LIGHT_SPACING: &str = "#007D00";
+pub const DARK_ANATOMY: &str = "#FCA311";
+pub const DARK_SPACING: &str = "#4ADE80";
+/// The number inside a marker or badge on the dark stage's colours (7.77:1 on #FCA311, 9.02:1 on #4ADE80).
 pub const ON_REDLINE: &str = "#232323";
+/// The number inside a marker or badge on the light stage's colours (4.94:1 on #C54600, 5.34:1 on #007D00; the dark
+/// number would be 3.18:1 and 2.94:1).
+pub const ON_LIGHT_ACCENT: &str = "#FFFFFF";
+/// The warning band's outline: orange, whatever the palette (the band sits on the report's dark background).
+pub const WARN_LINE: &str = "#FCA311";
+/// How opaque the fill of the measure rectangles is, in percent (the spacing colour at this opacity).
+pub const MEASURE_FILL_PERCENT: u8 = 30;
 /// The warning band behind the collision notice: the redline at 12% opacity.
 pub const WARN_BG: &str = "#FCA3111F";
 /// The font, and the least size of any text.
@@ -32,3 +42,18 @@ pub const STAGE_LIGHT: &str = "#E5E5E5";
 pub const PRUSSIAN: &str = "#14213D";
 /// The ring around a badge on the light stage.
 pub const RING_WEIGHT: f64 = 1.5;
+/// A variant row of the axes sections is a block: this fill, this padding on its four sides and this radius (its border is `BORDER`).
+pub const BLOCK_FILL: &str = "#2E2E2E";
+pub const BLOCK_PAD: f64 = 20.0;
+pub const BLOCK_RADIUS: f64 = 12.0;
+/// The weight of its border, which the host counts in the layout like padding.
+pub const BLOCK_BORDER: f64 = 1.0;
+/// A change in the stacked format: the gap between its lines, the room under its divider, and its colour square.
+pub const ENTRY_GAP: f64 = 4.0;
+/// A block of a variant's list (a group's heading and the first change under it, or one change) has this padding on its four sides;
+/// every other block (the 2nd, the 4th…) has this fill and corner radius, which tells one block from the next.
+pub const STRIPE_PAD: f64 = 8.0;
+pub const STRIPE_FILL: &str = "#4C4C4C";
+pub const STRIPE_RADIUS: f64 = 12.0;
+pub const SWATCH_SIZE: f64 = 16.0;
+pub const SWATCH_RADIUS: f64 = 3.0;

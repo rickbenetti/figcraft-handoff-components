@@ -114,34 +114,36 @@ macro_rules! keys {
 keys! {
     AlignBottom, AlignCenter, AlignLeft, AlignMiddle, AlignRight,
     AlignSpaceAround, AlignSpaceBetween, AlignSpaceEvenly, AlignTop, Anatomy,
-    Collision, CollisionOne, DateUnavailable, DefaultLine, DeltaContent,
+    Collision, CollisionOne, VariantShown, DeltaContent, DeltaWhitespaceOnly, DeltaNameSeparator,
     DeltaEffectOnly, DeltaEffects, DeltaHeight, DeltaHidden, DeltaMore,
-    DeltaMoreOne, DeltaNone, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
+    DeltaMoreOne, DeltaNone, DeltaOneLine, DeltaOneLineOne, DeltaOpacity, DeltaStrokeWeight, DeltaVisible,
     DeltaWidth, DirGrid, DirHorizontal, DirVertical, Done,
-    ErrBadColour, ErrBadLang, ErrBadRerun, ErrBadStage, ErrBadTz,
-    ErrCall, ErrDefaultMalformed, ErrDefaultNoVariant, ErrDefaultOption, ErrDefaultProp,
-    ErrEmptySet, ErrMetaSelection, ErrNoId, ErrNoMain, ErrNoPage,
-    ErrNoSelection, ErrNoVariants, ErrNotComponent, ErrNotList, ErrParent,
-    FrameName, GeneratedOn, InstanceOf, LayerAnatomyRow, LayerAnatomySection,
+    ErrBadLang, ErrBadRerun, ErrBadStage,
+    ErrCall,
+    ErrEmptySet, ErrNoId, ErrNoMain, ErrNoPage,
+    ErrNoSelection, ErrNotComponent, ErrNotList, ErrParent,
+    FrameName, InstanceOf, LayerAnatomyRow, LayerAnatomySection,
     LayerAxis, LayerAxisNote, LayerAxisRow, LayerBadge, LayerBlockHeader,
-    LayerBody, LayerChip, LayerDeltas, LayerDivider, LayerGenerated,
+    LayerBody, LayerChip, LayerDeltaArrow, LayerDeltaColor, LayerDeltaHex, LayerDeltaLabel, LayerDeltaSwatch,
+    LayerDeltaToken, LayerDeltaTokens, LayerDeltaValues, LayerDeltas, LayerDivider,
     LayerGroup, LayerHeaderBlock, LayerKind, LayerLeader, LayerLegend,
     LayerMarker, LayerMeasure, LayerMore, LayerNote, LayerProperties,
     LayerPropertyRow, LayerSpacingSection, LayerStage, LayerSubtitle, LayerSummary,
     LayerTitle, LayerValue, LayerWarning, LegendCheck, LegendDefault,
     LegendMissing, LegendNoStyle, LegendNone, LegendStyle, LegendSuspect,
     LegendToken, MoreLines, MoreLinesOne, MoreVariants, MoreVariantsOne,
-    NotDefined, NoteExport1x, NoteLineNoCoords, NoteLineOblique, OvCorners,
+    NotDefined, NoteLineNoCoords, NoteLineOblique, OvCorners,
     OvEffects, OvFills, OvPadding, OvPosition, OvSize,
     OvStrokes, OvTextStyle, OverrideNote, PropFill, PropGap,
     PropPadH, PropPadV, PropRadius, PropStroke, PropTypography,
-    PropertiesTitle, ResizeFill, ResizeFixed, ResizeHug, SettingsKept,
-    SettingsSaved, SourceComponent, SourceFirst, SourceSaved, SpAlignment,
+    PropertiesTitle, ResizeFill, ResizeFixed, ResizeHug,
+    SpAlignment,
     SpDirection, SpHResizing, SpVResizing, SpacingTitle, Summary,
     SummaryChecks, SummaryStyles, SummaryStylesChecks, NounVariable, NounVariables,
-    NounStyle, NounStyles, NounProperty, NounProperties, TypeBoolean,
+    NounStyle, NounStyles, NounProperty, NounProperties, NounBound, NounBounds, NounMissing, NounMissings,
+    NounSuspect, NounSuspects, TypeBoolean,
     TypeInstance, TypeText, TypeVariant, Unnumbered, UnnumberedOne,
-    ValueFalse, ValueTrue, Variants, WarnNoDate, WarnTmpComment,
+    ValueEmpty, ValueNotFound, ValueFalse, ValueTrue, Variants,
     KindFrame, KindGroup, KindRectangle, KindEllipse, KindVector,
     KindLine, KindStar, KindPolygon, KindBooleanOperation, KindComponent,
     KindComponentSet, KindInstance, KindSection, KindSlice, EffectDropShadow,
@@ -150,7 +152,16 @@ keys! {
     LineHeightAutoHost, TypoLetterSpacing, DecoUnderline, DecoStrikethrough, ValueNone,
     AliasBroken, ErrUnknownCommand, AlignTopLeft, AlignTopCenter, AlignTopRight,
     AlignMiddleLeft, AlignMiddleCenter, AlignMiddleRight, AlignBottomLeft, AlignBottomCenter,
-    AlignBottomRight, AlignCompose,
+    AlignBottomRight, AlignCompose, PanelTitle,
+    PanelDefaults, PanelClose, PanelTitlePage,
+    PanelLang, PanelLangEn, PanelLangPt,
+    PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
+    PanelRerun, PanelRerunReplace, PanelRerunNew,
+    PanelVersion,
+    PanelStatus,
+    PanelRestored, PanelTitleMessages,
+    VersionStatusLine, ToBeDefined,
+    PanelTitleDocumentation, PanelBlankHint, PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelFreezeNote, PanelGenerate,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
@@ -228,11 +239,11 @@ mod tests {
 
     /// The keys pt-BR keeps in English on purpose, for lack of a decision on their translation. Each
     /// has pt-BR text equal to the English one; the test below keeps this list and the files in step.
-    const KEPT_IN_ENGLISH: &[&str] = &["AliasBroken", "ErrUnknownCommand", "EffectDefault"];
+    const KEPT_IN_ENGLISH: &[&str] = &["ErrUnknownCommand"];
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LegendToken"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();
@@ -346,9 +357,9 @@ mod tests {
                     "Warning: 2 bindings with an incompatible type. This component probably came from another file; numeric tokens may be wrong.",
                 ],
                 [
-                    "Atenção: 0 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
-                    "Atenção: 1 vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
-                    "Atenção: 2 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Aviso: 0 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Aviso: 1 vínculo com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
+                    "Aviso: 2 vínculos com tipo incompatível. Este componente provavelmente veio de outro arquivo; tokens numéricos podem estar errados.",
                 ],
             ),
             (Key::UnnumberedOne, Key::Unnumbered, ["+0 layers without a number", "+1 layer without a number", "+2 layers without a number"], ["+0 camadas sem número", "+1 camada sem número", "+2 camadas sem número"]),
@@ -370,7 +381,10 @@ mod tests {
         for (one, many, en, pt) in [
             (Key::NounVariable, Key::NounVariables, ("variable", "variables"), ("variável", "variáveis")),
             (Key::NounStyle, Key::NounStyles, ("style", "styles"), ("estilo", "estilos")),
-            (Key::NounProperty, Key::NounProperties, ("property", "properties"), ("propriedade", "propriedades")),
+            (Key::NounProperty, Key::NounProperties, ("design value", "design values"), ("valor", "valores")),
+            (Key::NounBound, Key::NounBounds, ("bound", "bound"), ("vinculado", "vinculados")),
+            (Key::NounMissing, Key::NounMissings, ("missing", "missing"), ("ausente", "ausentes")),
+            (Key::NounSuspect, Key::NounSuspects, ("suspect", "suspect"), ("suspeito", "suspeitos")),
         ] {
             assert_eq!((t(Lang::En, one), t(Lang::En, many)), en);
             assert_eq!((t(Lang::Pt, one), t(Lang::Pt, many)), pt);
@@ -378,10 +392,17 @@ mod tests {
     }
 
     #[test]
+    fn the_empty_and_not_found_values_are_different_texts_in_both_languages() {
+        assert_eq!((t(Lang::En, Key::ValueEmpty), t(Lang::En, Key::ValueNotFound)), ("(empty)", "(not found)"));
+        assert_eq!((t(Lang::Pt, Key::ValueEmpty), t(Lang::Pt, Key::ValueNotFound)), ("(vazio)", "(não encontrado)"));
+    }
+
+    #[test]
     fn replaces_placeholders() {
         assert_eq!(tf(Lang::En, Key::Unnumbered, &[("n", "3")]), "+3 layers without a number");
         assert_eq!(tf(Lang::Pt, Key::Unnumbered, &[("n", "3")]), "+3 camadas sem número");
-        assert_eq!(tf(Lang::Pt, Key::DefaultLine, &[("pairs", "Size=Small"), ("source", "salva")]), "Variante padrão: Size=Small (salva)");
+        assert_eq!(tf(Lang::Pt, Key::VariantShown, &[("name", "Size=Small")]), "Variante mostrada: Size=Small");
+        assert_eq!(tf(Lang::En, Key::VariantShown, &[("name", "Size=Small")]), "Variant shown: Size=Small");
     }
 
     #[test]

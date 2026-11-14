@@ -3,13 +3,13 @@
 //! and a table of the numbered properties) and a token audit. Every text it shows comes from
 //! `crate::i18n`.
 
-use crate::clock;
 use crate::audit::{self, Group, Info, Line, Prop, Row, State, Styles, Vars};
 use crate::glyphs;
 use crate::i18n::{Key, Lang, override_name, plural, t, tf};
 use crate::contrast::{self, Rgba};
-use crate::delta;
-use crate::store::{Meta, REPORT_KEY, Rerun, Settings, StageMode};
+use crate::delta::{self, LABEL_SEP};
+use crate::stacked;
+use crate::store::{REPORT_KEY, Rerun, Settings, StageMode};
 use crate::theme;
 use crate::variants::{self, Pairs, SetInfo, Variant};
 use figcraft_plugin_sdk::{Input, Result, Value, call, json, notify};
@@ -35,6 +35,10 @@ const SECTION_GAP: f64 = 56.0;
 /// The legend's width, the space between it and the stage, and the stage's room around the
 /// instance (in all, per axis) and least height.
 const LEGEND_W: f64 = 520.0;
+/// The gap between the blocks of a variant row's legend, and what a block's lines have room for: the legend's width less the block's
+/// padding on both sides.
+const LEGEND_GAP: f64 = 4.0;
+const BLOCK_W: f64 = LEGEND_W - 2.0 * theme::STRIPE_PAD;
 const ANATOMY_GAP: f64 = 32.0;
 const STAGE_ROOM: f64 = 192.0;
 const MIN_STAGE_H: f64 = 240.0;
@@ -67,10 +71,14 @@ const MAX_BADGES: usize = 12;
 const PROP_NAME_W: f64 = 180.0;
 const PROP_TYPE_W: f64 = 120.0;
 const MAX_AXIS_ROWS: usize = 24;
-/// A report taller than this exports at 1x: at 2x it would pass 16,384 px, where images break.
-const EXPORT_2X_MAX_H: f64 = 8_000.0;
 /// Axis rows: room around the instance (in all) and least stage height.
 const AXIS_ROOM: f64 = 64.0;
+/// The most a stage grows for the effects of its instance, in px per side (a shadow or blur that reaches further is cut by the
+/// stage's clip). The tallest stage this allows is the instance plus 2 x (400 + 8). Figma's own blur radius goes to 500; a
+/// shadow of a design system seldom passes 100, so 400 keeps every real effect whole and stops an absurd one.
+const EFFECT_CAP: f64 = 400.0;
+/// Room kept beyond the reach of an effect, in px, so that its faint end is not on the stage's edge.
+const EFFECT_SLACK: f64 = 8.0;
 const AXIS_MIN_H: f64 = 120.0;
 const STAGE_MAX_LEGEND_H: f64 = 480.0;
 /// How far below the anatomy stage the spacing stage is built.
@@ -125,30 +133,21 @@ fn id_of(lang: Lang, v: &Value, what: &str) -> Result<u64> {
     v.get("id").and_then(Value::as_u64).ok_or_else(|| tf(lang, Key::ErrNoId, &[("what", what)]))
 }
 
-/// The line colour, or the default.
-fn line_colour(text: Option<&str>) -> String {
-    match text.map(str::trim) {
-        Some(t) if !t.is_empty() => t.to_string(),
-        _ => theme::REDLINE.to_string(),
-    }
-}
-
-/// The fill colour: the one given, or the line colour at 30% (0x4D).
-fn fill_colour(text: Option<&str>, line: &str) -> String {
-    if let Some(t) = text.map(str::trim).filter(|t| !t.is_empty()) {
-        return t.to_string();
-    }
-    // `#RRGGBB` (or `#RRGGBBAA`: its alpha is replaced) at 30% (0x4D).
-    match line.get(..7) {
-        Some(rgb) if line.starts_with('#') && line.len() >= 7 => format!("{rgb}4D"),
+/// The fill colour: the colour `line` at `percent` opacity. The alpha is ABSOLUTE: the one the colour may
+/// carry (`#RRGGBBAA`) is replaced, not multiplied. 30% is `4D`, 0% is `00` (nothing shows), 100% is `FF`.
+pub(crate) fn fill_colour(percent: u8, line: &str) -> String {
+    let alpha = (u32::from(percent.min(100)) * 255 + 50) / 100;
+    let rgb = match line.get(..7) {
+        Some(rgb) if line.starts_with('#') && line.len() >= 7 => rgb.to_string(),
         _ => match line.strip_prefix('#').filter(|h| h.len() == 3) {
             Some(h) => h.chars().flat_map(|c| [c, c]).fold(String::from("#"), |mut s, c| {
                 s.push(c);
                 s
-            }) + "4D",
-            None => theme::REDLINE_FILL.to_string(),
+            }),
+            None => theme::LIGHT_SPACING.to_string(),
         },
-    }
+    };
+    format!("{rgb}{alpha:02X}")
 }
 
 /// Make a text layer inside `parent` (page position given when the parent has no auto layout).
@@ -560,16 +559,32 @@ fn text_with(lang: Lang, parent: u64, s: &str, size: f64, fill: &str, name: &str
     id_of(lang, &r, "text.create")
 }
 
+/// The frame of a token chip: it hugs its text, in the panel colour, with a rounded border. `padding` is the chip's, `extra` more
+/// properties (a cell of a grid). The caller puts the text in it.
+fn token_chip(lang: Lang, parent: u64, padding: Value, stroke: &str, weight: f64, extra: Value) -> Result<u64> {
+    let mut c = FlowSpec::new(t(lang, Key::LayerChip), 20.0, "horizontal");
+    c.padding = padding;
+    c.fill = Some(theme::PANEL);
+    let mut props = json!({"sizingH": "hug", "cornerRadius": 12, "stroke": stroke, "strokeWeight": weight, "strokeAlign": "inside"});
+    if let (Some(p), Some(e)) = (props.as_object_mut(), extra.as_object()) {
+        for (k, v) in e {
+            p.insert(k.clone(), v.clone());
+        }
+    }
+    c.extra = props;
+    flow_frame(lang, parent, c)
+}
+
 /// One property of a layer, in the legend's body. With a token: two lines glued together, "glyph
-/// Label : [chip]" and under it, dimmer, "value · state" (and "· ×N layers" when it is shared).
-/// Without: one line, "glyph Label : value · no token".
+/// Label: [chip]" and under it, dimmer, "value · state" (and "· ×N layers" when it is shared).
+/// Without: one line, "glyph Label: value · no token".
 fn draw_prop(lang: Lang, body: u64, width: f64, line: &Line, accent: &str) -> Result<()> {
     let label = t(lang, prop_key(line.property));
     let head = glyphs::with_word(prop_glyph(line.property), label);
     let (state, accented) = state_text(lang, line.state);
     if line.state == State::Unbound {
         let state = if line.property == Prop::Typography { t(lang, Key::LegendNoStyle).to_string() } else { state };
-        text_with(lang, body, &format!("{head} : {} · {state}", line.value), LINE_SIZE, theme::TEXT, label, json!({}))?;
+        text_with(lang, body, &format!("{head}{LABEL_SEP}{} · {state}", line.value), LINE_SIZE, theme::TEXT, label, json!({}))?;
         return Ok(());
     }
     let mut pair = FlowSpec::new(label, width, "vertical");
@@ -579,14 +594,9 @@ fn draw_prop(lang: Lang, body: u64, width: f64, line: &Line, accent: &str) -> Re
     a.gap = 6.0;
     a.extra = json!({"sizingH": "hug", "crossAlign": "center"});
     let a = flow_frame(lang, pair, a)?;
-    text_with(lang, a, &format!("{head} :"), LINE_SIZE, theme::TEXT, label, json!({}))?;
-    let chip_name = t(lang, Key::LayerChip);
-    let mut c = FlowSpec::new(chip_name, 20.0, "horizontal");
-    c.padding = json!([2, 8, 2, 8]);
-    c.fill = Some(theme::PANEL);
-    c.extra = json!({"sizingH": "hug", "cornerRadius": 12, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"});
-    let chip = flow_frame(lang, a, c)?;
-    text_with(lang, chip, &wrap(&line.token, CHIP_CHARS), LINE_SIZE, theme::TEXT, chip_name, json!({}))?;
+    text_with(lang, a, &format!("{head}{}", LABEL_SEP.trim_end()), LINE_SIZE, theme::TEXT, label, json!({}))?;
+    let chip = token_chip(lang, a, json!([2, 8, 2, 8]), theme::BORDER, 1.0, json!({}))?;
+    text_with(lang, chip, &wrap(&line.token, CHIP_CHARS), LINE_SIZE, theme::TEXT, t(lang, Key::LayerChip), json!({}))?;
     let b = format!("{} · {state}", line.value);
     let id = text_with(lang, pair, &b, LINE_SIZE, theme::MUTED_70, label, json!({}))?;
     if accented {
@@ -618,6 +628,65 @@ fn blocks<'a>(groups: &'a [Group], keep: impl Fn(&Line) -> bool, parts: bool) ->
             (!lines.is_empty() || is_part).then(|| Block { node: g.node, nodes: g.nodes.clone(), lines, sub: if parts { g.sub.clone() } else { None }, badge: None })
         })
         .collect()
+}
+
+/// How far one effect reaches beyond the box of its layer, per side: (left, right, top, bottom). A drop shadow reaches its blur
+/// radius plus its spread, moved by its offset (a positive x offset reaches further to the right and less to the left); a
+/// layer blur reaches its radius all round. An inner shadow and a background blur stay inside the box. A hidden effect, or
+/// one with a type this version doesn't know, reaches nothing.
+fn effect_sides(e: &Value) -> [f64; 4] {
+    if e.get("visible").and_then(Value::as_bool) == Some(false) {
+        return [0.0; 4];
+    }
+    let n = |k: &str| e.get(k).and_then(Value::as_f64).filter(|v| v.is_finite()).unwrap_or(0.0);
+    match e.get("type").and_then(Value::as_str) {
+        Some("dropShadow") => {
+            let reach = n("radius") + n("spread");
+            let (ox, oy) = match e.get("offset").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<_>>()).as_deref() {
+                Some([x, y]) => (*x, *y),
+                _ => (0.0, 0.0),
+            };
+            [reach - ox, reach + ox, reach - oy, reach + oy].map(|v| v.max(0.0))
+        }
+        Some("layerBlur") => [n("radius").max(0.0); 4],
+        _ => [0.0; 4],
+    }
+}
+
+/// How far the effects of the visible layers of an instance reach beyond the instance's own box, per side (left, right, top,
+/// bottom): the effects of a layer inside count only for what passes the box of the instance (a shadow that stays inside
+/// it needs no room). `drawn` says which layers are drawn (a hidden layer, or one under a hidden one, has no effect on the
+/// stage). Nothing is asked of the host: the effects and boxes are the ones the audit already read.
+fn effect_overflow(walked: &[(Value, usize)], drawn: &[bool]) -> [f64; 4] {
+    let Some(root) = walked.first().and_then(|(n, _)| bounds(n)) else { return [0.0; 4] };
+    let mut out = [0.0_f64; 4];
+    for (i, (node, _)) in walked.iter().enumerate() {
+        if !drawn.get(i).copied().unwrap_or(false) {
+            continue;
+        }
+        let (Some(effects), Some(b)) = (node.get("effects").and_then(Value::as_array), bounds(node)) else { continue };
+        // How far the layer's box is inside the instance's box on each side (0 for the root itself).
+        let inside = [b.x - root.x, root.right() - b.right(), b.y - root.y, root.bottom() - b.bottom()];
+        for e in effects {
+            let sides = effect_sides(e);
+            for k in 0..4 {
+                out[k] = out[k].max(sides[k] - inside[k].max(0.0));
+            }
+        }
+    }
+    out
+}
+
+/// The room a stage gives an effect on each side, from its overflow: the largest side (the instance stays in the middle), at
+/// most `EFFECT_CAP`; 0 when nothing reaches out.
+fn effect_reach(overflow: [f64; 4]) -> f64 {
+    overflow.into_iter().fold(0.0_f64, f64::max).min(EFFECT_CAP)
+}
+
+/// The least height of a stage for an instance `h` tall whose effects reach `reach` px: the instance, the reach and the slack
+/// on both sides. 0 when nothing reaches out (the stage keeps the room it has always had).
+fn stage_height_for_effects(h: f64, reach: f64) -> f64 {
+    if reach > 0.0 { h + 2.0 * (reach + EFFECT_SLACK) } else { 0.0 }
 }
 
 /// For each layer of the walk: whether it is drawn (it and everything it sits in are visible).
@@ -691,7 +760,7 @@ fn header_name(name: &str, layers: usize, content: Option<&str>) -> String {
 
 /// A layer type in words: "Frame", "Text", "Group"… A type the dictionary doesn't know is the host's
 /// name in title case.
-fn kind_word(lang: Lang, kind: &str) -> String {
+pub(crate) fn kind_word(lang: Lang, kind: &str) -> String {
     kind_key(kind).map_or_else(|| title_case(kind), |key| t(lang, key).to_string())
 }
 
@@ -873,7 +942,7 @@ fn limit_groups(groups: &[Group], max: usize) -> (Vec<Group>, usize) {
 
 /// A block of the legend: the layer's header (a badge when it has one, "↳" when it sits inside
 /// another layer) and under it its lines, indented under the glyph. `extra` are plain lines
-/// ("Label : value") that follow.
+/// ("Label: value") that follow.
 #[allow(clippy::too_many_arguments)]
 fn block_name(walked: &[(Value, usize)], block: &Block) -> String {
     let layer_name = walked.get(block.node).and_then(|(v, _)| v.get("name")).and_then(Value::as_str).unwrap_or_default();
@@ -903,7 +972,7 @@ fn draw_block(lang: Lang, legend: u64, walked: &[(Value, usize)], variant: bool,
             b.fill = Some(accent);
             b.extra = json!({"cornerRadius": MARKER_D / 2.0, "mainAlign": "center", "crossAlign": "center"});
             let badge = flow_frame(lang, header, b)?;
-            text_with(lang, badge, &n.to_string(), FONT, theme::ON_REDLINE, &badge_name, json!({}))?;
+            text_with(lang, badge, &n.to_string(), FONT, on_accent(accent), &badge_name, json!({}))?;
             // The badge already says where it sits: the title drops the "↳".
             let plain = match glyphs::layer(&node, depth == 0, variant) {
                 Some(g) => glyphs::with_word(g, &name),
@@ -927,7 +996,7 @@ fn draw_block(lang: Lang, legend: u64, walked: &[(Value, usize)], variant: bool,
         draw_prop(lang, body, width, line, accent)?;
     }
     for (label, value) in extra {
-        text_with(lang, body, &format!("{label} : {value}"), LINE_SIZE, theme::TEXT, label, json!({}))?;
+        text_with(lang, body, &format!("{label}{LABEL_SEP}{value}"), LINE_SIZE, theme::TEXT, label, json!({}))?;
     }
     Ok(())
 }
@@ -1116,11 +1185,9 @@ pub struct SetPick {
     pub source: DefaultSource,
 }
 
-/// Where the default variant of a report comes from.
+/// Where the variant a set's documentation shows comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DefaultSource {
-    /// The one saved in the settings.
-    Saved,
     /// The one the component itself says (`component.properties`).
     Component,
     /// The first variant of the set.
@@ -1138,7 +1205,7 @@ fn component_default(lang: Lang, set: u64, info: &SetInfo) -> Option<Pairs> {
         .filter(|p| p.get("type").and_then(Value::as_str) == Some("variant"))
         .filter_map(|p| Some((clean_name(p.get("name")?.as_str()?).to_string(), p.get("default")?.as_str()?.to_string())))
         .collect();
-    if typed.is_empty() { None } else { variants::complete(info, &typed).ok() }
+    if typed.is_empty() { None } else { variants::complete(info, &typed) }
 }
 
 /// The variants of a component set, as `node.get` gives its children (name and box).
@@ -1154,14 +1221,6 @@ pub fn variants_of(node: &Value) -> Vec<Variant> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-/// Load a component set: its variants and what they spell.
-pub fn load_set(lang: Lang, id: u64) -> Result<(SetInfo, Meta)> {
-    let node = host(lang, "node.get", &json!({"id": id, "fields": ["name", "children", "absoluteBounds", "pluginData"]}))?;
-    let name = node.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
-    let meta = Meta::from_plugin_data(node.get("pluginData").unwrap_or(&Value::Null));
-    Ok((SetInfo::new(id, name, variants_of(&node)), meta))
 }
 
 /// The component set that holds `component`, if one does.
@@ -1184,7 +1243,7 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
     if selection.len() > 1 {
         notes.push(tf(lang, Key::Variants, &[("n", &selection.len().to_string())]));
     }
-    let mut node = host(lang, "node.get", &json!({"id": id, "fields": ["type", "name", "mainComponent", "overrides", "children", "absoluteBounds", "pluginData"]}))?;
+    let mut node = host(lang, "node.get", &json!({"id": id, "fields": ["type", "name", "mainComponent", "overrides", "children", "absoluteBounds"]}))?;
     let mut set: Option<u64> = None;
     let mut set_pick: Option<SetPick> = None;
     let mut set_name = String::new();
@@ -1194,16 +1253,10 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
         if info.variants.is_empty() {
             return Err(tf(lang, Key::ErrEmptySet, &[("id", &id.to_string())]));
         }
-        // The saved default, when it still names a variant; else the first one.
-        let saved = Meta::from_plugin_data(node.get("pluginData").unwrap_or(&Value::Null)).default;
-        let from_saved = saved.as_deref().and_then(|t| variants::parse_default(t).ok()).and_then(|typed| variants::complete(&info, &typed).ok());
-        // Saved default, then the component's own, then the first variant.
-        let (pairs, source) = match from_saved {
-            Some(p) => (p, DefaultSource::Saved),
-            None => match component_default(lang, id, &info) {
-                Some(p) => (p, DefaultSource::Component),
-                None => (info.first_pairs(), DefaultSource::First),
-            },
+        // The variant shown: the set's own default, else the first variant.
+        let (pairs, source) = match component_default(lang, id, &info) {
+            Some(p) => (p, DefaultSource::Component),
+            None => (info.first_pairs(), DefaultSource::First),
         };
         let chosen = info.find(&pairs).or(info.variants.first()).cloned();
         let chosen = chosen.ok_or_else(|| tf(lang, Key::ErrEmptySet, &[("id", &id.to_string())]))?;
@@ -1259,46 +1312,55 @@ fn make_stage(lang: Lang, at: Rect, dark: bool) -> Result<u64> {
     id_of(lang, &r, "frame.create")
 }
 
-/// The colours and weights of the redlines (badges, guides, measures and overlay) on a stage. On the
-/// light stage with the default line colour the guides, the overlay's outline and the badges are the
-/// line colour at full strength (2 px guides, 1.5 px outline), with Prussian blue for the measure values (the line
-/// colour is too pale to read on the light stage) and a Prussian ring on the badge. On the dark
-/// stage, or with a line colour set in the settings, everything is the line colour, 1 px, no ring.
+/// The colours of the redlines (badges, guides, measures and overlay) on a stage: a fixed palette by stage and by
+/// section (see `Palette`). The guides and the overlay's outline have a fixed weight (`GUIDE_WEIGHT`,
+/// `OVERLAY_WEIGHT`). The anatomy colour is the badges' and the guides'; the spacing colour is the measure rectangles'
+/// (outline and fill). On the light stage the measure values are Prussian blue and the badge has a Prussian ring; on
+/// the dark stage the values are the spacing colour and there is no ring.
 struct RedStyle {
     accent: String,
     ring: Option<&'static str>,
     guide: String,
-    guide_weight: f64,
-    overlay_fill: String,
+    /// The measure rectangles' fill: the spacing colour at `MEASURE_FILL_PERCENT`.
+    overlay_fill: Option<String>,
     overlay_stroke: String,
-    overlay_weight: f64,
     /// The colour of the measure values.
     value: String,
 }
 
-fn red_style(dark: bool, custom_line: bool, line: &str, fill: &str) -> RedStyle {
-    if dark || custom_line {
-        RedStyle {
-            accent: line.to_string(),
-            ring: None,
-            guide: line.to_string(),
-            guide_weight: 1.0,
-            overlay_fill: fill.to_string(),
-            overlay_stroke: line.to_string(),
-            overlay_weight: 1.0,
-            value: line.to_string(),
-        }
+/// The stroke weight of a marker's guide: the same on every stage.
+const GUIDE_WEIGHT: f64 = 1.5;
+/// The stroke weight of the outline of a measure rectangle: likewise the same everywhere.
+const OVERLAY_WEIGHT: f64 = 1.5;
+
+/// The fixed colours of a stage: the anatomy's and the spacing's.
+struct Palette {
+    anatomy: &'static str,
+    spacing: &'static str,
+}
+
+fn palette(dark: bool) -> Palette {
+    if dark {
+        Palette { anatomy: theme::DARK_ANATOMY, spacing: theme::DARK_SPACING }
     } else {
-        RedStyle {
-            accent: line.to_string(),
-            ring: Some(theme::PRUSSIAN),
-            guide: line.to_string(),
-            guide_weight: 2.0,
-            overlay_fill: fill.to_string(),
-            overlay_stroke: line.to_string(),
-            overlay_weight: 1.5,
-            value: theme::PRUSSIAN.to_string(),
-        }
+        Palette { anatomy: theme::LIGHT_ANATOMY, spacing: theme::LIGHT_SPACING }
+    }
+}
+
+/// The number on a badge or marker whose circle is `accent`: white on the light stage's colours, dark on the dark stage's.
+fn on_accent(accent: &str) -> &'static str {
+    if accent == theme::LIGHT_ANATOMY || accent == theme::LIGHT_SPACING { theme::ON_LIGHT_ACCENT } else { theme::ON_REDLINE }
+}
+
+fn red_style(dark: bool) -> RedStyle {
+    let p = palette(dark);
+    RedStyle {
+        accent: p.anatomy.to_string(),
+        ring: if dark { None } else { Some(theme::PRUSSIAN) },
+        guide: p.anatomy.to_string(),
+        overlay_fill: Some(fill_colour(theme::MEASURE_FILL_PERCENT, p.spacing)),
+        overlay_stroke: p.spacing.to_string(),
+        value: if dark { p.spacing.to_string() } else { theme::PRUSSIAN.to_string() },
     }
 }
 
@@ -1419,7 +1481,7 @@ fn draw_overlay(lang: Lang, stage: u64, sb: Rect, ib: Rect, lines: &[Value], red
             lang,
             "shape.rectangle",
             &json!({"x": rx - sb.x, "y": ry - sb.y, "width": rw, "height": rh, "parent": stage, "name": tf(lang, Key::LayerMeasure, &[("value", &label)]), "select": false,
-                "props": {"fill": red.overlay_fill, "stroke": red.overlay_stroke, "strokeWeight": red.overlay_weight, "strokeAlign": "inside"}}),
+                "props": {"fill": red.overlay_fill.as_deref(), "stroke": red.overlay_stroke, "strokeWeight": OVERLAY_WEIGHT, "strokeAlign": "inside"}}),
         )?;
         rects.push(id_of(lang, &r, "shape.rectangle")?);
         pending.push((label, lx, ly));
@@ -1488,7 +1550,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
         let d = dx.hypot(dy).max(0.001);
         // The guide starts at the circle's edge.
         let start = (m.centre.0 + dx / d * MARKER_D / 2.0, m.centre.1 + dy / d * MARKER_D / 2.0);
-        leader(lang, stage, origin, start, m.end, (red.guide.as_str(), red.guide_weight), &tf(lang, Key::LayerLeader, &[("n", &m.number.to_string())]))?;
+        leader(lang, stage, origin, start, m.end, (red.guide.as_str(), GUIDE_WEIGHT), &tf(lang, Key::LayerLeader, &[("n", &m.number.to_string())]))?;
         let name = tf(lang, Key::LayerMarker, &[("n", &m.number.to_string())]);
         let c = host(
             lang,
@@ -1498,7 +1560,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
         )?;
         let digits = m.number.to_string();
         let tw = CHAR_W * digits.chars().count() as f64;
-        text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - LABEL_H / 2.0 - origin.1, FONT, theme::ON_REDLINE, None, &name)?;
+        text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - LABEL_H / 2.0 - origin.1, FONT, on_accent(&red.accent), None, &name)?;
         ids.push(id_of(lang, &c, "shape.ellipse")?);
     }
     let info = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1]})).collect();
@@ -1541,22 +1603,45 @@ fn clean_name(name: &str) -> &str {
 
 /// The properties of a component as `component.properties` gives them. `default` holds the pairs
 /// of the default variant, which say the default option of each variant property.
-fn property_views(lang: Lang, defs: &Value, default: Option<&Pairs>) -> Vec<PropView> {
+///
+/// `resolve` gives the name of the component a swap property has as its default (`None` when the id is not found, or its
+/// name is empty); it is asked once for each distinct id, and for no other kind of property.
+fn property_views(lang: Lang, defs: &Value, default: Option<&Pairs>, resolve: &mut dyn FnMut(u64) -> Option<String>) -> Vec<PropView> {
+    let mut resolved: HashMap<u64, Option<String>> = HashMap::new();
     let list = defs.get("properties").and_then(Value::as_array).cloned().unwrap_or_default();
+    let base_names: Vec<String> = list.iter().filter_map(|p| p.get("name").and_then(Value::as_str)).map(|n| clean_name(n).to_string()).collect();
+    // A base name that several definitions share (whatever their types and "#id" suffixes) is numbered 1, 2, ...
+    // in the order the host gives them; a name that is alone stays as it is.
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     list.iter()
         .filter_map(|p| {
-            let name = clean_name(p.get("name").and_then(Value::as_str)?).to_string();
+            let base = clean_name(p.get("name").and_then(Value::as_str)?).to_string();
+            let name = if base_names.iter().filter(|n| **n == base).count() > 1 {
+                let n = seen.entry(base.clone()).and_modify(|n| *n += 1).or_insert(1);
+                format!("{base} {n}")
+            } else {
+                base.clone()
+            };
             let kind = p.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
             let options: Vec<(String, bool)> = match kind.as_str() {
                 "variant" => {
-                    let chosen = default.and_then(|d| d.iter().find(|(k, _)| *k == name).map(|(_, v)| v.clone())).or_else(|| p.get("default").and_then(Value::as_str).map(ToString::to_string));
+                    let chosen = default.and_then(|d| d.iter().find(|(k, _)| *k == base).map(|(_, v)| v.clone())).or_else(|| p.get("default").and_then(Value::as_str).map(ToString::to_string));
                     p.get("options").and_then(Value::as_array).map(|o| o.iter().filter_map(Value::as_str).map(|o| (o.to_string(), chosen.as_deref() == Some(o))).collect()).unwrap_or_default()
                 }
                 "boolean" => {
                     let on = p.get("default").and_then(Value::as_bool).unwrap_or(false);
                     vec![(t(lang, Key::ValueTrue).to_string(), on), (t(lang, Key::ValueFalse).to_string(), !on)]
                 }
-                _ => p.get("default").and_then(Value::as_str).map(|d| vec![(d.to_string(), true)]).unwrap_or_default(),
+                // A swap property shows the name of its default component; an id that doesn't resolve says so.
+                "instanceSwap" => {
+                    let text = match p.get("default").and_then(Value::as_u64) {
+                        Some(id) => resolved.entry(id).or_insert_with(|| resolve(id).map(|n| n.trim().to_string()).filter(|n| !n.is_empty())).clone().unwrap_or_else(|| t(lang, Key::ValueNotFound).to_string()),
+                        None => t(lang, Key::ValueEmpty).to_string(),
+                    };
+                    vec![(text, true)]
+                }
+                // A text whose default is empty would be a pill with nothing in it: it says so.
+                _ => p.get("default").and_then(Value::as_str).map(|d| vec![(if d.is_empty() { t(lang, Key::ValueEmpty).to_string() } else { d.to_string() }, true)]).unwrap_or_default(),
             };
             Some(PropView { name, kind, options })
         })
@@ -1609,12 +1694,8 @@ fn draw_properties(lang: Lang, frame: u64, inner: f64, views: &[PropView]) -> Re
         c.extra = json!({"wrap": true, "crossGap": 8});
         let chips = flow_frame(lang, row, c)?;
         for (option, is_default) in &v.options {
-            let mut chip = FlowSpec::new(t(lang, Key::LayerChip), 20.0, "horizontal");
-            chip.padding = json!([3, 10, 3, 10]);
-            chip.fill = Some(theme::PANEL);
             let (stroke, weight) = if *is_default { (theme::TEXT, 1.5) } else { (theme::BORDER, 1.0) };
-            chip.extra = json!({"sizingH": "hug", "cornerRadius": 12, "stroke": stroke, "strokeWeight": weight, "strokeAlign": "inside"});
-            let chip = flow_frame(lang, chips, chip)?;
+            let chip = token_chip(lang, chips, json!([3, 10, 3, 10]), stroke, weight, json!({}))?;
             let extra = if *is_default { json!({"fontStyle": "Bold"}) } else { json!({}) };
             text_with(lang, chip, option, LINE_SIZE, if *is_default { theme::TEXT } else { theme::MUTED_70 }, t(lang, Key::LayerChip), extra)?;
         }
@@ -1624,11 +1705,18 @@ fn draw_properties(lang: Lang, frame: u64, inner: f64, views: &[PropView]) -> Re
 
 /// What the axes drew.
 struct AxesDrawn {
+    /// Rows whose stage is narrower than the instance plus the reach of its effects on both sides: (row name, width needed).
+    narrow: Vec<(String, f64)>,
     rows: usize,
     skipped: usize,
     undefined: Vec<String>,
     /// For each row: its name, the lowest contrast found (in auto) and whether its stage is dark.
     info: Vec<Value>,
+    /// The changes the budget of the stacked format left as one line, and the nodes it spent.
+    capped: usize,
+    stack_used: usize,
+    stack_measured: usize,
+    stack_redrawn: usize,
 }
 
 /// The variables and styles of the file, read the first time a layer needs them (the default's walk may
@@ -1638,6 +1726,8 @@ struct Caches {
     vars_loaded: bool,
     styles: Styles,
     styles_loaded: bool,
+    /// The nodes the run may still spend on the stacked format of the changes.
+    budget: stacked::Budget,
 }
 
 impl Caches {
@@ -1658,12 +1748,230 @@ impl Caches {
 
 /// A text of the legend's width (it wraps), with more properties than `text` gives.
 fn legend_text(lang: Lang, parent: u64, s: &str, fill: &str, name: &str, bold: bool) -> Result<u64> {
+    legend_text_in(lang, parent, s, fill, name, bold, LEGEND_W)
+}
+
+/// The same, `width` wide.
+fn legend_text_in(lang: Lang, parent: u64, s: &str, fill: &str, name: &str, bold: bool, width: f64) -> Result<u64> {
     let mut props = json!({"fontSize": LINE_SIZE.max(theme::MIN_SIZE), "fill": fill, "fontFamily": theme::FONT_FAMILY});
     if let (true, Some(p)) = (bold, props.as_object_mut()) {
         p.insert("fontStyle".into(), json!("Bold"));
     }
-    let r = host(lang, "text.create", &json!({"text": s, "x": 0, "y": 0, "width": LEGEND_W, "parent": parent, "name": name, "select": false, "props": props}))?;
+    let r = host(lang, "text.create", &json!({"text": s, "x": 0, "y": 0, "width": width, "parent": parent, "name": name, "select": false, "props": props}))?;
     id_of(lang, &r, "text.create")
+}
+
+/// More properties merged over a base set of them.
+fn merged(base: Value, more: Value) -> Value {
+    let mut out = base;
+    if let (Some(o), Some(m)) = (out.as_object_mut(), more.as_object()) {
+        for (k, v) in m {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+    out
+}
+
+/// A cell of a grid: its column and row, centred on its line.
+fn at(col: usize, row: usize) -> Value {
+    json!({"gridColumn": col, "gridRow": row, "gridAlignV": "center"})
+}
+
+/// A colour: its square (empty when the colour has an alpha, which the hex says) and its hex. `anchor` is its place in a grid.
+fn colour_cell(lang: Lang, parent: u64, cell: &delta::Cell, anchor: Value) -> Result<u64> {
+    let mut f = FlowSpec::new(t(lang, Key::LayerDeltaColor), 20.0, "horizontal");
+    f.gap = stacked::SWATCH_GAP;
+    f.extra = merged(json!({"sizingH": "hug", "crossAlign": "center"}), anchor);
+    let frame = flow_frame(lang, parent, f)?;
+    let fill = if cell.colour == Some(delta::Swatch::Solid) { json!(cell.value) } else { Value::Null };
+    host(
+        lang,
+        "shape.rectangle",
+        &json!({"x": 0, "y": 0, "width": theme::SWATCH_SIZE, "height": theme::SWATCH_SIZE, "parent": frame, "name": t(lang, Key::LayerDeltaSwatch), "select": false,
+            "props": {"fill": fill, "cornerRadius": theme::SWATCH_RADIUS, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}),
+    )?;
+    // The hex is light: where the font has no light face the host draws it regular.
+    text_with(lang, frame, &cell.value, LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaHex), json!({"fontStyle": "Light"}))?;
+    Ok(frame)
+}
+
+/// The value of a side: its colour, or the number or text (a dash, when there is nothing else to say, is dimmer).
+fn value_cell(lang: Lang, parent: u64, cell: &delta::Cell, anchor: Value) -> Result<u64> {
+    if cell.colour.is_some() {
+        return colour_cell(lang, parent, cell, anchor);
+    }
+    let fill = if cell.value == delta::DASH { theme::MUTED_70 } else { theme::TEXT };
+    text_with(lang, parent, &cell.value, LINE_SIZE, fill, t(lang, Key::LayerDeltaValues), anchor)
+}
+
+/// The token of a side as a chip; a side with none says so with a dim dash.
+fn token_cell(lang: Lang, parent: u64, cell: &delta::Cell, anchor: Value) -> Result<u64> {
+    match &cell.token {
+        Some(token) => {
+            let chip = token_chip(lang, parent, json!([2, 8, 2, 8]), theme::BORDER, 1.0, anchor)?;
+            text_with(lang, chip, &wrap(token, CHIP_CHARS), LINE_SIZE, theme::TEXT, t(lang, Key::LayerChip), json!({}))?;
+            Ok(chip)
+        }
+        None => text_with(lang, parent, delta::DASH, LINE_SIZE, theme::MUTED_70, t(lang, Key::LayerDeltaToken), anchor),
+    }
+}
+
+fn arrow(lang: Lang, parent: u64, anchor: Value) -> Result<u64> {
+    text_with(lang, parent, "→", LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaArrow), anchor)
+}
+
+/// The frame of a block: it is the legend's wide, with `STRIPE_PAD` on its four sides and its lines `ENTRY_GAP` apart. Every other block
+/// has the stripe's fill and corner radius.
+fn entry_frame(lang: Lang, legend: u64, name: &str, filled: bool) -> Result<u64> {
+    let mut f = FlowSpec::new(name, LEGEND_W, "vertical");
+    f.gap = theme::ENTRY_GAP;
+    f.padding = json!(theme::STRIPE_PAD);
+    if filled {
+        f.fill = Some(theme::STRIPE_FILL);
+        f.extra = json!({"cornerRadius": theme::STRIPE_RADIUS});
+    }
+    flow_frame(lang, legend, f)
+}
+
+/// A line of items that hug their content, one after the other.
+fn row_frame(lang: Lang, parent: u64, name: &str) -> Result<u64> {
+    let mut r = FlowSpec::new(name, 20.0, "horizontal");
+    r.gap = stacked::COL_GAP;
+    r.extra = json!({"sizingH": "hug", "crossAlign": "center"});
+    flow_frame(lang, parent, r)
+}
+
+/// A change in the stacked format: its label in bold, then its tokens, then its values. In a grid the old side, the arrow and the new
+/// side are columns (as wide as the wider of their two lines), so the arrows of the two lines are one under the other; in the
+/// fallback the arrow and the new token start the second line, and the values keep their one line. Returns the frame and what is
+/// measured to see whether it fits the legend: the grid, or the line of values.
+fn draw_stacked(lang: Lang, legend: u64, c: &delta::Cells, layout: stacked::Layout, filled: bool, heading: Option<&delta::Line>) -> Result<(u64, u64)> {
+    let entry = entry_frame(lang, legend, &c.label, filled)?;
+    if let Some(h) = heading {
+        line_text(lang, entry, h, filled)?;
+    }
+    text_with(lang, entry, &format!("{}{}", c.label, LABEL_SEP.trim_end()), LINE_SIZE, theme::TEXT, t(lang, Key::LayerDeltaLabel), json!({"fontStyle": "Bold"}))?;
+    let tokens = c.from.token.is_some() || c.to.token.is_some();
+    if layout == stacked::Layout::Fallback {
+        if tokens {
+            token_cell(lang, entry, &c.from, json!({}))?;
+            let r = row_frame(lang, entry, t(lang, Key::LayerDeltaTokens))?;
+            arrow(lang, r, json!({}))?;
+            token_cell(lang, r, &c.to, json!({}))?;
+        }
+        let r = row_frame(lang, entry, t(lang, Key::LayerDeltaValues))?;
+        value_cell(lang, r, &c.from, json!({}))?;
+        arrow(lang, r, json!({}))?;
+        value_cell(lang, r, &c.to, json!({}))?;
+        return Ok((entry, r));
+    }
+    let mut g = FlowSpec::new(t(lang, Key::LayerDeltaValues), BLOCK_W, "grid");
+    // `gap` is the one between columns; the one between the two lines is `rowGap`.
+    g.gap = stacked::COL_GAP;
+    g.extra = json!({"gridColumns": 3, "columnTracks": ["auto", "auto", "auto"], "rowGap": theme::ENTRY_GAP});
+    let grid = flow_frame(lang, entry, g)?;
+    let values_row = usize::from(tokens);
+    if tokens {
+        token_cell(lang, grid, &c.from, at(0, 0))?;
+        arrow(lang, grid, at(1, 0))?;
+        token_cell(lang, grid, &c.to, at(2, 0))?;
+    }
+    value_cell(lang, grid, &c.from, at(0, values_row))?;
+    arrow(lang, grid, at(1, values_row))?;
+    value_cell(lang, grid, &c.to, at(2, values_row))?;
+    Ok((entry, grid))
+}
+
+/// Whether what was drawn goes past the right edge of the legend: for a grid, any of its cells past the grid's edge; for a line of
+/// values (which hugs its content), the line past the entry's edge.
+fn goes_past_the_edge(lang: Lang, layout: stacked::Layout, entry: u64, probe: u64) -> Result<bool> {
+    if layout == stacked::Layout::Fallback {
+        let (e, r) = (host(lang, "node.get", &json!({"id": entry, "fields": ["absoluteBounds"]}))?, host(lang, "node.get", &json!({"id": probe, "fields": ["absoluteBounds"]}))?);
+        return Ok(matches!((bounds(&e), bounds(&r)), (Some(e), Some(r)) if r.right() > e.right() - theme::STRIPE_PAD + 0.5));
+    }
+    let g = host(lang, "node.get", &json!({"id": probe, "fields": ["absoluteBounds", "children"]}))?;
+    let Some(b) = bounds(&g) else { return Ok(false) };
+    let right = g.get("children").and_then(Value::as_array).map_or(f64::MIN, |a| a.iter().filter_map(bounds).map(Rect::right).fold(f64::MIN, f64::max));
+    Ok(right > b.right() + 0.5)
+}
+
+/// A block of one or two lines of text: a heading, a change, or both, in a frame of their own.
+fn draw_lines(lang: Lang, legend: u64, heading: Option<&delta::Line>, body: Option<&delta::Line>, filled: bool) -> Result<()> {
+    let frame = entry_frame(lang, legend, t(lang, Key::LayerDeltas), filled)?;
+    for l in heading.into_iter().chain(body) {
+        line_text(lang, frame, l, filled)?;
+    }
+    Ok(())
+}
+
+/// A line of the list as text. A heading is in bold and the title colour of its block (`stacked::title_colour`). A change of a property has
+/// its label (and colon) in bold and the rest as it is; a layer shown, hidden or swapped has its title (and colon) in bold and the title
+/// colour, and the rest as it is. Each is a range of the same text, so the text still wraps as one and no node is added.
+fn line_text(lang: Lang, parent: u64, l: &delta::Line, filled: bool) -> Result<()> {
+    let fill = if l.heading { stacked::title_colour(filled) } else { theme::TEXT };
+    let id = legend_text_in(lang, parent, &l.text, fill, t(lang, Key::LayerDeltas), l.heading, BLOCK_W)?;
+    if l.label_len > 0 {
+        let mut style = json!({"id": id, "start": 0, "end": l.label_len, "fontStyle": "Bold"});
+        if let (true, Some(o)) = (l.label_is_layer, style.as_object_mut()) {
+            o.insert("textFills".into(), json!([{"type": "solid", "color": stacked::title_colour(filled)}]));
+        }
+        host(lang, "text.style", &style)?;
+    }
+    Ok(())
+}
+
+/// The lines of a variant's list, in blocks (see [`stacked::blocks`]): a group's heading with the first change under it, or one line
+/// on its own. A block is a frame with the same padding as every other; every other block (the 2nd, the 4th…) has a fill, which
+/// tells one from the next, and the first has none. A change of a property is drawn stacked when it has a token or a colour and the
+/// budget of the run allows (see [`stacked`]), else as one line of text. `capped` counts the changes that would have been stacked and
+/// the budget left as a line.
+fn draw_listing(lang: Lang, legend: u64, listing: &delta::Listing, budget: &mut stacked::Budget, capped: &mut usize) -> Result<()> {
+    let kinds: Vec<(bool, bool)> = listing.lines.iter().map(|l| (l.heading, l.entry)).collect();
+    let blocks = stacked::blocks(&kinds);
+    let mut i = 0;
+    while i < listing.lines.len() {
+        let mut j = i + 1;
+        while j < listing.lines.len() && blocks[j] == blocks[i] {
+            j += 1;
+        }
+        let group = &listing.lines[i..j];
+        let heading = group.first().filter(|l| l.heading);
+        let body = group.iter().find(|l| !l.heading);
+        draw_change_block(lang, legend, heading, body, blocks[i] % 2 == 1, budget, capped)?;
+        i = j;
+    }
+    Ok(())
+}
+
+/// One block of the list.
+fn draw_change_block(lang: Lang, legend: u64, heading: Option<&delta::Line>, body: Option<&delta::Line>, filled: bool, budget: &mut stacked::Budget, capped: &mut usize) -> Result<()> {
+    let Some(cells) = body.and_then(|l| l.cells.as_ref().filter(|_| l.entry)) else { return draw_lines(lang, legend, heading, body, filled) };
+    let mut layout = stacked::plan(cells);
+    if layout == stacked::Layout::Line {
+        return draw_lines(lang, legend, heading, body, filled);
+    }
+    let mut cost = stacked::cost(cells, layout);
+    if !budget.take(cost) {
+        *capped += 1;
+        return draw_lines(lang, legend, heading, body, filled);
+    }
+    loop {
+        let (entry, probe) = draw_stacked(lang, legend, cells, layout, filled, heading)?;
+        budget.measured += 1;
+        if !goes_past_the_edge(lang, layout, entry, probe)? {
+            return Ok(());
+        }
+        // Over the block's width: the block is drawn again in the layout that fits.
+        host(lang, "edit.delete", &json!({"ids": [entry]}))?;
+        budget.redrawn += 1;
+        layout = stacked::after_overflow(cells, layout);
+        if layout == stacked::Layout::Line {
+            return draw_lines(lang, legend, heading, body, filled);
+        }
+        let next = stacked::cost(cells, layout);
+        budget.spend(next.saturating_sub(cost));
+        cost = next;
+    }
 }
 
 /// The variant axes: a section for each variant property, with a row for each option. On the left of
@@ -1684,16 +1992,25 @@ fn draw_axes(
     base_walked: &[(Value, usize)],
     caches: &mut Caches,
 ) -> Result<AxesDrawn> {
-    let mut drawn = AxesDrawn { rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new() };
+    let mut drawn = AxesDrawn { narrow: Vec::new(), rows: 0, skipped: 0, undefined: Vec::new(), info: Vec::new(), capped: 0, stack_used: 0, stack_measured: 0, stack_redrawn: 0 };
     let mut last_section: Option<u64> = None;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
     let base_snap = delta::snapshot(lang, base_walked, &caches.vars, &caches.styles);
+    let base_reach = effect_reach(effect_overflow(base_walked, &rendered(base_walked)));
+    // The block's padding takes its width from the stage; so does its border (the host counts an inside stroke in the layout).
+    let row_stage_w = stage_w - 2.0 * (theme::BLOCK_PAD + theme::BLOCK_BORDER);
     for axis in axes {
         let mut section: Option<u64> = None;
+        // The options with no variant: the note names their values (the section already says the property); the output keeps
+        // the "Property=Option" spelling.
         let mut missing: Vec<String> = Vec::new();
+        let mut missing_named: Vec<String> = Vec::new();
+        // The changes of this section that the budget of the stacked format left as one line.
+        let mut capped_section = 0usize;
         for opt in &axis.options {
             let Some(variant) = &opt.variant else {
-                missing.push(format!("{}={}", axis.prop, opt.option));
+                missing.push(opt.option.clone());
+                missing_named.push(format!("{}={}", axis.prop, opt.option));
                 continue;
             };
             if drawn.rows >= limit {
@@ -1710,32 +2027,34 @@ fn draw_axes(
             };
             last_section = Some(sec);
             let rname = tf(lang, Key::LayerAxisRow, &[("name", &opt.name)]);
+            // The row is a block: its own frame has the fill, the border and the padding (no node is added).
             let mut r = FlowSpec::new(&rname, inner, "horizontal");
             r.gap = ANATOMY_GAP;
+            r.padding = json!(theme::BLOCK_PAD);
+            r.fill = Some(theme::BLOCK_FILL);
+            r.extra = json!({"cornerRadius": theme::BLOCK_RADIUS, "stroke": theme::BORDER, "strokeWeight": theme::BLOCK_BORDER, "strokeAlign": "inside"});
             let row = flow_frame(lang, sec, r)?;
             let mut lg = FlowSpec::new(t(lang, Key::LayerLegend), LEGEND_W, "vertical");
-            lg.gap = 8.0;
+            lg.gap = LEGEND_GAP;
             let legend = flow_frame(lang, row, lg)?;
-            let title = glyphs::with_word(glyphs::VARIANT, &format!("{}={}", axis.prop, opt.option));
+            let title = glyphs::with_word(glyphs::VARIANT, &opt.option);
             text_with(lang, legend, &title, HEADER_SIZE, theme::TEXT, &rname, json!({"fontStyle": "Bold"}))?;
             // The stage first with the room the instance needs; it grows when the list is taller.
             let h0 = (variant.h + AXIS_ROOM).max(AXIS_MIN_H);
-            let sb = Rect { x, y: STAGING_Y, w: stage_w, h: h0 };
+            let sb = Rect { x, y: STAGING_Y, w: row_stage_w, h: h0 };
             let stage = make_stage(lang, sb, mode == StageMode::Dark)?;
             let (instance, _) = place_instance(lang, variant.id, stage, sb, Rect { x: 0.0, y: 0.0, w: variant.w, h: variant.h })?;
             let mut listed: Vec<String> = Vec::new();
             let mut h = h0;
-            let nodes: Vec<Value> = if opt.is_default {
+            let (nodes, reach): (Vec<Value>, f64) = if opt.is_default {
                 text_with(lang, legend, t(lang, Key::LegendDefault), LINE_SIZE, theme::MUTED, &rname, json!({}))?;
-                base_nodes.clone()
+                (base_nodes.clone(), base_reach)
             } else {
                 let walked = walk_layers(lang, instance)?;
                 caches.load_for(lang, &walked)?;
                 let diff = delta::compare(&base_snap, &delta::snapshot(lang, &walked, &caches.vars, &caches.styles));
                 let listing = delta::list(lang, &diff);
-                for l in &listing.lines {
-                    legend_text(lang, legend, &l.text, theme::TEXT, t(lang, Key::LayerDeltas), l.heading)?;
-                }
+                draw_listing(lang, legend, &listing, &mut caches.budget, &mut capped_section)?;
                 if listing.more > 0 {
                     legend_text(lang, legend, &tf(lang, plural(listing.more, Key::DeltaMoreOne, Key::DeltaMore), &[("n", &listing.more.to_string())]), theme::MUTED, t(lang, Key::LayerMore), false)?;
                 }
@@ -1750,24 +2069,43 @@ fn draw_axes(
                     host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h}}))?;
                     host(lang, "node.set", &json!({"ids": [instance], "props": {"y": (h - variant.h) / 2.0}}))?;
                 }
-                walked.into_iter().map(|(n, _)| n).collect()
+                // The effects of this variant itself: its stage grows when they would be cut by the clip.
+                let reach = effect_reach(effect_overflow(&walked, &rendered(&walked)));
+                (walked.into_iter().map(|(n, _)| n).collect(), reach)
             };
+            let needed = stage_height_for_effects(variant.h, reach);
+            if needed > h + 0.5 {
+                h = needed;
+                host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h}}))?;
+                host(lang, "node.set", &json!({"ids": [instance], "props": {"y": (h - variant.h) / 2.0}}))?;
+            }
+            if reach > 0.0 && row_stage_w < variant.w + 2.0 * reach {
+                drawn.narrow.push((opt.name.clone(), variant.w + 2.0 * reach));
+            }
             let (dark, lowest) = is_dark(mode, &nodes, ancestor);
             if dark && mode == StageMode::Auto {
                 host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": theme::PANEL, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}))?;
             }
-            drawn.info.push(json!({"name": opt.name, "lowest_contrast": lowest, "dark": dark, "height": h, "deltas": listed}));
+            drawn.info.push(json!({"name": opt.name, "lowest_contrast": lowest, "dark": dark, "height": h, "effect_reach": reach, "deltas": listed}));
             host(lang, "node.reparent", &json!({"ids": [stage], "parent": row}))?;
             drawn.rows += 1;
         }
         if let (Some(sec), false) = (section, missing.is_empty()) {
             text(lang, sec, &tf(lang, Key::NotDefined, &[("list", &missing.join(", "))]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
         }
-        drawn.undefined.extend(missing);
+        if let (Some(sec), true) = (section, capped_section > 0) {
+            let note = tf(lang, plural(capped_section, Key::DeltaOneLineOne, Key::DeltaOneLine), &[("n", &capped_section.to_string())]);
+            text(lang, sec, &note, 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
+        }
+        drawn.capped += capped_section;
+        drawn.undefined.extend(missing_named);
     }
     if let (Some(sec), true) = (last_section, drawn.skipped > 0) {
         text(lang, sec, &tf(lang, plural(drawn.skipped, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &drawn.skipped.to_string())]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerAxisNote))?;
     }
+    drawn.stack_used = caches.budget.used;
+    drawn.stack_measured = caches.budget.measured;
+    drawn.stack_redrawn = caches.budget.redrawn;
     Ok(drawn)
 }
 
@@ -1783,9 +2121,10 @@ struct SummaryCounts {
     styles: usize,
 }
 
-/// The summary line. Its text depends on whether some bindings are "to check" and whether some are
-/// styles; its nouns (variables, styles, properties) are said in the singular when their count is
-/// exactly 1, each noun with a text of its own. With any other count the line is what it always was.
+/// The summary line: the total first (design values), then its parts, which add up to it: bound, no token, missing and
+/// suspect (every audited row is exactly one of the four). Its text depends on whether some bindings are "to check" and whether some are
+/// styles; its words (design values, bound, variables, styles, missing, suspect) are said in the singular when their count is
+/// exactly 1, each with a text of its own.
 fn summary_text(lang: Lang, c: &SummaryCounts) -> String {
     let key = match (c.check > 0, c.styles > 0) {
         (false, false) => Key::Summary,
@@ -1806,6 +2145,9 @@ fn summary_text(lang: Lang, c: &SummaryCounts) -> String {
         ("vars_word", noun(c.vars, Key::NounVariable, Key::NounVariables).to_string()),
         ("styles_word", noun(c.styles, Key::NounStyle, Key::NounStyles).to_string()),
         ("total_word", noun(c.total, Key::NounProperty, Key::NounProperties).to_string()),
+        ("bound_word", noun(c.bound, Key::NounBound, Key::NounBounds).to_string()),
+        ("missing_word", noun(c.missing, Key::NounMissing, Key::NounMissings).to_string()),
+        ("suspect_word", noun(c.suspect, Key::NounSuspect, Key::NounSuspects).to_string()),
     ];
     let pairs: Vec<(&str, &str)> = values.iter().map(|(k, v)| (*k, v.as_str())).collect();
     tf(lang, key, &pairs)
@@ -1822,6 +2164,28 @@ fn warning_band(lang: Lang, parent: u64, inner: f64, message: &str, line: &str) 
     Ok(())
 }
 
+/// The longest version or status text taken from a parameter, in characters (the host's own limit for a text field).
+const MAX_META_TEXT: usize = 10_000;
+
+/// A version or status as typed: control characters become spaces, the ends are trimmed and it is cut at
+/// [`MAX_META_TEXT`]. Empty when it was not given.
+fn meta_text(raw: Option<&str>) -> String {
+    let cleaned: String = raw.unwrap_or_default().chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
+    cleaned.trim().chars().take(MAX_META_TEXT).collect()
+}
+
+/// The header's line "Version: 1.2 · Status: Approved"; an empty one reads "to be defined". The text is put in
+/// in one pass, so a `{status}` typed in the version is not taken for a placeholder.
+fn version_line(lang: Lang, version: &str, status: &str) -> String {
+    let tbd = t(lang, Key::ToBeDefined);
+    let (version, status) = (if version.is_empty() { tbd } else { version }, if status.is_empty() { tbd } else { status });
+    let template = t(lang, Key::VersionStatusLine);
+    match template.split_once("{version}").and_then(|(a, rest)| rest.split_once("{status}").map(|(b, c)| (a, b, c))) {
+        Some((a, b, c)) => format!("{a}{version}{b}{status}{c}"),
+        None => format!("{version} {status}"),
+    }
+}
+
 pub fn generate(input: Input) -> Result<Value> {
     // 1. The page's settings come first: they give the language, even for an error.
     let page = page_info()?;
@@ -1835,21 +2199,14 @@ pub fn generate(input: Input) -> Result<Value> {
     let target = resolve(lang, &input.selection)?;
     let component = target.component;
     let mut notes = target.notes.clone();
-    let sheet = host(lang, "node.get", &json!({"id": target.holder, "fields": ["pluginData"]}))?;
-    let meta = Meta::from_plugin_data(sheet.get("pluginData").unwrap_or(&Value::Null));
-    let versao = meta.version.as_deref().unwrap_or_default();
-    let status = meta.status.as_deref().unwrap_or_default();
-    let cor_linha = line_colour(page.settings.line.as_deref());
-    let cor_fill = fill_colour(page.settings.fill.as_deref(), &cor_linha);
+    // Version and status come from the run's parameters (the panel's two fields, or a script); nothing is
+    // remembered, and a sheet an older version saved on the component is not read.
+    let versao = meta_text(input.str("version"));
+    let status = meta_text(input.str("status"));
     let comp = &target.node;
     let name = target.title.clone();
     let size = bounds(comp).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
     let variant = target.holder != component;
-
-    // 2b. The date: read from the app's clock, afresh on every run (never from a saved date). It can't
-    // fail the run: without it the report says so.
-    let stamp = clock::read(page.id, &mut |cmd, params| call(cmd, params));
-    let generated = stamp.created.map(|created| clock::date_text(created, page.settings.tz_hours(), lang));
 
     // 3. Where: in place of the report of this component that is on the page (when replacing), else
     // to the right of everything. The old report goes first.
@@ -1873,7 +2230,9 @@ pub fn generate(input: Input) -> Result<Value> {
 
     // 3b. The component's properties, and the variant axes of a set.
     let defs = host(lang, "component.properties", &json!({"id": component})).ok();
-    let views = defs.as_ref().map(|d| property_views(lang, d, target.set.as_ref().map(|sp| &sp.default))).unwrap_or_default();
+    // A swap property's default is a component id: its name is one `node.get` (a failed call or a null result is "not found").
+    let mut component_name = |id: u64| host(lang, "node.get", &json!({"id": id, "fields": ["name"]})).ok().and_then(|n| n.get("name").and_then(Value::as_str).map(ToString::to_string));
+    let views = defs.as_ref().map(|d| property_views(lang, d, target.set.as_ref().map(|sp| &sp.default), &mut component_name)).unwrap_or_default();
     let axes_list: Vec<variants::Axis> = match &target.set {
         Some(sp) => {
             let order: Vec<(String, Vec<String>)> =
@@ -1901,22 +2260,10 @@ pub fn generate(input: Input) -> Result<Value> {
     hd.gap = 8.0;
     let head = flow_frame(lang, frame, hd)?;
     text(lang, head, &name, 0.0, 0.0, theme::TITLE_SIZE, theme::TEXT, Some(inner), t(lang, Key::LayerTitle))?;
-    let sub: Vec<&str> = [versao, status].into_iter().filter(|s| !s.is_empty()).collect();
-    if !sub.is_empty() {
-        text(lang, head, &sub.join(" · "), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
-    }
-    text(lang, head, &clock::generated_line(stamp.created, page.settings.tz_hours(), lang), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerGenerated))?;
-    // What went wrong with the date shows at the top of the report.
-    if let Some(reason) = &stamp.failure {
-        warning_band(lang, head, inner, &tf(lang, Key::WarnNoDate, &[("reason", reason)]), &cor_linha)?;
-    }
-    if let Some(id) = stamp.leftover {
-        warning_band(lang, head, inner, &tf(lang, Key::WarnTmpComment, &[("id", &id.to_string())]), &cor_linha)?;
-    }
+    text(lang, head, &version_line(lang, &versao, &status), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
     // A set says which of its variants the report is about.
     if let Some(sp) = &target.set {
-        let source = t(lang, match sp.source { DefaultSource::Saved => Key::SourceSaved, DefaultSource::Component => Key::SourceComponent, DefaultSource::First => Key::SourceFirst });
-        text(lang, head, &tf(lang, Key::DefaultLine, &[("pairs", &variants::join(&sp.default)), ("source", source)]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
+        text(lang, head, &tf(lang, Key::VariantShown, &[("name", &variants::join(&sp.default))]), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerSubtitle))?;
     }
     // The Properties section follows the header, before the anatomy.
     if !views.is_empty() {
@@ -1928,7 +2275,6 @@ pub fn generate(input: Input) -> Result<Value> {
     let h0 = (size.h + STAGE_ROOM).max(MIN_STAGE_H);
     let sb0 = Rect { x: stage_x, y: STAGING_Y, w: stage_w, h: h0 };
     let mode = page.settings.stage_mode();
-    let custom_line = page.settings.line.is_some();
     let stage = make_stage(lang, sb0, mode == StageMode::Dark)?;
     let (instance, ib0) = place_instance(lang, component, stage, sb0, size)?;
     let walked = walk_layers(lang, instance)?;
@@ -1948,6 +2294,9 @@ pub fn generate(input: Input) -> Result<Value> {
     }
     // Only what is drawn counts: a hidden layer (or one under a hidden ancestor) has no block in the legend.
     let drawn = rendered(&walked);
+    // How far the effects (shadows, blurs) of the instance reach out of it: the stages keep room for them.
+    let reach = effect_reach(effect_overflow(&walked, &drawn));
+    let mut narrow: Vec<(String, f64)> = if reach > 0.0 && stage_w < size.w + 2.0 * reach { vec![(name.clone(), size.w + 2.0 * reach)] } else { Vec::new() };
     let all_rows = audit::keep_shown(all_rows, &drawn);
     let all_count = all_rows.len();
     let mut rows = audit::drop_zero_unbound(all_rows);
@@ -1972,8 +2321,14 @@ pub fn generate(input: Input) -> Result<Value> {
         text(lang, head, n, 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerNote))?;
     }
     if let Some(w) = &warning {
-        warning_band(lang, head, inner, w, &cor_linha)?;
+        warning_band(lang, head, inner, w, theme::WARN_LINE)?;
     }
+
+    // The stage's colour: dark or light, by the setting or, in auto, by contrast. It is decided before the legend is
+    // drawn: the badges of the legend take the anatomy colour of the stage they belong to. The Spacing follows it.
+    let set_fill = if mode == StageMode::Auto { set_backdrop(lang, &target)? } else { None };
+    let (anatomy_dark, anatomy_ratio) = is_dark(mode, &nodes, set_fill);
+    let pal = palette(anatomy_dark);
 
     // 6. The anatomy section: a block for each layer, and the stage to its right.
     let (_, row) = section(lang, frame, inner, t(lang, Key::LayerAnatomySection), t(lang, Key::Anatomy))?;
@@ -1982,7 +2337,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let mut anatomy_blocks = blocks(&shown, |l| !is_spacing(l.property), true);
     let unnumbered = number_blocks(&mut anatomy_blocks, &drawn);
     for b in &anatomy_blocks {
-        draw_block(lang, legend, &walked, variant, b, &[], &cor_linha)?;
+        draw_block(lang, legend, &walked, variant, b, &[], pal.anatomy)?;
     }
     if let Some(note) = hidden_note(lang, hidden) {
         text(lang, legend, &note, 0.0, 0.0, FONT, theme::MUTED, Some(LEGEND_W), t(lang, Key::LayerMore))?;
@@ -1994,7 +2349,7 @@ pub fn generate(input: Input) -> Result<Value> {
 
     // The stage is as tall as the instance needs and, up to a limit, as the legend: when it grows,
     // the instance moves down to stay in the middle (so do the audited boxes).
-    let h1 = h0.max(legend_h.min(STAGE_MAX_LEGEND_H));
+    let h1 = h0.max(legend_h.min(STAGE_MAX_LEGEND_H)).max(stage_height_for_effects(size.h, reach));
     let (sb, ib, dy) = if (h1 - h0).abs() > 0.5 {
         let dy = (h1 - h0) / 2.0;
         host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h1}}))?;
@@ -2010,14 +2365,11 @@ pub fn generate(input: Input) -> Result<Value> {
             b.insert("y".into(), json!(v + dy));
         }
     }
-    // The stage's colour: dark or light, by the setting or, in auto, by contrast. The stage was
-    // made for light and dark settings; auto may turn it dark now.
-    let set_fill = if mode == StageMode::Auto { set_backdrop(lang, &target)? } else { None };
-    let (anatomy_dark, anatomy_ratio) = is_dark(mode, &nodes, set_fill);
+    // The stage was made for light and dark settings; auto may turn it dark now.
     if mode == StageMode::Auto && anatomy_dark {
         host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": theme::PANEL, "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside"}}))?;
     }
-    let red = red_style(anatomy_dark, custom_line, &cor_linha, &cor_fill);
+    let red = red_style(anatomy_dark);
     let tree = Tree::new(&nodes, walked.iter().map(|(_, d)| *d).collect());
     let numbered: Vec<(usize, usize)> = anatomy_blocks.iter().filter_map(|b| b.badge.map(|n| b.nodes.iter().filter(|i| drawn.get(**i).copied().unwrap_or(false)).map(move |i| (n, *i)))).flatten().collect();
     let badges = draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
@@ -2037,10 +2389,10 @@ pub fn generate(input: Input) -> Result<Value> {
         let legend2 = legend_frame(lang, row2)?;
         for b in blocks(&shown, |l| is_spacing(l.property), false) {
             let extra = walked.get(b.node).map(|(n, _)| layout_lines(lang, n)).unwrap_or_default();
-            draw_block(lang, legend2, &walked, variant, &b, &extra, &cor_linha)?;
+            draw_block(lang, legend2, &walked, variant, &b, &extra, pal.spacing)?;
         }
         let legend2_h = height_of(lang, legend2)?;
-        let h2 = h0.max(legend2_h.min(STAGE_MAX_LEGEND_H));
+        let h2 = h0.max(legend2_h.min(STAGE_MAX_LEGEND_H)).max(stage_height_for_effects(size.h, reach));
         let sb2 = Rect { x: stage_x, y: STAGING_Y + SPACING_STAGING_DY, w: stage_w, h: h2 };
         let stage2 = make_stage(lang, sb2, anatomy_dark)?;
         let (instance2, ib2) = place_instance(lang, component, stage2, sb2, size)?;
@@ -2061,17 +2413,16 @@ pub fn generate(input: Input) -> Result<Value> {
     let calls_legends = HOST_CALLS.load(Ordering::Relaxed) - calls_before;
 
     // The variant axes close the report.
-    let mut caches = Caches { vars, vars_loaded, styles, styles_loaded };
+    let mut caches = Caches { vars, vars_loaded, styles, styles_loaded, budget: stacked::Budget::new() };
     let axes_drawn = if axes_list.is_empty() { None } else { Some(draw_axes(lang, frame, inner, stage_w, x, &axes_list, MAX_AXIS_ROWS, mode, set_fill, &walked, &mut caches)?) };
-
-    // The report is born with PNG export on, as the Export section of the panel would set it: 2x with no
-    // suffix, or 1x (said in a note) when it is too tall for 2x.
-    let frame_h = height_of(lang, frame)?;
-    let too_tall = frame_h > EXPORT_2X_MAX_H;
-    if too_tall {
-        text(lang, head, t(lang, Key::NoteExport1x), 0.0, 0.0, FONT, theme::MUTED, Some(inner), t(lang, Key::LayerNote))?;
+    if let Some(a) = &axes_drawn {
+        narrow.extend(a.narrow.iter().cloned());
     }
-    let export_result = match call("export.add", &json!({"ids": [frame], "setting": {"size": if too_tall { "1x" } else { "2x" }, "suffix": "", "format": "png"}})) {
+
+    // The report is born with one export setting: SVG at 1x with no suffix (the scale is ignored for SVG). It is
+    // always SVG, whatever the height: a PNG fails above 16,384 px and SVG does not have that limit.
+    let frame_h = height_of(lang, frame)?;
+    let export_result = match call("export.add", &json!({"ids": [frame], "setting": {"size": "1x", "suffix": "", "format": "svg"}})) {
         Ok(_) => "ok".to_string(),
         Err(e) => e,
     };
@@ -2089,20 +2440,19 @@ pub fn generate(input: Input) -> Result<Value> {
         .collect();
     let badge_layers: Vec<Value> = numbered.iter().map(|(n, node)| json!({"n": n, "layer": walked.get(*node).and_then(|(v, _)| v.get("name")).cloned().unwrap_or(Value::Null)})).collect();
     Ok(json!({
-        "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
+        "name": name, "frame": frame, "stage": stage, "anatomy_row": row, "legend": legend, "instance": instance, "component": component, "rects": rects, "labels": labels, "markers": badges.ids,
         "x": x, "y": y, "replaced": replaced, "rerun": rerun.name(), "top_level_layers": top_level, "id_source": id_source,
-        "settings": {"lang": lang.code(), "line": cor_linha, "fill": cor_fill}, "meta": {"version": versao, "status": status},
-        "generated": {"date": generated, "created": stamp.created, "tz": page.settings.tz_hours(), "failure": stamp.failure, "leftover_comment": stamp.leftover},
+        "settings": {"lang": lang.code(), "palette": {"anatomy": pal.anatomy, "spacing": pal.spacing}, "fill": red.overlay_fill}, "meta": {"version": versao, "status": status},
         "notes": notes, "lang": lang.code(), "selected": selected,
         "instance_size": {"w": ib.w, "h": ib.h}, "stage_size": {"w": stage_w, "h": h1}, "frame_size": {"w": frame_w}, "legend_height": legend_h,
         "audited_layers": audited,
         "rows": {"all_properties": all_count, "in_table": rows.len(), "lines_after_grouping": line_total, "hidden": hidden},
         "legend_cost": {"lines": line_total - hidden, "blocks": anatomy_blocks.len(), "host_calls": calls_legends},
-        "spacing": spacing_info, "spacing_wrapper": wrapper, "export": {"size": if too_tall { "1x" } else { "2x" }, "result": export_result, "frame_height": frame_h}, "badges": badge_layers,
+        "spacing": spacing_info, "spacing_wrapper": wrapper, "export": {"format": "svg", "size": "1x", "result": export_result, "frame_height": frame_h}, "badges": badge_layers,
         "properties": views.iter().map(|v| json!({"name": v.name, "type": v.kind, "options": v.options.iter().map(|(o, d)| json!({"option": o, "default": d})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
         "default_variant": target.set.as_ref().map(|sp| json!({"pairs": variants::join(&sp.default), "source": format!("{:?}", sp.source)})),
-        "axes": axes_drawn.as_ref().map(|a| json!({"rows": a.rows, "skipped": a.skipped, "undefined": a.undefined, "planned": variants::within_limit(&axes_list, MAX_AXIS_ROWS).0, "stages": a.info})),
-        "stage_mode": mode.name(), "anatomy_stage": {"dark": anatomy_dark, "lowest_contrast": anatomy_ratio}, "host_calls": HOST_CALLS.load(Ordering::Relaxed), "badge_info": badges.info, "badges_dropped": badges.dropped, "unnumbered_layers": unnumbered,
+        "axes": axes_drawn.as_ref().map(|a| json!({"rows": a.rows, "skipped": a.skipped, "undefined": a.undefined, "stacked": {"limit": stacked::BUDGET, "used": a.stack_used, "capped": a.capped, "measured": a.stack_measured, "redrawn": a.stack_redrawn}, "planned": variants::within_limit(&axes_list, MAX_AXIS_ROWS).0, "stages": a.info})),
+        "effects": {"reach": reach, "cap": EFFECT_CAP, "slack": EFFECT_SLACK, "narrow": narrow.iter().map(|(n, w)| json!({"name": n, "needed_width": w, "stage_width": stage_w})).collect::<Vec<_>>()}, "stage_mode": mode.name(), "anatomy_stage": {"dark": anatomy_dark, "lowest_contrast": anatomy_ratio}, "host_calls": HOST_CALLS.load(Ordering::Relaxed), "badge_info": badges.info, "badges_dropped": badges.dropped, "unnumbered_layers": unnumbered,
         "anatomy_blocks": anatomy_blocks.iter().map(|b| json!({"title": block_name(&walked, b), "badge": b.badge, "count": b.nodes.len()})).collect::<Vec<_>>(),
         "hidden_paints": nodes.iter().map(audit::hidden_paints).sum::<usize>(),
         "summary": summary, "warning": warning, "table": table
@@ -2112,6 +2462,129 @@ pub fn generate(input: Input) -> Result<Value> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    fn defs(list: Value) -> Value {
+        json!({"properties": list})
+    }
+
+    fn names(lang: Lang, d: &Value) -> Vec<String> {
+        property_views(lang, d, None, &mut |_| None).into_iter().map(|v| v.name).collect()
+    }
+
+    #[test]
+    fn repeated_property_names_are_numbered_in_the_hosts_order_and_unique_ones_are_not() {
+        let d = defs(json!([
+            {"name": "Status", "type": "variant", "options": ["a", "b"], "default": "a"},
+            {"name": "Message#12:0", "type": "boolean", "default": true},
+            {"name": "Message#12:1", "type": "text", "default": "Hi"},
+            {"name": "Show link#3:0", "type": "boolean", "default": false},
+            {"name": "Show link#3:1", "type": "boolean", "default": true},
+            {"name": "Title#595:0", "type": "boolean", "default": true},
+            {"name": "Title#595:1", "type": "text", "default": ""},
+            {"name": "Icon#7:0", "type": "boolean", "default": true}
+        ]));
+        let want = ["Status", "Message 1", "Message 2", "Show link 1", "Show link 2", "Title 1", "Title 2", "Icon"];
+        assert_eq!(names(Lang::En, &d), want, "booleans and texts count together; the #id differs and is not shown");
+        assert_eq!(names(Lang::Pt, &d), want);
+        // Alone, a name keeps its text exactly (suffix cut, nothing added).
+        let one = defs(json!([{"name": "Label#3257:0", "type": "boolean", "default": true}]));
+        assert_eq!(names(Lang::En, &one), ["Label"]);
+        // Same name with no suffix at all also counts.
+        let bare = defs(json!([{"name": "A", "type": "text", "default": "x"}, {"name": "A#1:2", "type": "text", "default": "y"}]));
+        assert_eq!(names(Lang::En, &bare), ["A 1", "A 2"]);
+    }
+
+    fn swap_defs() -> Value {
+        defs(json!([
+            {"name": "Leading glyph", "type": "instanceSwap", "default": 166, "preferred": [208]},
+            {"name": "Trailing glyph", "type": "instanceSwap", "default": 190, "preferred": [208]},
+            {"name": "Again", "type": "instanceSwap", "default": 166},
+            {"name": "Gone", "type": "instanceSwap", "default": 999},
+            {"name": "Nameless", "type": "instanceSwap", "default": 5},
+            {"name": "Null", "type": "instanceSwap", "default": null},
+            {"name": "Text default", "type": "instanceSwap", "default": "x"},
+            {"name": "Absent", "type": "instanceSwap"}
+        ]))
+    }
+
+    fn lookup(id: u64) -> Option<String> {
+        match id {
+            166 => Some("Name=plus, Size=16".into()),
+            190 => Some("Name=arrow-right, Size=16".into()),
+            5 => Some("  ".into()),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn a_swap_property_shows_the_name_of_its_default_component_and_asks_for_each_id_once() {
+        let mut asked: Vec<u64> = Vec::new();
+        let views = property_views(Lang::En, &swap_defs(), None, &mut |id| {
+            asked.push(id);
+            lookup(id)
+        });
+        let chip = |i: usize| views[i].options.clone();
+        assert_eq!(chip(0), vec![("Name=plus, Size=16".to_string(), true)]);
+        assert_eq!(chip(1), vec![("Name=arrow-right, Size=16".to_string(), true)]);
+        assert_eq!(chip(2), vec![("Name=plus, Size=16".to_string(), true)], "the same id again: same name");
+        assert_eq!(asked, vec![166, 190, 999, 5], "one call for each distinct numeric id, in order; preferred is not asked");
+        // Not found: a null result (999) or an empty name (5).
+        assert_eq!(chip(3), vec![("(not found)".to_string(), true)]);
+        assert_eq!(chip(4), vec![("(not found)".to_string(), true)]);
+        // Null, absent or not a number: "(empty)", nothing is asked.
+        for v in &views[5..8] {
+            assert_eq!(v.options, vec![("(empty)".to_string(), true)], "{}", v.name);
+        }
+        let pt = property_views(Lang::Pt, &swap_defs(), None, &mut |id| lookup(id));
+        assert_eq!((pt[3].options[0].0.as_str(), pt[5].options[0].0.as_str()), ("(não encontrado)", "(vazio)"));
+    }
+
+    #[test]
+    fn the_other_property_types_do_not_ask_the_host_and_do_not_change() {
+        let d = defs(json!([
+            {"name": "Status", "type": "variant", "options": ["a", "b"], "default": "a"},
+            {"name": "Show#1:0", "type": "boolean", "default": true},
+            {"name": "Label#1:1", "type": "text", "default": "Hi"},
+            {"name": "Note#1:2", "type": "text", "default": ""}
+        ]));
+        let mut asked = 0;
+        let views = property_views(Lang::En, &d, None, &mut |_| {
+            asked += 1;
+            None
+        });
+        assert_eq!(asked, 0, "the host is not asked for a variant, a boolean or a text");
+        let chips: Vec<Vec<(String, bool)>> = views.into_iter().map(|v| v.options).collect();
+        assert_eq!(chips[0], vec![("a".to_string(), true), ("b".to_string(), false)]);
+        assert_eq!(chips[1], vec![("True".to_string(), true), ("False".to_string(), false)]);
+        assert_eq!(chips[2], vec![("Hi".to_string(), true)]);
+        assert_eq!(chips[3], vec![("(empty)".to_string(), true)]);
+    }
+
+    #[test]
+    fn an_empty_text_default_is_said_and_any_other_default_is_kept() {
+        let d = defs(json!([{"name": "Title#1:0", "type": "text", "default": ""}, {"name": "Body#1:1", "type": "text", "default": "Hello"}]));
+        let chips = |lang| property_views(lang, &d, None, &mut |_| None).into_iter().map(|v| v.options).collect::<Vec<_>>();
+        assert_eq!(chips(Lang::En), vec![vec![("(empty)".to_string(), true)], vec![("Hello".to_string(), true)]]);
+        assert_eq!(chips(Lang::Pt), vec![vec![("(vazio)".to_string(), true)], vec![("Hello".to_string(), true)]]);
+    }
+
+    #[test]
+    fn the_version_and_status_line_is_always_there_and_says_to_be_defined_when_empty() {
+        assert_eq!(version_line(Lang::En, "", ""), "Version: to be defined · Status: to be defined");
+        assert_eq!(version_line(Lang::Pt, "", ""), "Versão: a definir · Status: a definir");
+        assert_eq!(version_line(Lang::Pt, "1.2", "Aprovado"), "Versão: 1.2 · Status: Aprovado");
+        assert_eq!(version_line(Lang::En, "1.2", ""), "Version: 1.2 · Status: to be defined");
+        // Text typed in a field is never taken for a placeholder.
+        assert_eq!(version_line(Lang::En, "{status}", "x"), "Version: {status} · Status: x");
+    }
+
+    #[test]
+    fn a_version_or_status_is_trimmed_cleaned_and_cut() {
+        assert_eq!(meta_text(None), "");
+        assert_eq!(meta_text(Some("  1.2.0\n beta\t ")), "1.2.0  beta");
+        assert_eq!(meta_text(Some("   ")), "");
+        assert_eq!(meta_text(Some(&"x".repeat(MAX_META_TEXT + 5))).chars().count(), MAX_META_TEXT);
+    }
+
     use super::*;
 
     #[test]
@@ -2127,11 +2600,17 @@ mod tests {
     }
 
     #[test]
-    fn fill_colour_is_the_line_colour_at_thirty_percent() {
-        assert_eq!(fill_colour(None, "#FF4D6D"), "#FF4D6D4D");
-        assert_eq!(fill_colour(Some(""), "#3B5BDB"), "#3B5BDB4D");
-        assert_eq!(fill_colour(Some("#00FF0080"), "#3B5BDB"), "#00FF0080");
-        assert_eq!(fill_colour(None, "#F0A"), "#FF00AA4D");
+    fn fill_colour_is_the_colour_at_the_chosen_opacity_with_an_absolute_alpha() {
+        assert_eq!(fill_colour(30, "#FF4D6D"), "#FF4D6D4D");
+        assert_eq!(fill_colour(30, "#F0A"), "#FF00AA4D");
+        // The line's own alpha does not count: the alpha is the chosen one, absolute.
+        assert_eq!(fill_colour(30, "#11F2FC5B"), "#11F2FC4D");
+        assert_eq!(fill_colour(100, "#11F2FC5B"), "#11F2FCFF");
+        assert_eq!(fill_colour(0, "#3B5BDB"), "#3B5BDB00");
+        assert_eq!(fill_colour(50, "#3B5BDB"), "#3B5BDB80");
+        assert_eq!(fill_colour(1, "#3B5BDB"), "#3B5BDB03");
+        // Not a colour: the light stage's spacing colour.
+        assert_eq!(fill_colour(30, "nope"), "#007D004D");
     }
 
     fn node(id: u64, x: f64, y: f64, w: f64, h: f64, children: &[u64]) -> Value {
@@ -2306,73 +2785,33 @@ mod tests {
         SummaryCounts { bound: 8, check, unbound: 3, missing: 0, suspect: 2, total, vars, styles }
     }
 
-    /// The four summary texts as they were before the singular (0.9.6 up to 02613e0): the oracle for any
-    /// count other than 1.
-    fn old_summary(lang: Lang, c: &SummaryCounts) -> String {
-        let (plain, checks, styles, both) = match lang {
-            Lang::En => (
-                "{bound} bound · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-                "{bound} bound ({check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-                "{bound} bound ({vars} variables, {styles} styles) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-                "{bound} bound ({vars} variables, {styles} styles; {check} to check) · {unbound} no token · {missing} missing · {suspect} suspect · of {total} properties",
-            ),
-            Lang::Pt => (
-                "{bound} vinculadas · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-                "{bound} vinculadas ({check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-                "{bound} vinculadas ({vars} variáveis, {styles} estilos) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-                "{bound} vinculadas ({vars} variáveis, {styles} estilos; {check} a verificar) · {unbound} sem token · {missing} ausentes · {suspect} suspeitas · de {total} propriedades",
-            ),
-        };
-        let template = match (c.check > 0, c.styles > 0) {
-            (false, false) => plain,
-            (true, false) => checks,
-            (false, true) => styles,
-            (true, true) => both,
-        };
-        [("bound", c.bound), ("check", c.check), ("unbound", c.unbound), ("missing", c.missing), ("suspect", c.suspect), ("total", c.total), ("vars", c.vars), ("styles", c.styles)]
-            .iter()
-            .fold(template.to_string(), |acc, (k, v)| acc.replace(&format!("{{{k}}}"), &v.to_string()))
-    }
-
     #[test]
-    fn the_summary_is_what_it_was_for_every_count_but_one() {
-        let mut n = 0;
-        for lang in [Lang::En, Lang::Pt] {
-            for check in [0, 2] {
-                for vars in [0, 2, 7, 35] {
-                    for styles in [0, 2, 8] {
-                        for total in [0, 2, 45] {
-                            let c = counts(check, vars, styles, total);
-                            assert_eq!(summary_text(lang, &c), old_summary(lang, &c), "{lang:?} check {check} vars {vars} styles {styles} total {total}");
-                            n += 1;
-                        }
-                    }
-                }
-            }
-        }
-        assert_eq!(n, 2 * 2 * 4 * 3 * 3);
-    }
-
-    #[test]
-    fn the_summary_says_variable_style_and_property_in_the_singular_for_exactly_one() {
-        // Each noun on its own, with the others in the plural.
-        assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect · of 45 properties");
-        assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 45 properties");
-        assert_eq!(summary_text(Lang::En, &counts(0, 7, 2, 1)), "8 bound (7 variables, 2 styles) · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "8 vinculadas (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "8 vinculadas (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 45 propriedades");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 2, 1)), "8 vinculadas (7 variáveis, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        // The three at once, with and without "to check".
-        assert_eq!(summary_text(Lang::En, &counts(0, 1, 1, 1)), "8 bound (1 variable, 1 style) · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 1)), "8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 1)), "8 vinculadas (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        // Only the total (no styles, so no parentheses): the Icon of the demo.
-        assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 1)), "8 bound · 3 no token · 0 missing · 2 suspect · of 1 property");
-        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 1)), "8 vinculadas · 3 sem token · 0 ausentes · 2 suspeitas · de 1 propriedade");
-        assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 1)), "8 bound (2 to check) · 3 no token · 0 missing · 2 suspect · of 1 property");
+    fn the_summary_puts_the_total_first_and_its_parts_after() {
+        assert_eq!(summary_text(Lang::En, &counts(0, 1, 2, 45)), "45 design values · 8 bound (1 variable, 2 styles) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::En, &counts(0, 7, 1, 45)), "45 design values · 8 bound (7 variables, 1 style) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 1, 2, 45)), "45 valores · 8 vinculados (1 variável, 2 estilos) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 7, 1, 45)), "45 valores · 8 vinculados (7 variáveis, 1 estilo) · 3 sem token · 0 ausentes · 2 suspeitos");
+        // With "to check", and with no styles (no parentheses), and the plain line.
+        assert_eq!(summary_text(Lang::En, &counts(1, 1, 1, 45)), "45 design values · 8 bound (1 variable, 1 style; 1 to check) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::Pt, &counts(1, 1, 1, 45)), "45 valores · 8 vinculados (1 variável, 1 estilo; 1 a verificar) · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::En, &counts(2, 0, 0, 45)), "45 design values · 8 bound (2 to check) · 3 no token · 0 missing · 2 suspect");
+        assert_eq!(summary_text(Lang::Pt, &counts(0, 0, 0, 45)), "45 valores · 8 vinculados · 3 sem token · 0 ausentes · 2 suspeitos");
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 0, 45)), "45 design values · 8 bound · 3 no token · 0 missing · 2 suspect");
         // 0 is the plural.
-        assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect · of 0 properties");
+        assert_eq!(summary_text(Lang::En, &counts(0, 0, 1, 0)), "0 design values · 8 bound (0 variables, 1 style) · 3 no token · 0 missing · 2 suspect");
+    }
+
+    #[test]
+    fn the_summary_words_are_singular_for_exactly_one_and_agree_in_portuguese() {
+        let one = SummaryCounts { bound: 1, check: 0, unbound: 1, missing: 1, suspect: 1, total: 1, vars: 1, styles: 1 };
+        assert_eq!(summary_text(Lang::En, &one), "1 design value · 1 bound (1 variable, 1 style) · 1 no token · 1 missing · 1 suspect");
+        assert_eq!(summary_text(Lang::Pt, &one), "1 valor · 1 vinculado (1 variável, 1 estilo) · 1 sem token · 1 ausente · 1 suspeito");
+        let two = SummaryCounts { bound: 2, check: 0, unbound: 2, missing: 2, suspect: 2, total: 2, vars: 1, styles: 1 };
+        assert_eq!(summary_text(Lang::Pt, &two), "2 valores · 2 vinculados (1 variável, 1 estilo) · 2 sem token · 2 ausentes · 2 suspeitos");
+        // The Alert of the report: 14 bound (11 variables, 3 styles), 3 no token, 0 missing, 0 suspect = 17.
+        let alert = SummaryCounts { bound: 14, check: 0, unbound: 3, missing: 0, suspect: 0, total: 17, vars: 11, styles: 3 };
+        assert_eq!(summary_text(Lang::Pt, &alert), "17 valores · 14 vinculados (11 variáveis, 3 estilos) · 3 sem token · 0 ausentes · 0 suspeitos");
+        assert_eq!(summary_text(Lang::En, &alert), "17 design values · 14 bound (11 variables, 3 styles) · 3 no token · 0 missing · 0 suspect");
     }
 
     #[test]
@@ -2628,25 +3067,119 @@ mod tests {
     fn spacing_lines_use_words() {
         let node = json!({"layout": {"mode": "horizontal", "mainAlign": "center", "crossAlign": "center"}, "sizing": {"horizontal": "hug", "vertical": "fixed"}});
         let lines = layout_lines(Lang::En, &node);
-        let text: Vec<String> = lines.iter().map(|(k, v)| format!("{k} : {v}")).collect();
-        assert_eq!(text, ["Direction : Horizontal", "Alignment : Middle center", "Horizontal resizing : Hug", "Vertical resizing : Fixed"]);
+        let text: Vec<String> = lines.iter().map(|(k, v)| format!("{k}: {v}")).collect();
+        assert_eq!(text, ["Direction: Horizontal", "Alignment: Middle center", "Horizontal resizing: Hug", "Vertical resizing: Fixed"]);
     }
 
     #[test]
-    fn redlines_follow_the_stage_and_the_line_colour() {
-        // Light stage, default line colour: the line colour at full strength, 2 px, Prussian values and ring.
-        let light = red_style(false, false, "#FCA311", "#FCA3114D");
-        assert_eq!((light.guide.as_str(), light.ring), ("#FCA311", Some("#14213D")));
-        assert_eq!((light.accent.as_str(), light.overlay_stroke.as_str(), light.value.as_str()), ("#FCA311", "#FCA311", "#14213D"));
-        assert_eq!((light.guide_weight, light.overlay_weight, light.overlay_fill.as_str()), (2.0, 1.5, "#FCA3114D"));
-        // Dark stage: the line colour everywhere, 1 px, no ring.
-        let dark = red_style(true, false, "#FCA311", "#FCA3114D");
-        assert_eq!((dark.guide.as_str(), dark.ring, dark.value.as_str(), dark.guide_weight), ("#FCA311", None, "#FCA311", 1.0));
-        // A line colour set in the settings counts on every stage.
-        let custom = red_style(false, true, "#3B82F6", "#3B82F64D");
-        assert_eq!((custom.guide.as_str(), custom.ring, custom.overlay_stroke.as_str(), custom.value.as_str()), ("#3B82F6", None, "#3B82F6", "#3B82F6"));
+    fn redlines_follow_the_stage_by_a_fixed_palette() {
+        // Light stage: anatomy in #C54600 (guides, badges), spacing in #007D00 (outline, fill at 30%), Prussian values and ring.
+        let light = red_style(false);
+        assert_eq!((light.guide.as_str(), light.accent.as_str(), light.ring), ("#C54600", "#C54600", Some("#14213D")));
+        assert_eq!((light.overlay_stroke.as_str(), light.value.as_str()), ("#007D00", "#14213D"));
+        assert_eq!(light.overlay_fill.as_deref(), Some("#007D004D"));
+        assert_eq!((GUIDE_WEIGHT, OVERLAY_WEIGHT), (1.5, 1.5), "one weight for every guide, on any stage");
+        // Dark stage: anatomy in #FCA311, spacing in #4ADE80 (the values too), no ring.
+        let dark = red_style(true);
+        assert_eq!((dark.guide.as_str(), dark.accent.as_str(), dark.ring), ("#FCA311", "#FCA311", None));
+        assert_eq!((dark.overlay_stroke.as_str(), dark.value.as_str(), dark.overlay_fill.as_deref()), ("#4ADE80", "#4ADE80", Some("#4ADE804D")));
+        // The number on a badge: white on the light colours, dark on the dark ones.
+        assert_eq!((on_accent("#C54600"), on_accent("#007D00"), on_accent("#FCA311"), on_accent("#4ADE80")), ("#FFFFFF", "#FFFFFF", "#232323", "#232323"));
+        // The plain stage colours are the old ones: #E5E5E5 and #14213D.
         assert_eq!(stage_fill(false), "#E5E5E5");
         assert_eq!(stage_fill(true), "#14213D");
+    }
+
+    #[test]
+    fn every_palette_colour_reads_on_its_stage_and_every_badge_number_on_its_colour() {
+        let c = |h: &str| contrast::parse_hex(h, 1.0).unwrap();
+        let (light, dark) = (c("#E5E5E5"), c("#14213D"));
+        // Graphical objects: 3:1 on the stage they are drawn on.
+        for (p, stage) in [(palette(false), light), (palette(true), dark)] {
+            for colour in [p.anatomy, p.spacing] {
+                assert!(contrast::ratio(c(colour), stage) >= 3.0, "{colour}: {}", contrast::ratio(c(colour), stage));
+            }
+        }
+        // A number of 14 px: 4.5:1 on the circle it is in.
+        for colour in [theme::LIGHT_ANATOMY, theme::LIGHT_SPACING, theme::DARK_ANATOMY, theme::DARK_SPACING] {
+            assert!(contrast::ratio(c(on_accent(colour)), c(colour)) >= 4.5, "{colour}");
+        }
+    }
+
+    fn fx_node(x: f64, y: f64, w: f64, h: f64, effects: Value) -> Value {
+        json!({"absoluteBounds": {"x": x, "y": y, "width": w, "height": h}, "effects": effects})
+    }
+
+    fn shadow(radius: f64, spread: f64, ox: f64, oy: f64) -> Value {
+        json!({"type": "dropShadow", "visible": true, "radius": radius, "spread": spread, "offset": [ox, oy], "color": {"r": 0, "g": 0, "b": 0, "a": 0.7}})
+    }
+
+    #[test]
+    fn a_drop_shadow_reaches_its_radius_plus_spread_moved_by_its_offset() {
+        // The test of the investigation: blur 40, offset (0, 12): 52 below, 28 above, 40 at the sides.
+        assert_eq!(effect_sides(&shadow(40.0, 0.0, 0.0, 12.0)), [40.0, 40.0, 28.0, 52.0]);
+        assert_eq!(effect_sides(&shadow(10.0, 4.0, 6.0, -2.0)), [8.0, 20.0, 16.0, 12.0]);
+        // An offset bigger than the blur leaves the far side with nothing, never a negative reach.
+        assert_eq!(effect_sides(&shadow(2.0, 0.0, 10.0, 0.0)), [0.0, 12.0, 2.0, 2.0]);
+        // A negative spread shrinks the shadow.
+        assert_eq!(effect_sides(&shadow(8.0, -3.0, 0.0, 0.0)), [5.0, 5.0, 5.0, 5.0]);
+    }
+
+    #[test]
+    fn the_other_effects_reach_nothing_but_a_layer_blur_reaches_its_radius_all_round() {
+        assert_eq!(effect_sides(&json!({"type": "layerBlur", "visible": true, "radius": 12.0})), [12.0; 4]);
+        assert_eq!(effect_sides(&json!({"type": "innerShadow", "visible": true, "radius": 30.0, "offset": [4.0, 4.0]})), [0.0; 4]);
+        assert_eq!(effect_sides(&json!({"type": "backgroundBlur", "visible": true, "radius": 30.0})), [0.0; 4]);
+        assert_eq!(effect_sides(&json!({"type": "somethingNew", "radius": 30.0})), [0.0; 4], "a type this version doesn't know");
+        // A hidden effect counts for nothing; one with no `visible` is visible.
+        let mut hidden = shadow(40.0, 0.0, 0.0, 0.0);
+        hidden["visible"] = json!(false);
+        assert_eq!(effect_sides(&hidden), [0.0; 4]);
+        let mut unmarked = shadow(5.0, 0.0, 0.0, 0.0);
+        unmarked.as_object_mut().unwrap().remove("visible");
+        assert_eq!(effect_sides(&unmarked), [5.0; 4]);
+    }
+
+    #[test]
+    fn the_instance_reach_is_the_largest_of_its_effects_and_no_effect_keeps_the_stage_as_it_was() {
+        let walked = |effects: Value| vec![(fx_node(0.0, 0.0, 100.0, 40.0, effects), 0usize)];
+        let all = |w: &[(Value, usize)]| effect_overflow(w, &vec![true; w.len()]);
+        // No effect: nothing reaches out, and the stage has no least height beyond the one it always had.
+        let none = walked(json!([]));
+        assert_eq!(effect_reach(all(&none)), 0.0);
+        assert_eq!(stage_height_for_effects(40.0, 0.0), 0.0);
+        // Several effects: the largest side of any of them.
+        let many = walked(json!([shadow(2.0, 0.0, 0.0, 1.0), shadow(40.0, 0.0, 0.0, 12.0), json!({"type": "layerBlur", "visible": true, "radius": 6.0})]));
+        assert_eq!(all(&many), [40.0, 40.0, 28.0, 52.0]);
+        assert_eq!(effect_reach(all(&many)), 52.0);
+        // The stage then holds the instance, the reach and the slack on both sides.
+        assert_eq!(stage_height_for_effects(40.0, 52.0), 40.0 + 2.0 * (52.0 + EFFECT_SLACK));
+        // A hidden effect does not count.
+        let mut off = shadow(60.0, 0.0, 0.0, 0.0);
+        off["visible"] = json!(false);
+        assert_eq!(effect_reach(all(&walked(json!([off])))), 0.0);
+    }
+
+    #[test]
+    fn a_layer_inside_the_instance_counts_only_for_what_passes_the_instances_box() {
+        // A card 200 x 100 with a child 20 px from the left and 10 from the top with a blur-30 shadow: the shadow
+        // passes the box by 10 on the left and 20 on the top, and by 0 on the right and the bottom (the child is far from them).
+        let walked = vec![(fx_node(0.0, 0.0, 200.0, 100.0, json!([])), 0), (fx_node(20.0, 10.0, 160.0, 80.0, json!([shadow(30.0, 0.0, 0.0, 0.0)])), 1)];
+        assert_eq!(effect_overflow(&walked, &[true, true]), [10.0, 10.0, 20.0, 20.0]);
+        // A child that sits at the very edge counts in full.
+        let edge = vec![(fx_node(0.0, 0.0, 200.0, 100.0, json!([])), 0), (fx_node(0.0, 0.0, 200.0, 100.0, json!([shadow(30.0, 0.0, 0.0, 0.0)])), 1)];
+        assert_eq!(effect_overflow(&edge, &[true, true]), [30.0; 4]);
+        // A hidden layer (or one under a hidden ancestor) has no effect on the stage.
+        assert_eq!(effect_overflow(&edge, &[true, false]), [0.0; 4]);
+    }
+
+    #[test]
+    fn an_absurd_reach_is_cut_at_the_cap() {
+        let walked = vec![(fx_node(0.0, 0.0, 100.0, 40.0, json!([shadow(900.0, 0.0, 0.0, 0.0)])), 0)];
+        assert_eq!(effect_reach(effect_overflow(&walked, &[true])), EFFECT_CAP);
+        assert_eq!(EFFECT_CAP, 400.0);
+        // The stage for it is the instance plus 2 x (cap + slack).
+        assert_eq!(stage_height_for_effects(40.0, EFFECT_CAP), 40.0 + 816.0);
     }
 
     #[test]

@@ -9,9 +9,9 @@ delta.rs | spread | the host's field name of an effect (`spread`)
 delta.rs | effect | the host's field name `styles.effect`
 gerar.rs | Bold | the font style passed to the host to draw the report's own texts
 gerar.rs | selection: Input.selection (the `selection` field of the run's input; not a FigCraft command) | only in the JSON a run returns (`id_source`), never drawn
-store.rs | auto | the stage mode typed in Settings and saved (light, dark and auto stay in English, decision P11)
+store.rs | auto | the stage mode saved from the panel or a script (light, dark and auto stay in English, decision P11)
 theme.rs | Inter | the report's font family
-clock.rs | tmp (handoff-components date) | the text of the temporary comment: fixed, so it can be recognised in the file for an instant
-clock.rs | comment.add: no id in the reply | the technical reason inside the date warning (a host diagnostic, like the {reason} of ErrCall): not translated
-clock.rs | comment.list: the new comment (or its `created`) isn't in the list | the technical reason inside the date warning (a host diagnostic): not translated
 audit.rs | Auto | the host's `lineHeight` text, matched here and worded through LineHeightAutoHost
+gerar.rs | spread | the host's field name of an effect (`spread`), read to work out how far a shadow reaches
+gerar.rs | Light | the font style passed to the host for the hex of a colour (where the font has no light face the host draws it regular)
+gerar.rs | auto | the host's size of a grid column (`columnTracks`: a column as wide as its content), not text

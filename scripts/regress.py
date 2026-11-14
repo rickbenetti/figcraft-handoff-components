@@ -6,7 +6,7 @@ contains `text`, when given; the other entries are kept). `--dump FILE` writes t
 `--private` runs only the cases in tests/private/ (a folder git ignores) and compares them with
 tests/private/baseline-private.json; without the folder it says so and exits 0.
 
-The cases named "pt-BR / ..." run the same way after a `settings` run that sets the language to pt-BR (their summary,
+The cases named "pt-BR / ..." run the same way with the language set to pt-BR in the parameters (their summary,
 deltas and block titles are in Portuguese). The cases without that prefix run in English (the default) and are the
 net that the English report does not change.
 
@@ -22,6 +22,8 @@ BASELINE = os.path.join(ROOT, "tests/baseline.json")
 PRIVATE = os.path.join(ROOT, "tests/private")
 BASELINE_PRIVATE = os.path.join(PRIVATE, "baseline-private.json")
 PID = "me.benetti.handoff-components"
+# What every documentation must carry, short or tall: one SVG export at 1x (no suffix), and no note about a height rule.
+EXPECTED_EXPORT = {"output": {"format": "svg", "size": "1x", "result": "ok"}, "settings": [{"format": "svg", "size": {"by": "scale", "value": 1.0}, "suffix": ""}], "note_texts": 0}
 FUEL_TOLERANCE = 0.15
 CLI = os.environ.get("FIGCRAFT_CLI", "figcraft-cli")
 
@@ -37,7 +39,7 @@ for _n in ["Button", "Card", "Accordion", "Code", "Icon"]:
     CASES[f"ds-base-demo / {_n}"] = (DEMO, _n)
 
 # The same layers with the report in Brazilian Portuguese (added in 0.9.6; the English cases above are untouched).
-# name: (file, id or name, language the Settings are set to before the run)
+# name: (file, id or name, language passed in the parameters)
 PT_CASES = {
     "pt-BR / copia-2 / id 32": (f"{FIX}/fixture-copia-2.figcraft", 32, "pt-BR"),
     "pt-BR / carga-v2 / id 3 (Toast variant)": (f"{FIX}/fixture-carga-v2.figcraft", 3, "pt-BR"),
@@ -92,12 +94,12 @@ def run_case(src, layer, tmp, n, lang=None):
         layer = found
     script = os.path.join(tmp, f"case{n}.json")
     out = os.path.join(tmp, f"case{n}.figcraft")
-    steps = [{"command": "plugin.import", "params": {"path": DIST}}]
-    if lang:
-        steps.append({"command": "plugin.run", "params": {"id": PID, "command": "settings", "params": {"lang": lang}}})
-    steps += [
+    # `direct` makes the documentation with no panel (the menu sends no parameters and opens the panel).
+    params = {"direct": True, **({"lang": lang} if lang else {})}
+    steps = [
+        {"command": "plugin.import", "params": {"path": DIST}},
         {"command": "select.set", "params": {"ids": [layer]}},
-        {"command": "plugin.run", "params": {"id": PID, "command": "generate"}},
+        {"command": "plugin.run", "params": {"id": PID, "command": "generate", "params": params}},
     ]
     json.dump(steps, open(script, "w"))
     p = cli(["run", "--in", src, "--out", out, script])
@@ -113,9 +115,17 @@ def run_case(src, layer, tmp, n, lang=None):
         {"command": "node.find", "params": {"root": frame, "type": "frame", "name": "Axis:", "limit": 1000}},
     ]
     json.dump(steps, open(script, "w"))
+    steps += [
+        {"command": "node.get", "params": {"id": frame, "fields": ["exports"]}},
+        {"command": "node.find", "params": {"root": frame, "type": "text", "text": "px, so its PNG", "limit": 10}},
+        {"command": "node.find", "params": {"root": frame, "type": "text", "text": "px de altura, ent", "limit": 10}},
+    ]
+    json.dump(steps, open(script, "w"))
     q = cli(["run", "--in", out, "--out", out + ".q", script])
     found = [json.loads(l) for l in q.stdout.splitlines() if l.startswith("{")]
-    sections = sum(f["result"]["total"] for f in found if f.get("ok"))
+    exports = found[2]["result"]["exports"] if len(found) > 2 and found[2].get("ok") else None
+    note_texts = sum(f["result"]["total"] for f in found[3:5] if f.get("ok"))
+    sections = sum(f["result"]["total"] for f in found[:2] if f.get("ok"))
     instances = 1 + (1 if o.get("spacing") else 0) + ((o.get("axes") or {}).get("rows") or 0)
     return {
         "summary": o["summary"],
@@ -123,6 +133,8 @@ def run_case(src, layer, tmp, n, lang=None):
         "sections": sections,
         "instances": instances,
         "fuel": run["result"]["fuel"],
+        # Not in the baseline: the same for every case (see EXPECTED_EXPORT).
+        "export": {"output": {k: o["export"].get(k) for k in ("format", "size", "result")}, "settings": exports, "note_texts": note_texts},
         # The variant axes: for each row, the lines of what it changes from the default (the default row has none).
         "deltas": {st["name"]: st.get("deltas", []) for st in (o.get("axes") or {}).get("stages", [])},
         # The Anatomy: the legend's blocks in order (title, number of the badge or null), the numbers of the
@@ -170,7 +182,7 @@ def main():
         if any("error" in r for r in results.values()):
             sys.exit("not writing the baseline: " + "; ".join(f"{k}: {v['error']}" for k, v in results.items() if "error" in v))
         merged = json.load(open(baseline)) if only and os.path.exists(baseline) else {}
-        merged.update(results)
+        merged.update({k: {f: v for f, v in r.items() if f != "export"} for k, r in results.items()})
         json.dump(merged, open(baseline, "w"), indent=2, ensure_ascii=False)
         open(baseline, "a").write("\n")
         print(f"baseline written: {baseline} ({len(results)} cases rewritten, {len(merged)} in the file, {secs:.1f} s)")
@@ -188,6 +200,8 @@ def main():
         for key in ("summary", "lines", "sections", "instances", "anatomy", "deltas"):
             if got[key] != want.get(key):
                 diffs.append(f"{name}: {key}: baseline {want.get(key)!r}, now {got[key]!r}")
+        if got["export"] != EXPECTED_EXPORT:
+            diffs.append(f"{name}: export: expected {EXPECTED_EXPORT!r}, now {got['export']!r}")
         wf, gf = want.get("fuel"), got["fuel"]
         if wf and abs(gf - wf) / wf > FUEL_TOLERANCE:
             diffs.append(f"{name}: fuel: baseline {wf}, now {gf} ({(gf - wf) / wf:+.0%}, tolerance {FUEL_TOLERANCE:.0%})")

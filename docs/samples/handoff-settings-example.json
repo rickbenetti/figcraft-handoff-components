@@ -1,12 +1,11 @@
 {
   "where": "pluginData of the current page (node.get {id: page, fields:[\"pluginData\"]})",
   "key": "handoff-settings",
-  "value_is_a_JSON_text": "{\"lang\":\"pt\",\"line\":\"#3B82F6\",\"on_rerun\":\"new\",\"tz\":\"-3\"}",
+  "note": "Files saved by earlier versions may also hold a \"tz\" key, a \"fill\" colour, a \"line\" colour and a \"fill_opacity\" (0.9.6 and before, and until the colours became fixed by stage and by section). They are ignored when reading and kept when the settings are saved (Restore defaults removes them).",
+  "value_is_a_JSON_text": "{\"lang\":\"pt-BR\",\"on_rerun\":\"new\",\"stage\":\"dark\"}",
   "as_object": {
-    "lang": "pt",
-    "line": "#3B82F6",
-    "fill": "(optional, e.g. #3B82F633)",
+    "lang": "en|pt-BR",
     "on_rerun": "replace|new",
-    "tz": "(optional) hours from UTC, -14 to 14, e.g. -3 (default) or 5.5"
+    "stage": "light|dark|auto (the default when absent)"
   }
 }

@@ -65,43 +65,13 @@ impl SetInfo {
     }
 }
 
-/// Why a default variant was refused.
-#[derive(Clone, Debug, PartialEq)]
-pub enum DefaultError {
-    /// Not "Property=Option".
-    Malformed(String),
-    UnknownProp { prop: String, valid: Vec<String> },
-    UnknownOption { prop: String, value: String, valid: Vec<String> },
-    /// The pairs are fine but no variant has that combination.
-    NoSuchVariant(String),
-}
-
-/// The pairs typed for a default variant ("Size=Small, State=Enabled"); partial is fine.
-pub fn parse_default(text: &str) -> Result<Pairs, DefaultError> {
-    let mut out = Pairs::new();
-    for part in text.split(',').map(str::trim).filter(|p| !p.is_empty()) {
-        let (k, v) = part.split_once('=').ok_or_else(|| DefaultError::Malformed(part.to_string()))?;
-        let (k, v) = (k.trim(), v.trim());
-        if k.is_empty() || v.is_empty() {
-            return Err(DefaultError::Malformed(part.to_string()));
-        }
-        out.retain(|(p, _)| p != k);
-        out.push((k.to_string(), v.to_string()));
-    }
-    if out.is_empty() {
-        return Err(DefaultError::Malformed(text.trim().to_string()));
-    }
-    Ok(out)
-}
-
-/// The full default variant: what `typed` says, the rest from the first variant.
-pub fn complete(info: &SetInfo, typed: &Pairs) -> Result<Pairs, DefaultError> {
+/// The full variant the pairs `typed` point at: what `typed` says, the rest from the first variant. None when a
+/// property or an option is unknown, or when no variant has that combination.
+pub fn complete(info: &SetInfo, typed: &Pairs) -> Option<Pairs> {
     for (k, v) in typed {
-        let Some((_, opts)) = info.props.iter().find(|(p, _)| p == k) else {
-            return Err(DefaultError::UnknownProp { prop: k.clone(), valid: info.props.iter().map(|(p, _)| p.clone()).collect() });
-        };
+        let (_, opts) = info.props.iter().find(|(p, _)| p == k)?;
         if !opts.contains(v) {
-            return Err(DefaultError::UnknownOption { prop: k.clone(), value: v.clone(), valid: opts.clone() });
+            return None;
         }
     }
     let mut out = info.first_pairs();
@@ -110,10 +80,7 @@ pub fn complete(info: &SetInfo, typed: &Pairs) -> Result<Pairs, DefaultError> {
             slot.1 = v.clone();
         }
     }
-    if info.find(&out).is_none() {
-        return Err(DefaultError::NoSuchVariant(join(&out)));
-    }
-    Ok(out)
+    info.find(&out).is_some().then_some(out)
 }
 
 /// One option of an axis.
@@ -203,24 +170,24 @@ mod tests {
     #[test]
     fn a_partial_default_takes_the_rest_from_the_first_variant() {
         let s = button();
-        let d = complete(&s, &parse_default("State=Hovered").unwrap()).unwrap();
+        let d = complete(&s, &pairs("State=Hovered")).unwrap();
         assert_eq!(join(&d), "Size=Small, Style=Compact, State=Hovered");
-        let d = complete(&s, &parse_default("Style=Rounded, Size=Medium").unwrap()).unwrap();
+        let d = complete(&s, &pairs("Style=Rounded, Size=Medium")).unwrap();
         assert_eq!(join(&d), "Size=Medium, Style=Rounded, State=Enabled");
     }
 
+    /// "Size=Small, State=Hover" as pairs.
+    fn pairs(text: &str) -> Pairs {
+        text.split(',').filter_map(|p| p.split_once('=')).map(|(k, v)| (k.trim().to_string(), v.trim().to_string())).collect()
+    }
+
     #[test]
-    fn invalid_defaults_say_what_is_valid() {
+    fn a_property_an_option_or_a_combination_that_does_not_exist_gives_nothing() {
         let s = button();
-        assert_eq!(complete(&s, &parse_default("Colour=Red").unwrap()), Err(DefaultError::UnknownProp { prop: "Colour".into(), valid: vec!["Size".into(), "Style".into(), "State".into()] }));
-        assert_eq!(
-            complete(&s, &parse_default("Size=Huge").unwrap()),
-            Err(DefaultError::UnknownOption { prop: "Size".into(), value: "Huge".into(), valid: vec!["Small".into(), "Medium".into(), "Large".into()] })
-        );
-        assert_eq!(parse_default("Size"), Err(DefaultError::Malformed("Size".into())));
-        assert_eq!(parse_default("  "), Err(DefaultError::Malformed(String::new())));
+        assert_eq!(complete(&s, &pairs("Colour=Red")), None);
+        assert_eq!(complete(&s, &pairs("Size=Huge")), None);
         // Valid pairs, but no such variant.
-        assert_eq!(complete(&s, &parse_default("Size=Large, Style=Compact, State=Hovered").unwrap()), Err(DefaultError::NoSuchVariant("Size=Large, Style=Compact, State=Hovered".into())));
+        assert_eq!(complete(&s, &pairs("Size=Large, Style=Compact, State=Hovered")), None);
     }
 
     #[test]

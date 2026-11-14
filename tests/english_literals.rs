@@ -20,7 +20,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-const FILES: &[&str] = &["audit", "clock", "contrast", "delta", "gerar", "glyphs", "lib", "settings", "store", "theme", "variants"];
+const FILES: &[&str] = &["audit", "contrast", "delta", "direct", "gerar", "glyphs", "lib", "panel", "store", "theme", "variants"];
 
 /// One-word texts that used to be hard-coded in English (now `ValueNone`, `LineHeightAuto`, `EffectDefault`…).
 const WATCHED: &[&str] = &["none", "auto", "effect", "underline", "strikethrough", "blur", "spread"];
@@ -248,7 +248,7 @@ fn the_heuristic_sees_what_the_inventory_found() {
     for english in ["unknown command: {cmd}", "alias loop or broken", "Drop shadow", "Frame", "Boolean Operation", "none", "auto", "effect", ", letter spacing {text}", "Select a component"] {
         assert!(looks_english(english).is_some(), "{english:?} should be flagged");
     }
-    for fine in ["node.get", "absoluteBounds", "BOOLEAN_OPERATION", "—", "×{n}", "{label} : {value}", "#FF4D6D", "x", "", "1x", "png", "horizontal", "mainComponentName", "{n}px", "{}%", "12 / 34"] {
+    for fine in ["node.get", "absoluteBounds", "BOOLEAN_OPERATION", "—", "×{n}", "{label}: {value}", "#FF4D6D", "x", "", "1x", "png", "horizontal", "mainComponentName", "{n}px", "{}%", "12 / 34"] {
         assert!(looks_english(fine).is_none(), "{fine:?} should pass");
     }
 }
