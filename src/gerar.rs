@@ -16,6 +16,8 @@ use figcraft_plugin_sdk::{Input, Result, Value, call, json, notify};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+pub mod section;
+
 /// Host calls made through `host` so far (the legend's cost is measured with it).
 static HOST_CALLS: AtomicU64 = AtomicU64::new(0);
 

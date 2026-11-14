@@ -1,6 +1,8 @@
 #![recursion_limit = "256"]
 //! Handoff Components: generates the handoff documentation for a component.
 
+#![allow(dead_code)] // 0.11 part A: the 0.10.0 drawing code (anatomy, spacing, axis tables, audit) is kept for parts B and C, not called yet.
+
 mod audit;
 mod contrast;
 mod delta;

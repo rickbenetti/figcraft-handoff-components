@@ -6,7 +6,8 @@
 //! `version` and `status` go to the documentation's header, nothing is remembered. The parameters `line` and
 //! `fill_opacity` of earlier versions are ignored (the colours are fixed by stage and by section).
 
-use crate::gerar::{generate, host, page_info};
+use crate::gerar::section::generate;
+use crate::gerar::{host, page_info};
 use crate::i18n::{Key, Lang, tf};
 use crate::store::{Rerun, SETTINGS_KEY, Settings, StageMode};
 use figcraft_plugin_sdk::{Input, Result, Value, json};

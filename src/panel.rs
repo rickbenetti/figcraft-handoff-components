@@ -10,7 +10,8 @@
 //! second half is the glue to the host. Texts come from the dictionary.
 
 use crate::direct::write_data;
-use crate::gerar::{generate, host, kind_word};
+use crate::gerar::section::{self, Picks, Sec, Warn};
+use crate::gerar::{host, kind_word};
 use crate::i18n::{Key, Lang, t, tf};
 use crate::store::{Rerun, SETTINGS_KEY, Settings, StageMode};
 use figcraft_plugin_sdk::{Input, Result, Value, close_ui, json, show_ui};
@@ -56,6 +57,8 @@ pub struct Form {
     pub rerun: Rerun,
     pub version: String,
     pub status: String,
+    /// Which sections of the document are ticked (not remembered: it follows whether the component already has its Section).
+    pub picks: Picks,
 }
 
 impl Form {
@@ -67,6 +70,7 @@ impl Form {
             rerun: Rerun::Replace,
             version: String::new(),
             status: String::new(),
+            picks: Picks::first_run(),
         }
     }
 
@@ -99,6 +103,11 @@ impl Form {
         if let Some(v) = text("status") {
             f.status = v.to_string();
         }
+        for sec in Sec::ALL {
+            if let Some(on) = values.get(sec.control()).and_then(Value::as_bool) {
+                f.picks.set(sec, on);
+            }
+        }
         f
     }
 
@@ -109,9 +118,10 @@ impl Form {
         Form { stage: d.stage, rerun: d.rerun, ..self.clone() }
     }
 
-    /// The form after a documentation was made: nothing is remembered, so Version and Status are empty again.
+    /// The form after a documentation was made: nothing is remembered, so Version and Status are empty again, and the
+    /// component now has its Section, so the next run is a rerun (Cover, Component Master and Changelog unticked).
     pub fn after_generate(&self) -> Form {
-        Form { version: String::new(), status: String::new(), ..self.clone() }
+        Form { version: String::new(), status: String::new(), picks: Picks::rerun(), ..self.clone() }
     }
 }
 
@@ -241,6 +251,14 @@ pub enum Message {
     WrongKind(String),
     /// "Restore defaults" was pressed.
     Restored,
+    /// A documentation was made, and the person should know something (a Master wider than its frame, a loose 0.10.0 documentation).
+    Warned(String, Vec<Warn>),
+    /// "Go to Component Master" found nothing.
+    NoMaster,
+    /// "Go to Component Master" took the screen there (the name of the component).
+    AtMaster(String),
+    /// No section is ticked.
+    NoneChosen,
 }
 
 /// The state note's text, with its symbol: none for what is only information.
@@ -251,6 +269,17 @@ pub fn message_text(lang: Lang, m: &Message) -> String {
         Message::NothingSelected => marked(SYM_ERR, t(lang, Key::PanelNothingSelected)),
         Message::WrongKind(kind) => marked(SYM_ERR, &tf(lang, Key::PanelWrongKind, &[("kind", kind)])),
         Message::Restored => t(lang, Key::PanelRestored).to_string(),
+        Message::Warned(name, warns) => {
+            let mut text = marked(SYM_OK, &tf(lang, Key::PanelGenerated, &[("name", name)]));
+            for w in warns {
+                text.push(' ');
+                text.push_str(&marked(SYM_INFO, w.text(lang)));
+            }
+            text
+        }
+        Message::NoMaster => marked(SYM_ERR, t(lang, Key::PanelNoMaster)),
+        Message::AtMaster(name) => marked(SYM_OK, &tf(lang, Key::PanelAtMaster, &[("name", name)])),
+        Message::NoneChosen => marked(SYM_ERR, t(lang, Key::PanelNoneChosen)),
     }
 }
 
@@ -284,7 +313,15 @@ pub fn spec(lang: Lang, form: &Form, message: &Message) -> Value {
     c.push(json!({"type": "text", "name": "status", "label": label(Key::PanelStatus), "value": form.status}));
     c.push(note(t(lang, Key::PanelBlankHint)));
     c.push(note(""));
+    c.push(note(t(lang, Key::PanelTitleSections)));
+    for sec in Sec::ALL {
+        c.push(json!({"type": "boolean", "name": sec.control(), "label": label(sec.title_key()), "value": form.picks.get(sec)}));
+    }
+    c.push(note(t(lang, Key::PanelSectionsManual)));
+    c.push(note(t(lang, Key::PanelSectionsMaster)));
+    c.push(note(""));
     c.push(button("generate", t(lang, Key::PanelGenerate)));
+    c.push(button("goto_master", t(lang, Key::PanelGoMaster)));
     c.push(button("defaults", t(lang, Key::PanelDefaults)));
     c.push(button("close", t(lang, Key::PanelClose)));
     // The messages are BELOW the buttons: their height changes from one message to the next, and anything under
@@ -331,15 +368,21 @@ fn read_page(lang: Lang) -> Result<(u64, Settings)> {
     Ok((page, Settings::from_plugin_data(data.get("pluginData").unwrap_or(&Value::Null))))
 }
 
+/// The sections ticked at the start: all of them for a component with no Section yet, else a rerun's.
+fn default_picks(lang: Lang, selection: &[u64]) -> Picks {
+    if section::section_exists(lang, selection) { Picks::rerun() } else { Picks::first_run() }
+}
+
 /// Draw the panel.
 fn draw(form: &Form, message: &Message) -> Result<()> {
     show_ui(&spec(form.lang, form, message))
 }
 
 /// Run from the menu: show the panel with what the page has stored.
-pub fn open(_input: Input) -> Result<Value> {
+pub fn open(input: Input) -> Result<Value> {
     let (_, settings) = read_page(Lang::En)?;
-    let form = Form::from_stored(&settings);
+    let mut form = Form::from_stored(&settings);
+    form.picks = default_picks(form.lang, &input.selection);
     STATE.with(|s| *s.borrow_mut() = State::default());
     draw(&form, &Message::Idle)?;
     Ok(json!({"phase": "open", "lang": form.lang.code(), "message": message_text(form.lang, &Message::Idle)}))
@@ -370,9 +413,17 @@ fn run_event(input: &Input, control: &str, state: &mut State) -> Result<Value> {
         "defaults" => {
             state.cleared = Field::RESTORABLE.into_iter().collect();
             form = form.restore_page_defaults();
+            form.picks = default_picks(form.lang, &input.selection);
             state.message = Message::Restored;
         }
         "generate" => return generate_click(input, state, &stored, page, form),
+        "goto_master" => {
+            let out = if input.selection.is_empty() { Value::Null } else { section::go_to_master(form.lang, &input.selection)? };
+            let found = out.get("found").and_then(Value::as_bool).unwrap_or(false);
+            state.message = if found { Message::AtMaster(out.get("name").and_then(Value::as_str).unwrap_or_default().to_string()) } else { Message::NoMaster };
+            draw(&form, &state.message)?;
+            return Ok(json!({"phase": "goto_master", "found": found, "message": message_text(form.lang, &state.message), "result": out}));
+        }
         other => {
             if let Some(f) = Field::of_control(other) {
                 state.cleared.remove(&f);
@@ -403,13 +454,18 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
         state.message = message.clone();
         return Ok(json!({"phase": "generate", "refused": true, "message": message_text(lang, &message)}));
     }
+    if !form.picks.any() {
+        draw(&form, &Message::NoneChosen)?;
+        state.message = Message::NoneChosen;
+        return Ok(json!({"phase": "generate", "refused": true, "message": message_text(lang, &Message::NoneChosen)}));
+    }
     // b) The page's settings, as the form says.
     if let Some(new) = plan(stored, &form, &state.cleared) {
         write_data(lang, page, SETTINGS_KEY, new.to_text())?;
     }
     // c) The documentation, with the two fields.
-    let gen_input = Input { params: json!({"version": form.version, "status": form.status}), event: None, ..input.clone() };
-    let out = generate(gen_input)?;
+    let gen_input = Input { params: json!({"version": form.version, "status": form.status, "sections": form.picks.to_json()}), event: None, ..input.clone() };
+    let out = section::generate(gen_input)?;
     let name = out.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
     // d) The start of the documentation on the screen. It only moves the view, so a failure here is told, not fatal.
     let view = show_start(lang, &out);
@@ -417,12 +473,13 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
     host(lang, "select.set", &json!({"ids": input.selection}))?;
     // f) The panel again, with Version and Status empty.
     state.cleared.clear();
-    state.message = Message::Done(name);
+    let warns: Vec<Warn> = out.get("warnings").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).filter_map(|c| [Warn::WideMaster, Warn::LegacyDoc].into_iter().find(|w| w.code() == c)).collect()).unwrap_or_default();
+    state.message = if warns.is_empty() { Message::Done(name) } else { Message::Warned(name, warns) };
     let form = form.after_generate();
     draw(&form, &state.message)?;
     Ok(json!({
         "phase": "generate", "refused": false, "message": message_text(lang, &state.message), "frame": out.get("frame"),
-        "view": view, "selection": input.selection, "meta": out.get("meta"),
+        "view": view, "selection": input.selection, "meta": out.get("meta"), "frames": out.get("frames"), "warnings": out.get("warnings"),
     }))
 }
 
@@ -466,6 +523,10 @@ mod tests {
                     Message::NothingSelected,
                     Message::WrongKind(kind_word(lang, "FRAME")),
                     Message::Restored,
+                    Message::Warned("Botão".into(), vec![Warn::WideMaster, Warn::LegacyDoc]),
+                    Message::NoMaster,
+                    Message::AtMaster("Botão".into()),
+                    Message::NoneChosen,
                 ] {
                     out.push((form.clone(), m));
                 }
@@ -473,6 +534,10 @@ mod tests {
         }
         out
     }
+
+    /// The number of controls of the panel: the 17 of 0.10.0 plus SECTIONS (a title, 8 switches, 2 hints), a spacer and the
+    /// button "Go to Component Master".
+    const CONTROLS: usize = 30;
 
     // ---- the spec fits the host ---------------------------------------------------------------
 
@@ -536,7 +601,9 @@ mod tests {
             en,
             [
                 "note:THIS PAGE", "lang", "stage", "on_rerun", "note:", "note:DOCUMENTATION", "version", "status",
-                &format!("note:Left blank, the documentation shows “to{nb}be{nb}defined”."), "note:", "generate", "defaults", "close",
+                &format!("note:Left blank, the documentation shows “to{nb}be{nb}defined”."), "note:", "note:SECTIONS", "sec_cover", "sec_master", "sec_properties", "sec_anatomy", "sec_variants", "sec_layouts", "sec_tokens", "sec_changelog",
+                "note:Cover and Changelog keep text typed by hand: ticking them replaces it.", "note:The Component Master is made once. If its frame already exists, its switch is ignored.", "note:",
+                "generate", "goto_master", "defaults", "close",
                 "note:", "note:MESSAGES", "note:Select a component, a component set or a variant and press Generate documentation.", "note:ℹ The screen freezes while the documentation is generated."
             ]
         );
@@ -546,7 +613,9 @@ mod tests {
             pt,
             [
                 "note:ESTA PÁGINA", "lang", "stage", "on_rerun", "note:", "note:DOCUMENTAÇÃO", "version", "status",
-                &format!("note:Em branco, a documentação mostra “a{nb}definir”."), "note:", "generate", "defaults", "close",
+                &format!("note:Em branco, a documentação mostra “a{nb}definir”."), "note:", "note:SEÇÕES", "sec_cover", "sec_master", "sec_properties", "sec_anatomy", "sec_variants", "sec_layouts", "sec_tokens", "sec_changelog",
+                "note:Cover e Changelog guardam texto digitado à mão: marcá-los substitui esse texto.", "note:O Component Master é criado uma vez. Se o quadro já existir, o interruptor dele é ignorado.", "note:",
+                "generate", "goto_master", "defaults", "close",
                 "note:", "note:MENSAGENS", "note:✔ Documentação gerada: Botão de teste.", "note:ℹ A tela fica travada enquanto a documentação é gerada."
             ]
         );
@@ -555,7 +624,7 @@ mod tests {
     #[test]
     fn the_panel_has_the_same_number_of_controls_in_every_state() {
         for (form, message) in every_state() {
-            assert_eq!(spec(form.lang, &form, &message)["controls"].as_array().unwrap().len(), 17);
+            assert_eq!(spec(form.lang, &form, &message)["controls"].as_array().unwrap().len(), CONTROLS);
         }
     }
 
@@ -571,7 +640,7 @@ mod tests {
             let last_field = kinds.iter().rposition(|k| FIELDS.contains(k));
             assert!(last_field.is_some_and(|f| f < first_button), "a button comes before a field: {kinds:?}");
             assert_eq!(sp["controls"][first_button]["name"], "generate", "the first button is the host's primary one");
-            assert_eq!(kinds.iter().filter(|k| **k == "button").count(), 3);
+            assert_eq!(kinds.iter().filter(|k| **k == "button").count(), 4);
         }
     }
 
@@ -582,15 +651,15 @@ mod tests {
             let controls = sp["controls"].as_array().unwrap();
             assert_eq!(controls[0]["type"], "note");
             assert_eq!(controls[0]["label"], t(form.lang, Key::PanelTitlePage));
-            let titles = [t(form.lang, Key::PanelTitleDocumentation), t(form.lang, Key::PanelTitleMessages)];
+            let titles = [t(form.lang, Key::PanelTitleDocumentation), t(form.lang, Key::PanelTitleSections), t(form.lang, Key::PanelTitleMessages)];
             let empty: Vec<usize> = controls.iter().enumerate().filter(|(_, c)| c["type"] == "note" && c["label"] == "").map(|(i, _)| i).collect();
-            assert_eq!(empty.len(), 3, "before DOCUMENTATION, before the buttons and before MESSAGES");
+            assert_eq!(empty.len(), 4, "before DOCUMENTATION, before SECTIONS, before the buttons and before MESSAGES");
             for i in empty {
                 let next = &controls[i + 1];
                 let label = next["label"].as_str().unwrap();
                 assert!(next["type"] == "button" || titles.contains(&label), "a spacer must come before a title or a button, not before {label:?}");
             }
-            for title in [t(form.lang, Key::PanelTitlePage), titles[0], titles[1]] {
+            for title in [t(form.lang, Key::PanelTitlePage), titles[0], titles[1], titles[2]] {
                 assert_eq!(title, title.to_uppercase());
                 assert!(!title.contains('─'));
             }
@@ -635,7 +704,7 @@ mod tests {
             let reference = shape(&spec(lang, &Form { lang, ..Form::defaults() }, &Message::Idle));
             // Every message, stages and reruns, long names.
             let mut states: Vec<(Form, Message)> = every_state().into_iter().filter(|(f, _)| f.lang == lang).collect();
-            for form in [Form { lang, stage: StageMode::Dark, rerun: Rerun::New, version: "1.2".into(), status: "Aprovado".into() }, Form { lang, stage: StageMode::Light, ..Form::defaults() }] {
+            for form in [Form { lang, stage: StageMode::Dark, rerun: Rerun::New, version: "1.2".into(), status: "Aprovado".into(), picks: Picks::rerun() }, Form { lang, stage: StageMode::Light, ..Form::defaults() }] {
                 states.push((form.clone(), Message::Idle));
                 states.push((form, Message::Restored));
             }
@@ -643,7 +712,7 @@ mod tests {
             for (form, message) in states {
                 let sp = spec(lang, &form, &message);
                 assert_eq!(shape(&sp), reference, "{lang:?} {message:?} {form:?}");
-                assert_eq!(sp["controls"].as_array().unwrap().len(), 17);
+                assert_eq!(sp["controls"].as_array().unwrap().len(), CONTROLS);
             }
             per_lang.push((lang, reference));
         }
@@ -700,10 +769,10 @@ mod tests {
         let sp = spec(Lang::Pt, &Form::defaults(), &Message::Idle);
         assert_eq!(sp["title"], "Handoff Components: Gerar documentação");
         let buttons: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter(|c| c["type"] == "button").map(|c| c["label"].as_str().unwrap()).collect();
-        assert_eq!(buttons, ["Gerar documentação", "Restaurar padrões", "Fechar"]);
+        assert_eq!(buttons, ["Gerar documentação", "Ir para o Component Master", "Restaurar padrões", "Fechar"]);
         let sp = spec(Lang::En, &Form::defaults(), &Message::Idle);
         let buttons: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter(|c| c["type"] == "button").map(|c| c["label"].as_str().unwrap()).collect();
-        assert_eq!(buttons, ["Generate documentation", "Restore defaults", "Close"]);
+        assert_eq!(buttons, ["Generate documentation", "Go to Component Master", "Restore defaults", "Close"]);
     }
 
     #[test]
@@ -712,7 +781,7 @@ mod tests {
         for lang in [Lang::En, Lang::Pt] {
             let sp = spec(lang, &Form::defaults(), &Message::Idle);
             let names: Vec<&str> = sp["controls"].as_array().unwrap().iter().filter_map(|c| c["name"].as_str()).collect();
-            assert_eq!(names, ["lang", "stage", "on_rerun", "version", "status", "generate", "defaults", "close"]);
+            assert_eq!(names, ["lang", "stage", "on_rerun", "version", "status", "sec_cover", "sec_master", "sec_properties", "sec_anatomy", "sec_variants", "sec_layouts", "sec_tokens", "sec_changelog", "generate", "goto_master", "defaults", "close"]);
             assert!(sp["controls"].as_array().unwrap().iter().all(|c| c["type"] != "color" && c["type"] != "number"));
         }
         assert_eq!(Form::defaults().stage, StageMode::Auto, "the stage is automatic unless the page says otherwise");
@@ -731,7 +800,7 @@ mod tests {
         // ...and after a documentation both are empty, everything else is kept.
         let after = typed.after_generate();
         assert_eq!((after.version.as_str(), after.status.as_str()), ("", ""));
-        assert_eq!(Form { version: String::new(), status: String::new(), ..typed.clone() }, after);
+        assert_eq!(Form { version: String::new(), status: String::new(), picks: Picks::rerun(), ..typed.clone() }, after);
         let values = values_of(&spec(Lang::Pt, &after, &Message::Done("x".into())));
         assert_eq!(values["version"], "");
         assert_eq!(values["status"], "");
@@ -775,6 +844,7 @@ mod tests {
             rerun: Rerun::New,
             version: "1.2.0 beta".into(),
             status: "Em revisão".into(),
+            picks: Picks::rerun(),
         }
     }
 
