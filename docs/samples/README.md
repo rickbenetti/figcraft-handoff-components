@@ -2,7 +2,7 @@
 
 The demo file for Handoff Components is the **DS Base Demo**, in [`../../demo/`](../../demo/README.md)
 (`demo/ds-base-demo.figcraft`, a small neutral design system built from scratch; MIT).
-Sample documentation images made from it (Button, Card, Accordion, Code) are in this folder: `report-*.png`. They are 2x PNG exports of the documentation frame (the DS Base Demo, `lang` en, version and status left at their defaults), made with the plugin at 953bb57; the Card and Code ones come out on the dark stage because the stage is Auto. The `relatorio-*.png` files are older, historical samples (orange lines, older layouts) and are not regenerated.
+Sample documentation images made from it (Button, Card, Accordion, Code) are in this folder: `report-*.png`. They are 2x PNG exports of the documentation frame (the DS Base Demo, `lang` en, version and status left at their defaults), made with the plugin at f0b6c49 (the fixed palette, the variant rows as blocks with only the option's value as title, the stacked format of the differences in striped blocks); the Card and Code ones come out on the dark stage because the stage is Auto. They are rendered by `figcraft-cli` (no app window), with the fonts of the machine. The Code image has no variant rows, so it has not changed since 953bb57. The `relatorio-*.png` files are older, historical samples (orange lines, older layouts) and are not regenerated.
 
 This folder also holds the recorded outputs of the probes and commands the plugin was built on, taken from
 the test fixtures in `tests/fixtures/` (`fixture-copia`, `fixture-copia-2`, `fixture-carga-v2`;

@@ -32,7 +32,7 @@ inner shadow and a background blur stay inside the box. Only visible effects cou
 the instance counts only for what passes the instance's box. The room is the largest reach plus 8 px, at most 400 px
 per side, and never less than the room a stage always had (96 px above and below in the Anatomy and the Spacing, 32 px
 in a variant row). Each variant row uses its own variant's effects. The width is not changed: a row that would need
-more is listed in `effects.narrow` of the run's output.
+more is listed in `effects.narrow` of the run's output. A variant row's stage is 42 px narrower than the Anatomy's (558 px when the Anatomy's is 600 px, measured): the row is a block with a 20 px padding and a 1 px border (`row_stage_w` in `draw_axes`, from `BLOCK_PAD` and `BLOCK_BORDER`).
 
 Code: `src/contrast.rs` (`pick_stage`) and `effective_backdrop` / `is_dark` in `src/gerar.rs`;
 tests in both.
