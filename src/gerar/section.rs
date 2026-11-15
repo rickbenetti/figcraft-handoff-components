@@ -265,6 +265,8 @@ impl Approval {
 /// Something the person should know after a run, most important first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Warn {
+    /// A content frame could not be made: it holds the error.
+    Failed,
     /// No stage suits every variant (the automatic stage's lowest contrast is under 3:1).
     NoStage,
     /// The component is wider than the stage's useful width.
@@ -274,10 +276,11 @@ pub enum Warn {
 }
 
 impl Warn {
-    pub const ALL: [Warn; 3] = [Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc];
+    pub const ALL: [Warn; 4] = [Warn::Failed, Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc];
 
     pub fn code(self) -> &'static str {
         match self {
+            Warn::Failed => "table_failed",
             Warn::NoStage => "no_stage",
             Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
@@ -286,6 +289,7 @@ impl Warn {
 
     pub fn text(self, lang: Lang) -> &'static str {
         t(lang, match self {
+            Warn::Failed => Key::PanelWarnFailed,
             Warn::NoStage => Key::PanelWarnNoStage,
             Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
@@ -1060,6 +1064,8 @@ pub fn generate(input: Input) -> Result<Value> {
                 Sec::Layouts => Some(tables::build_layouts(&ctx, frame)),
                 _ => None,
             };
+            #[cfg(feature = "test-hooks")]
+            let drawn = if drawn.is_some() && input.str("fail_table") == Some(sec.key()) { Some(Err("forced failure (test hook)".to_string())) } else { drawn };
             if let Some(Err(reason)) = drawn {
                 host(lang, "edit.delete", &json!({"ids": [frame]}))?;
                 frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
@@ -1109,6 +1115,9 @@ pub fn generate(input: Input) -> Result<Value> {
     } else {
         "kept".to_string()
     };
+    if !failed.is_empty() {
+        warnings.push(Warn::Failed);
+    }
     warnings.sort_by_key(|w| Warn::ALL.iter().position(|x| x == w));
     Ok(json!({
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,

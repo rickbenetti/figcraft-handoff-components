@@ -294,5 +294,6 @@
   "PropsNone": "Este componente não tem propriedades.",
   "LayoutsNone": "Nenhuma camada tem espaçamento interno nem espaço entre itens.",
   "VariantsNone": "Este componente não tem variantes.",
-  "TableFailed": "Esta seção não pôde ser feita: {reason}"
+  "TableFailed": "Esta seção não pôde ser feita: {reason}",
+  "PanelWarnFailed": "Uma seção não pôde ser feita: veja o quadro dela."
 }

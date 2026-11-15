@@ -14,6 +14,11 @@ crate-type = ["cdylib"]
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 figcraft-plugin-sdk = { git = "https://github.com/storytold/figcraft", tag = "v0.14.0" }
 
+# Only for tests: `--features test-hooks` lets a run force a content frame to fail (parameter `fail_table`), to exercise the path where
+# a table cannot be made. Never in dist/.
+[features]
+test-hooks = []
+
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"

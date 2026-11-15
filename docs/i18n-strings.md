@@ -302,3 +302,4 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | LayoutsNone | No layer has padding or a gap. | Nenhuma camada tem espaçamento interno nem espaço entre itens. |
 | VariantsNone | This component has no variants. | Este componente não tem variantes. |
 | TableFailed | This section could not be made: {reason} | Esta seção não pôde ser feita: {reason} |
+| PanelWarnFailed | A section could not be made: see its frame. | Uma seção não pôde ser feita: veja o quadro dela. |

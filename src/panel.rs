@@ -381,7 +381,14 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
         write_data(lang, page, SETTINGS_KEY, new.to_text())?;
     }
     // c) The documentation.
-    let gen_input = Input { params: json!({"update": form.update.key(), "new_section": new_section}), event: None, ..input.clone() };
+    #[allow(unused_mut)]
+    let mut params = json!({"update": form.update.key(), "new_section": new_section});
+    // A test build passes the hook of the run that opened the panel on to the documentation.
+    #[cfg(feature = "test-hooks")]
+    if let (Some(p), Some(f)) = (params.as_object_mut(), input.params.get("fail_table")) {
+        p.insert("fail_table".into(), f.clone());
+    }
+    let gen_input = Input { params, event: None, ..input.clone() };
     let out = section::generate(gen_input)?;
     let name = out.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
     // d) The start of the Section on the screen. It only moves the view, so a failure here is told, not fatal.
@@ -446,6 +453,7 @@ mod tests {
                         Message::Warned("Botão".into(), vec![Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc]),
                         Message::Warned("y".repeat(2000), vec![Warn::WideMaster]),
                         Message::Warned("Botão".into(), vec![Warn::LegacyDoc]),
+                        Message::Warned("y".repeat(2000), vec![Warn::Failed, Warn::NoStage]),
                     ] {
                         out.push((form.clone(), m));
                     }

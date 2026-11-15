@@ -294,5 +294,6 @@
   "PropsNone": "This component has no properties.",
   "LayoutsNone": "No layer has padding or a gap.",
   "VariantsNone": "This component has no variants.",
-  "TableFailed": "This section could not be made: {reason}"
+  "TableFailed": "This section could not be made: {reason}",
+  "PanelWarnFailed": "A section could not be made: see its frame."
 }
