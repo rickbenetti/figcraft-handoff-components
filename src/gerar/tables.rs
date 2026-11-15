@@ -301,23 +301,56 @@ pub fn matrix(lang: Lang, root: &str, options: &[Option<&Diff>]) -> Vec<Mrow> {
         .collect()
 }
 
-/// How many rows of a matrix fit in `left` nodes when it is drawn in `tables` tables of `heads` header cells each, and what they cost.
-pub fn rows_that_fit(rows: &[Mrow], tables: usize, heads: usize, left: usize) -> (usize, usize) {
-    let base = tables * table_nodes(heads, &[]);
-    if base > left {
-        return (0, 0);
-    }
-    let mut used = base;
-    let mut taken = 0;
-    for r in rows {
-        let cost = tables * (1 + r.cells.iter().map(Cv::nodes).sum::<usize>() + 2 * 2 + 1);
-        if used + cost > left {
+/// The nodes a matrix row costs when it is drawn in `tables` tables.
+fn matrix_row_cost(r: &Mrow, tables: usize) -> usize {
+    // Every table repeats the row: its frame (a separator) and the element and property cells; the option cells are split among them.
+    tables * (1 + 4) + r.cells.iter().map(Cv::nodes).sum::<usize>()
+}
+
+/// What an axis asks for when the nodes are shared: how many tables it is drawn in, how many header cells each has, and its rows.
+pub struct AxisAsk<'a> {
+    pub tables: usize,
+    pub heads: usize,
+    pub rows: &'a [Mrow],
+}
+
+/// How many rows each axis gets out of `cap` nodes: first every axis with rows gets its tables' headers, then the axes take a row in
+/// turn (in rotation) while the next row of each fits, so a big axis cannot take what the others need. An axis whose next row does
+/// not fit stops; the others go on.
+pub fn allocate_rows(axes: &[AxisAsk], cap: usize) -> Vec<usize> {
+    let mut taken = vec![0usize; axes.len()];
+    let mut used = 0usize;
+    let mut active: Vec<bool> = axes
+        .iter()
+        .map(|a| {
+            let cost = a.tables * table_nodes(a.heads, &[]);
+            let ok = !a.rows.is_empty() && used + cost <= cap;
+            if ok {
+                used += cost;
+            }
+            ok
+        })
+        .collect();
+    loop {
+        let mut progressed = false;
+        for (i, a) in axes.iter().enumerate() {
+            if !active[i] || taken[i] >= a.rows.len() {
+                continue;
+            }
+            let cost = matrix_row_cost(&a.rows[taken[i]], a.tables);
+            if used + cost > cap {
+                active[i] = false;
+            } else {
+                used += cost;
+                taken[i] += 1;
+                progressed = true;
+            }
+        }
+        if !progressed {
             break;
         }
-        used += cost;
-        taken += 1;
     }
-    (taken, used)
+    taken
 }
 
 /// The columns of a matrix of `n` options.
@@ -349,12 +382,17 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
     let vars = c.vars_for(&base_nodes)?;
     let styles = c.styles_for(&base_nodes)?;
     let base_snap = delta::snapshot(lang, &base_walked, &vars, &styles);
-    let mut left = MATRIX_NODE_CAP;
-    let mut left_out = 0usize;
+    // 1. What each axis changes (the diff of each option from the default option).
+    struct Gathered {
+        prop: String,
+        present: Vec<(String, bool, Option<Diff>)>,
+        rows: Vec<Mrow>,
+        missing: Vec<String>,
+    }
+    let mut gathered: Vec<Gathered> = Vec::new();
     let mut walked_options = 0usize;
     let mut not_shown = 0usize;
     for axis in &axes {
-        // The diff of each option that has a variant (the default has none: it is the base).
         let mut present: Vec<(String, bool, Option<Diff>)> = Vec::new();
         let mut missing: Vec<String> = Vec::new();
         for opt in &axis.options {
@@ -377,24 +415,28 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
         }
         let diffs: Vec<Option<&Diff>> = present.iter().map(|(_, _, d)| d.as_ref()).collect();
         let rows = matrix(lang, &c.target.title, &diffs);
-        let ax_name = tf(lang, Key::LayerAxis, &[("name", &axis.prop)]);
+        gathered.push(Gathered { prop: axis.prop.clone(), present, rows, missing });
+    }
+    host(lang, "edit.delete", &json!({"ids": [temp]}))?;
+    // 2. The nodes are shared among the axes.
+    let asks: Vec<AxisAsk> = gathered.iter().map(|g| AxisAsk { tables: g.present.len().div_ceil(MATRIX_SLICE).max(1), heads: 2 + MATRIX_SLICE.min(g.present.len()), rows: &g.rows }).collect();
+    let taken = allocate_rows(&asks, MATRIX_NODE_CAP);
+    // 3. Each axis is drawn with its rows, and says how many it left out.
+    for (g, taken) in gathered.iter().zip(taken) {
+        let ax_name = tf(lang, Key::LayerAxis, &[("name", &g.prop)]);
         let mut ax = FlowSpec::new(&ax_name, USEFUL_W, "vertical");
         ax.gap = 16.0;
         let ax = flow_frame(lang, frame, ax)?;
-        text_with(lang, ax, &axis.prop, theme::SECTION_SIZE, pal::TEXT, "Axis", bold())?;
-        let slices: Vec<&[(String, bool, Option<Diff>)]> = present.chunks(MATRIX_SLICE).collect();
-        let (taken, used) = rows_that_fit(&rows, slices.len().max(1), 2 + MATRIX_SLICE.min(present.len()), left);
-        left = left.saturating_sub(used);
-        left_out += rows.len() - taken;
-        if rows.is_empty() {
+        text_with(lang, ax, &g.prop, theme::SECTION_SIZE, pal::TEXT, "Axis", bold())?;
+        if g.rows.is_empty() {
             muted_note(lang, ax, t(lang, Key::DeltaNone))?;
         }
         if taken > 0 {
-            for (si, slice) in slices.iter().enumerate() {
+            for (si, slice) in g.present.chunks(MATRIX_SLICE).enumerate() {
                 let first = si * MATRIX_SLICE;
                 let mut headers = heads(lang, &[Key::TblElement, Key::TblProperty]);
                 headers.extend(slice.iter().map(|(name, is_default, _)| if *is_default { format!("{name} · {}", t(lang, Key::LegendDefault)) } else { name.clone() }));
-                let body: Vec<Vec<Cv>> = rows[..taken]
+                let body: Vec<Vec<Cv>> = g.rows[..taken]
                     .iter()
                     .map(|r| {
                         let mut cells = vec![Cv::Bold(r.element.clone()), Cv::Muted(r.property.clone())];
@@ -402,19 +444,19 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
                         cells
                     })
                     .collect();
-                put_table(c, ax, &format!("{} {}", axis.prop, si + 1), &matrix_cols(slice.len()), &headers, &body)?;
+                put_table(c, ax, &format!("{} {}", g.prop, si + 1), &matrix_cols(slice.len()), &headers, &body)?;
             }
         }
-        if !missing.is_empty() {
-            muted_note(lang, ax, &tf(lang, Key::NotDefined, &[("list", &missing.join(", "))]))?;
+        let left_out = g.rows.len() - taken;
+        if left_out > 0 {
+            muted_note(lang, ax, &tf(lang, plural(left_out, Key::MatrixLeftOutOne, Key::MatrixLeftOut), &[("n", &left_out.to_string())]))?;
+        }
+        if !g.missing.is_empty() {
+            muted_note(lang, ax, &tf(lang, Key::NotDefined, &[("list", &g.missing.join(", "))]))?;
         }
     }
-    host(lang, "edit.delete", &json!({"ids": [temp]}))?;
     if not_shown > 0 {
         muted_note(lang, frame, &tf(lang, plural(not_shown, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &not_shown.to_string())]))?;
-    }
-    if left_out > 0 {
-        muted_note(lang, frame, &tf(lang, plural(left_out, Key::MatrixLeftOutOne, Key::MatrixLeftOut), &[("n", &left_out.to_string())]))?;
     }
     Ok(())
 }
@@ -576,22 +618,41 @@ mod tests {
         assert!(matrix(Lang::En, "Button", &[None, Some(&Diff::default())]).is_empty());
     }
 
+    fn mrow(n: usize, options: usize) -> Mrow {
+        Mrow { element: format!("L{n}"), property: "Fill".into(), cells: vec![Cv::Text("a".into()); options] }
+    }
+
     #[test]
-    fn the_nodes_a_matrix_may_make_are_capped_and_the_rest_is_counted() {
-        let row = |n: usize| Mrow { element: format!("L{n}"), property: "Fill".into(), cells: vec![Cv::Text("a".into()); 3] };
-        let rows: Vec<Mrow> = (0..200).map(row).collect();
-        let (taken, used) = rows_that_fit(&rows, 1, 5, MATRIX_NODE_CAP);
-        assert!(taken > 0 && taken < 200, "{taken}");
+    fn the_nodes_are_shared_among_the_axes_in_rotation_and_each_keeps_its_headers() {
+        let big: Vec<Mrow> = (0..200).map(|n| mrow(n, 5)).collect();
+        let small: Vec<Mrow> = (0..3).map(|n| mrow(n, 3)).collect();
+        let asks = [AxisAsk { tables: 2, heads: 7, rows: &big }, AxisAsk { tables: 1, heads: 5, rows: &small }];
+        let taken = allocate_rows(&asks, MATRIX_NODE_CAP);
+        // The small axis gets all its rows (the big one cannot take them), the big one gets what is left.
+        assert_eq!(taken[1], 3, "{taken:?}");
+        assert!(taken[0] > 0 && taken[0] < 200, "{taken:?}");
+        let used = 2 * table_nodes(7, &[]) + table_nodes(5, &[]) + taken[0] * matrix_row_cost(&big[0], 2) + taken[1] * matrix_row_cost(&small[0], 1);
         assert!(used <= MATRIX_NODE_CAP, "{used}");
-        // Each row costs its cell frame and their texts, and a separator: 1 + 3 x 2 + 1 = 8 here (the cells of the element and the
-        // property count too).
-        let (all, _) = rows_that_fit(&rows, 1, 5, 1_000_000);
-        assert_eq!(all, 200);
-        // Stacked tables repeat the rows: with 2 tables fewer rows fit.
-        let (two, _) = rows_that_fit(&rows, 2, 5, MATRIX_NODE_CAP);
-        assert!(two < taken);
-        // No room even for the headers: nothing.
-        assert_eq!(rows_that_fit(&rows, 1, 5, 3), (0, 0));
+        // A first-come budget would have given everything to the first axis: the rotation does not.
+        let alone = allocate_rows(&asks[..1], MATRIX_NODE_CAP);
+        assert!(alone[0] > taken[0]);
+    }
+
+    #[test]
+    fn an_axis_without_rows_asks_for_nothing_and_a_cap_too_small_for_the_headers_gives_nothing() {
+        let rows: Vec<Mrow> = (0..4).map(|n| mrow(n, 5)).collect();
+        let none: Vec<Mrow> = Vec::new();
+        let asks = [AxisAsk { tables: 1, heads: 7, rows: &none }, AxisAsk { tables: 1, heads: 7, rows: &rows }];
+        assert_eq!(allocate_rows(&asks, 1_000_000), [0, 4]);
+        assert_eq!(allocate_rows(&asks, 3), [0, 0]);
+        // Several axes that all fit: every one gets every row.
+        let a = [AxisAsk { tables: 1, heads: 5, rows: &rows }, AxisAsk { tables: 1, heads: 5, rows: &rows }, AxisAsk { tables: 1, heads: 5, rows: &rows }];
+        assert_eq!(allocate_rows(&a, MATRIX_NODE_CAP), [4, 4, 4]);
+        // Many axes that do not: each still gets something.
+        let many: Vec<AxisAsk> = (0..8).map(|_| AxisAsk { tables: 1, heads: 7, rows: &rows }).collect();
+        let t = allocate_rows(&many, MATRIX_NODE_CAP);
+        assert!(t.iter().all(|n| *n >= 1), "{t:?}");
+        assert!(t.iter().sum::<usize>() < 32, "{t:?}");
     }
 
     #[test]
