@@ -354,8 +354,20 @@ impl StageChoice {
 }
 
 /// The colours of one variant, as the layers under it say.
-fn judge(nodes: &[Value]) -> Judged {
+pub(super) fn judge(nodes: &[Value]) -> Judged {
     Judged { backdrop: nodes.first().and_then(solid_fill), elements: element_colours(nodes) }
+}
+
+/// The stage for one set of judged variants in `mode`: forced Light or Dark, or the best of the three.
+pub(super) fn pick_stage_for(mode: StageMode, variants: &[Judged], set_fill: Option<Rgba>) -> StageChoice {
+    match mode {
+        StageMode::Light => StageChoice { stage: Stage::Light, lowest: None, auto: false },
+        StageMode::Dark => StageChoice { stage: Stage::Dark, lowest: None, auto: false },
+        StageMode::Auto => {
+            let pick = pick_union(variants, set_fill);
+            StageChoice { stage: pick.stage, lowest: pick.lowest, auto: true }
+        }
+    }
 }
 
 /// The most variants, and the most layers in all of them, the automatic stage looks at (each layer is a host call).
@@ -475,9 +487,35 @@ fn new_frame(lang: Lang, section: u64, name: &str, comp_key: &str, sec: Sec) -> 
     id_of(lang, &created, "frame.create")
 }
 
-/// What a table cell holds: a text, or a guide (grey, for the person to replace).
-enum Cv {
+/// What a table cell holds.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Cv {
+    /// The text of the table: the main colour.
+    Text(String),
+    /// The name of the row (bold).
+    Bold(String),
+    /// Secondary text.
+    Muted(String),
+    /// A guide (grey, for the person to replace).
     Guide(String),
+    /// A value: its token (secondary, above it) and the value, with a square of its colour when it is one (`true`: hollow, a colour
+    /// with an alpha).
+    Val { token: Option<String>, text: String, swatch: Option<(String, bool)> },
+}
+
+impl Cv {
+    /// The nodes the cell makes: its frame, and what is in it.
+    pub(super) fn nodes(&self) -> usize {
+        match self {
+            Cv::Val { token, swatch, .. } => 3 + usize::from(token.is_some()) + usize::from(swatch.is_some()),
+            _ => 2,
+        }
+    }
+}
+
+/// The nodes a table makes for these headers and rows: the grid, a header cell each (2), a separator, and the rows.
+pub(super) fn table_nodes(headers: usize, rows: &[Vec<Cv>]) -> usize {
+    1 + 2 * headers + 1 + rows.iter().map(|r| 1 + r.iter().map(Cv::nodes).sum::<usize>()).sum::<usize>()
 }
 
 fn cell(lang: Lang, grid: u64, col: usize, row: usize, fill: Option<&str>) -> Result<u64> {
@@ -506,7 +544,7 @@ fn separator(lang: Lang, grid: u64, row: usize, cols: usize) -> Result<()> {
 
 /// A table of fixed columns: a header row, then the rows, each followed by a separator of 1 px (a grid with no row gap and
 /// the border out of the layout, so the cells and the separators touch).
-fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
+pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
     let n = cols.len();
     let mut tracks: Vec<Value> = vec![json!("auto"), json!(1)];
     for _ in rows {
@@ -531,7 +569,11 @@ fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], r
         for (col, v) in row.iter().enumerate() {
             let c = cell(lang, grid, col, gr, None)?;
             match v {
+                Cv::Text(s) => cell_text(lang, c, s, pal::TEXT, false)?,
+                Cv::Bold(s) => cell_text(lang, c, s, pal::TEXT, true)?,
+                Cv::Muted(s) => cell_text(lang, c, s, pal::TEXT2, false)?,
                 Cv::Guide(s) => cell_text(lang, c, s, pal::GUIDE, false)?,
+                Cv::Val { token, text, swatch } => value_cell(lang, c, token.as_deref(), text, swatch.as_ref())?,
             };
         }
         separator(lang, grid, gr + 1, n)?;
@@ -539,18 +581,72 @@ fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &[String], r
     Ok(grid)
 }
 
-/// What every frame needs to be drawn.
-struct Ctx<'a> {
-    lang: Lang,
-    target: &'a Picked,
-    /// The set of approval pills (its default variant is Estado=pendente).
-    pills: Option<u64>,
-    stage: StageChoice,
-    /// How many areas of the Cover's pills did not read back as written and were written again.
-    area_retries: std::cell::Cell<u32>,
+/// A value cell: a square of the colour when it is one, and under or beside it the token and the value.
+fn value_cell(lang: Lang, cell: u64, token: Option<&str>, text: &str, swatch: Option<&(String, bool)>) -> Result<u64> {
+    if let Some((hex, hollow)) = swatch {
+        let props = if *hollow { json!({"stroke": hex, "strokeWeight": 2, "strokeAlign": "inside", "fill": null, "cornerRadius": 3}) } else { json!({"fill": hex, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 3}) };
+        host(lang, "shape.rectangle", &json!({"x": 0, "y": 0, "width": 16, "height": 16, "parent": cell, "name": "Swatch", "select": false, "props": props}))?;
+    }
+    let mut col = FlowSpec::new("Value", 100.0, "vertical");
+    col.gap = 2.0;
+    col.extra = json!({"sizingH": "fill"});
+    let col = flow_frame(lang, cell, col)?;
+    if let Some(tok) = token {
+        cell_text(lang, col, tok, pal::TEXT2, true)?;
+    }
+    cell_text(lang, col, text, if token.is_some() { pal::TEXT2 } else { pal::TEXT }, false)
 }
 
-fn bold() -> Value {
+/// What every frame needs to be drawn.
+pub(super) struct Ctx<'a> {
+    pub(super) lang: Lang,
+    pub(super) target: &'a Picked,
+    /// The page's Stage setting.
+    pub(super) mode: StageMode,
+    /// The set of approval pills (its default variant is Estado=pendente).
+    pub(super) pills: Option<u64>,
+    pub(super) stage: StageChoice,
+    /// How many areas of the Cover's pills did not read back as written and were written again.
+    pub(super) area_retries: std::cell::Cell<u32>,
+    /// The file's variables and styles, read once per run and only when a layer needs them (`variable.list` costs about a tenth of the
+    /// budget in a big file).
+    pub(super) vars: std::cell::RefCell<Option<std::rc::Rc<Vars>>>,
+    pub(super) styles: std::cell::RefCell<Option<std::rc::Rc<Styles>>>,
+    /// The tables the content frames made: (name, rows), for the answer.
+    pub(super) tables: std::cell::RefCell<Vec<(String, usize)>>,
+}
+
+impl Ctx<'_> {
+    /// The variables the layers of `nodes` may be bound to: read the first time one of them is bound, kept for the run.
+    pub(super) fn vars_for(&self, nodes: &[Value]) -> Result<std::rc::Rc<Vars>> {
+        let mut slot = self.vars.borrow_mut();
+        if let Some(v) = slot.as_ref() {
+            return Ok(v.clone());
+        }
+        if !any_bound(nodes) {
+            return Ok(std::rc::Rc::new(Vars::default()));
+        }
+        let v = std::rc::Rc::new(Vars::parse(&host(self.lang, "variable.list", &json!({}))?));
+        *slot = Some(v.clone());
+        Ok(v)
+    }
+
+    /// The styles, likewise.
+    pub(super) fn styles_for(&self, nodes: &[Value]) -> Result<std::rc::Rc<Styles>> {
+        let mut slot = self.styles.borrow_mut();
+        if let Some(v) = slot.as_ref() {
+            return Ok(v.clone());
+        }
+        if !any_styled(nodes) {
+            return Ok(std::rc::Rc::new(Styles::default()));
+        }
+        let v = std::rc::Rc::new(Styles::parse(&host(self.lang, "style.list", &json!({}))?));
+        *slot = Some(v.clone());
+        Ok(v)
+    }
+}
+
+pub(super) fn bold() -> Value {
     json!({"fontStyle": "Bold"})
 }
 
@@ -559,7 +655,7 @@ fn fill_text() -> Value {
 }
 
 /// The head of a frame: a small grey label with the component's name, and under it the big title of the section.
-fn header(c: &Ctx, frame: u64, title: &str) -> Result<()> {
+pub(super) fn header(c: &Ctx, frame: u64, title: &str) -> Result<()> {
     let lang = c.lang;
     let mut hd = FlowSpec::new("Header", USEFUL_W, "vertical");
     hd.gap = 8.0;
@@ -858,7 +954,7 @@ pub fn generate(input: Input) -> Result<Value> {
     };
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
     // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
-    let mut ctx = Ctx { lang, target: &target, pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()) };
     let kit_frame: Option<(u64, &str)>;
     let mut set_added = false;
     if let Some(e) = old(Sec::Kit) {
@@ -885,6 +981,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let mut tallest: f64 = 0.0;
     let mut report: Vec<Value> = Vec::new();
     let mut master_moved: Option<u64> = None;
+    let mut failed: Vec<&str> = Vec::new();
     for sec in Sec::ALL {
         let (id, h, action): (u64, f64, &str) = if sec == Sec::Kit {
             let (id, action) = kit_frame.unwrap_or((0, "kept"));
@@ -896,7 +993,26 @@ pub fn generate(input: Input) -> Result<Value> {
             if sec != Sec::Master && let Some(e) = old(sec) {
                 host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
             }
-            let frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
+            let mut frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
+            // A table that cannot be made leaves its frame with the error in place of the content, and the run goes on.
+            let drawn: Option<Result<()>> = match sec {
+                Sec::Properties => Some(tables::build_properties(&ctx, frame)),
+                Sec::Anatomy => Some(tables::build_anatomy(&ctx, frame).map(|no_stage| {
+                    if no_stage && !warnings.contains(&Warn::NoStage) {
+                        warnings.push(Warn::NoStage);
+                    }
+                })),
+                Sec::Variants => Some(tables::build_variants(&ctx, frame)),
+                Sec::Layouts => Some(tables::build_layouts(&ctx, frame)),
+                _ => None,
+            };
+            if let Some(Err(reason)) = drawn {
+                host(lang, "edit.delete", &json!({"ids": [frame]}))?;
+                frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
+                header(&ctx, frame, t(lang, sec.title_key()))?;
+                text_with(lang, frame, &tf(lang, Key::TableFailed, &[("reason", &reason)]), LINE_SIZE, pal::BAD, "Error", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
+                failed.push(sec.key());
+            }
             match sec {
                 Sec::Cover => build_cover(&ctx, frame)?,
                 Sec::Changelog => build_changelog(&ctx, frame)?,
@@ -910,7 +1026,8 @@ pub fn generate(input: Input) -> Result<Value> {
                         warnings.push(Warn::WideMaster);
                     }
                 }
-                other => build_reserved(&ctx, frame, other)?,
+                Sec::Tokens => build_reserved(&ctx, frame, Sec::Tokens)?,
+                _ => {}
             }
             (frame, height_of(lang, frame)?, if replaced { "replaced" } else { "created" })
         } else if let Some(e) = old(sec) {
@@ -944,7 +1061,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": SECTION_W}, "view_w": 2.0 * FRAME_W + FRAME_GAP, "tallest": tallest, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "failed": failed, "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
