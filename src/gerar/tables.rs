@@ -27,9 +27,9 @@ const MATRIX_PROPERTY_W: f64 = 280.0;
 const MATRIX_SLICE: usize = 5;
 /// The most nodes the matrices of one run may make.
 pub const MATRIX_NODE_CAP: usize = 400;
-/// The most nodes the table of Layouts may make (about 25 layers of five rows): a component with hundreds of layers with spacing
+/// The most nodes the table of Layouts may make (about 10 layers of five rows): a component with hundreds of layers with spacing
 /// would otherwise spend the run's whole budget on one frame.
-pub const LAYOUT_NODE_CAP: usize = 1_000;
+pub const LAYOUT_NODE_CAP: usize = 400;
 /// Longest value text in a matrix cell.
 const CELL_CHARS: usize = 60;
 
