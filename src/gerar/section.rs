@@ -539,7 +539,8 @@ impl Cv {
     /// The nodes the cell makes: its frame, and what is in it.
     pub(super) fn nodes(&self) -> usize {
         match self {
-            Cv::Val { token, swatch, .. } => 3 + usize::from(token.is_some()) + usize::from(swatch.is_some()),
+            // Without a colour the token and the value are in the cell itself; with one, a square and a column of the two lines.
+            Cv::Val { token, swatch, .. } => usize::from(token.is_some()) + if swatch.is_some() { 4 } else { 2 },
             _ => 2,
         }
     }
@@ -551,11 +552,15 @@ pub(super) fn table_nodes(headers: usize, rows: &[Vec<Cv>]) -> usize {
 }
 
 fn cell(lang: Lang, grid: u64, col: usize, row: usize, fill: Option<&str>) -> Result<u64> {
-    let mut f = FlowSpec::new("Cell", 100.0, "horizontal");
+    cell_in(lang, grid, col, row, fill, "horizontal")
+}
+
+fn cell_in(lang: Lang, grid: u64, col: usize, row: usize, fill: Option<&str>, direction: &str) -> Result<u64> {
+    let mut f = FlowSpec::new("Cell", 100.0, direction);
     f.padding = json!(CELL_PAD);
     f.fill = fill;
-    f.gap = 8.0;
-    f.extra = json!({"sizingH": "fill", "sizingV": "hug", "crossAlign": "center", "gridColumn": col, "gridRow": row, "gridAlignV": "min"});
+    f.gap = if direction == "vertical" { 2.0 } else { 8.0 };
+    f.extra = json!({"sizingH": "fill", "sizingV": "hug", "crossAlign": if direction == "vertical" { "min" } else { "center" }, "gridColumn": col, "gridRow": row, "gridAlignV": "min"});
     flow_frame(lang, grid, f)
 }
 
@@ -599,7 +604,8 @@ pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &
     for (i, row) in rows.iter().enumerate() {
         let gr = 2 + 2 * i;
         for (col, v) in row.iter().enumerate() {
-            let c = cell(lang, grid, col, gr, None)?;
+            let direction = if matches!(v, Cv::Val { swatch: None, .. }) { "vertical" } else { "horizontal" };
+            let c = cell_in(lang, grid, col, gr, None, direction)?;
             match v {
                 Cv::Text(s) => cell_text(lang, c, s, pal::TEXT, false)?,
                 Cv::Bold(s) => cell_text(lang, c, s, pal::TEXT, true)?,
@@ -613,20 +619,29 @@ pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &
     Ok(grid)
 }
 
-/// A value cell: a square of the colour when it is one, and under or beside it the token and the value.
+/// A value cell. With a colour: a square of it (every square has a 1 px border in the `line` colour, so a white one does not vanish)
+/// and a column of the token and the value. Without: the token (when there is one) and the value are in the cell itself.
 fn value_cell(lang: Lang, cell: u64, token: Option<&str>, text: &str, swatch: Option<&(String, bool)>) -> Result<u64> {
-    if let Some((hex, hollow)) = swatch {
-        let props = if *hollow { json!({"stroke": hex, "strokeWeight": 2, "strokeAlign": "inside", "fill": null, "cornerRadius": 3}) } else { json!({"fill": hex, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 3}) };
-        host(lang, "shape.rectangle", &json!({"x": 0, "y": 0, "width": 16, "height": 16, "parent": cell, "name": "Swatch", "select": false, "props": props}))?;
-    }
-    let mut col = FlowSpec::new("Value", 100.0, "vertical");
-    col.gap = 2.0;
-    col.extra = json!({"sizingH": "fill"});
-    let col = flow_frame(lang, cell, col)?;
+    let (tok_parent, value_parent) = match swatch {
+        Some((hex, _alpha)) => {
+            host(
+                lang,
+                "shape.rectangle",
+                &json!({"x": 0, "y": 0, "width": 16, "height": 16, "parent": cell, "name": "Swatch", "select": false,
+                    "props": {"fill": hex, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 3}}),
+            )?;
+            let mut col = FlowSpec::new("Value", 100.0, "vertical");
+            col.gap = 2.0;
+            col.extra = json!({"sizingH": "fill"});
+            let col = flow_frame(lang, cell, col)?;
+            (col, col)
+        }
+        None => (cell, cell),
+    };
     if let Some(tok) = token {
-        cell_text(lang, col, tok, pal::TEXT2, true)?;
+        cell_text(lang, tok_parent, tok, pal::TEXT2, true)?;
     }
-    cell_text(lang, col, text, if token.is_some() { pal::TEXT2 } else { pal::TEXT }, false)
+    cell_text(lang, value_parent, text, if token.is_some() { pal::TEXT2 } else { pal::TEXT }, false)
 }
 
 /// A walk of the layers of an instance (shared by the frames of a run).
