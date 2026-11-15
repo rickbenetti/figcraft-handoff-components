@@ -72,8 +72,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 62446862,
-    "calls": 825
+    "fuel": 61395556,
+    "calls": 807
   },
   "copia-2 / id 3 (Toast variant)": {
     "frames": [
@@ -152,8 +152,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 102474835,
-    "calls": 1278
+    "fuel": 99503241,
+    "calls": 1245
   },
   "carga-v2 / id 3 (Toast variant)": {
     "frames": [
@@ -232,8 +232,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 207013194,
-    "calls": 1278
+    "fuel": 203723962,
+    "calls": 1245
   },
   "carga-v2 / id 194 (Card de carga)": {
     "frames": [
@@ -271,7 +271,7 @@
         "layouts",
         10176.0,
         256.0,
-        5016.0
+        2006.0
       ],
       [
         "tokens",
@@ -294,7 +294,7 @@
     ],
     "section": [
       18304.0,
-      5528.0
+      3715.0
     ],
     "tables": [
       [
@@ -303,13 +303,13 @@
       ],
       [
         "Layouts",
-        110
+        40
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 748461570,
-    "calls": 5388
+    "fuel": 553055466,
+    "calls": 3021
   },
   "ds-base-demo / Button": {
     "frames": [
@@ -402,8 +402,8 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 299541647,
-    "calls": 3762
+    "fuel": 246545333,
+    "calls": 2616
   },
   "ds-base-demo / Card": {
     "frames": [
@@ -486,8 +486,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 339465227,
-    "calls": 3282
+    "fuel": 303625150,
+    "calls": 3018
   },
   "ds-base-demo / Accordion": {
     "frames": [
@@ -570,8 +570,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 129890926,
-    "calls": 1485
+    "fuel": 123043024,
+    "calls": 1425
   },
   "ds-base-demo / Code": {
     "frames": [
@@ -646,8 +646,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 71692971,
-    "calls": 864
+    "fuel": 69916374,
+    "calls": 840
   },
   "ds-base-demo / Icon": {
     "frames": [
@@ -679,7 +679,7 @@
         "variants",
         8192.0,
         256.0,
-        1053.0
+        1406.0
       ],
       [
         "layouts",
@@ -708,7 +708,7 @@
     ],
     "section": [
       18304.0,
-      1565.0
+      1918.0
     ],
     "tables": [
       [
@@ -721,17 +721,21 @@
       ],
       [
         "Name 1",
-        7
+        10
       ],
       [
         "Name 2",
-        7
+        10
+      ],
+      [
+        "Size 1",
+        2
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 142076382,
-    "calls": 1818
+    "fuel": 167928563,
+    "calls": 2157
   },
   "pt-BR / copia-2 / id 32": {
     "frames": [
@@ -806,8 +810,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 63087831,
-    "calls": 834
+    "fuel": 62039293,
+    "calls": 816
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
     "frames": [
@@ -886,8 +890,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 208027364,
-    "calls": 1287
+    "fuel": 204703988,
+    "calls": 1254
   },
   "pt-BR / ds-base-demo / Button": {
     "frames": [
@@ -980,8 +984,8 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 301203865,
-    "calls": 3771
+    "fuel": 248415239,
+    "calls": 2625
   },
   "pt-BR / ds-base-demo / Card": {
     "frames": [
@@ -1064,8 +1068,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 341212145,
-    "calls": 3291
+    "fuel": 305183009,
+    "calls": 3027
   },
   "pt-BR / ds-base-demo / Accordion": {
     "frames": [
@@ -1148,7 +1152,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 131388926,
-    "calls": 1494
+    "fuel": 124768119,
+    "calls": 1434
   }
 }
