@@ -1,4 +1,4 @@
-//! The 0.11 document: one Section for the component, with a frame for each part of the handoff (Cover, Component Master,
+//! The 0.11 document: one Section for the component, with a frame (in ONE ROW, left to right) for each part of the handoff (Cover, Component Master,
 //! Properties, Anatomy, States and Variants, Layouts, Tokens, Changelog and the support components), 1920 px wide, 64 px
 //! apart, with 256 px of room around them inside the Section.
 //!
@@ -23,8 +23,31 @@ pub const USEFUL_W: f64 = FRAME_W - 2.0 * FRAME_PAD;
 /// The room around the frames inside the Section, and the gap between them.
 pub const SECTION_PAD: f64 = 256.0;
 pub const FRAME_GAP: f64 = 64.0;
-/// The Section's width.
-pub const SECTION_W: f64 = FRAME_W + 2.0 * SECTION_PAD;
+/// The frames are in ONE ROW, left to right, all at y = 256: the one of order `i` is at x = 256 + i × (1920 + 64).
+pub const FRAME_COUNT: usize = 9;
+/// The Section's width: 256 + 9 × 1920 + 8 × 64 + 256.
+pub const SECTION_W: f64 = FRAME_COUNT as f64 * FRAME_W + (FRAME_COUNT as f64 - 1.0) * FRAME_GAP + 2.0 * SECTION_PAD;
+/// The room between a Section and the one made below it with "New Section".
+pub const SECTION_BELOW_GAP: f64 = 512.0;
+
+/// The x, inside the Section, of the frame of order `i`.
+pub fn frame_x(i: usize) -> f64 {
+    SECTION_PAD + i as f64 * (FRAME_W + FRAME_GAP)
+}
+
+/// The Section's height: the room around the tallest frame.
+pub fn section_height(tallest: f64) -> f64 {
+    SECTION_PAD + tallest + SECTION_PAD
+}
+
+/// Where "New Section" goes: at the x of the reference Section, below everything on the page that stands in its column (that
+/// is, whose horizontal extent meets the reference's) at or under its top, plus 512. `boxes` are the page's top-level boxes as
+/// (x, y, w, h); the reference is among them.
+pub fn below_position(reference: (f64, f64, f64, f64), boxes: &[(f64, f64, f64, f64)]) -> (f64, f64) {
+    let (rx, ry, rw, rh) = reference;
+    let bottom = boxes.iter().filter(|(x, y, w, h)| *x < rx + rw && rx < *x + *w && *y + *h > ry).map(|(_, y, _, h)| y + h).fold(ry + rh, f64::max);
+    (rx, bottom + SECTION_BELOW_GAP)
+}
 /// The mark of the Section on the page (the value is the id of the component), of a frame's section, and of the set of approval pills.
 pub const SECTION_MARK: &str = "handoff-report-section";
 pub const NAME_MARK: &str = "handoff-section";
@@ -108,6 +131,11 @@ impl Sec {
             Sec::Changelog => Key::SecChangelog,
             Sec::Kit => Key::SecKit,
         }
+    }
+
+    /// The place of the frame in the row (0 to 8).
+    pub fn index(self) -> usize {
+        Sec::ALL.iter().position(|s| *s == self).unwrap_or(0)
     }
 
     pub fn from_key(key: &str) -> Option<Sec> {
@@ -404,6 +432,7 @@ fn has_legacy_frame(page: &PageInfo, key: &str) -> bool {
 pub struct Existing {
     pub id: u64,
     pub sec: Sec,
+    pub x: f64,
     pub y: f64,
     pub h: f64,
 }
@@ -419,7 +448,7 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
         if out.iter().any(|e| e.sec == sec) {
             continue;
         }
-        out.push(Existing { id, sec, y: b.y - sb.y, h: b.h });
+        out.push(Existing { id, sec, x: b.x - sb.x, y: b.y - sb.y, h: b.h });
     }
     Ok((sb, out))
 }
@@ -435,11 +464,11 @@ fn read_approval_set(lang: Lang, kit: u64) -> Result<Option<u64>> {
 // ---------------------------------------------------------------------------------------------
 
 /// A frame of the Section, at `y` inside it (`x` is the room around): 1920 wide, padding 48, auto layout, hug.
-fn new_frame(lang: Lang, section: u64, y: f64, name: &str, comp_key: &str, sec: Sec) -> Result<u64> {
+fn new_frame(lang: Lang, section: u64, name: &str, comp_key: &str, sec: Sec) -> Result<u64> {
     let created = host(
         lang,
         "frame.create",
-        &json!({"parent": section, "x": SECTION_PAD, "y": y, "width": FRAME_W, "height": 200, "name": name, "select": false,
+        &json!({"parent": section, "x": frame_x(sec.index()), "y": SECTION_PAD, "width": FRAME_W, "height": 200, "name": name, "select": false,
             "props": {"fill": pal::FRAME, "layout": "vertical", "gap": 32, "padding": FRAME_PAD, "crossAlign": "min", "sizingH": "fixed", "sizingV": "hug", "cornerRadius": TABLE_RADIUS, "clip": false,
                 "pluginData": {REPORT_KEY: comp_key, NAME_MARK: sec.key()}}}),
     )?;
@@ -785,16 +814,25 @@ pub fn generate(input: Input) -> Result<Value> {
     if first_run && has_legacy_frame(&page, &comp_key) {
         warnings.push(Warn::LegacyDoc);
     }
+    // "New Section" goes BELOW the reference Section (the first of the component), at the same x.
+    let below = match found {
+        Some(id) if beside => {
+            let boxes: Vec<(f64, f64, f64, f64)> = page.children.iter().filter_map(bounds).map(|b| (b.x, b.y, b.w, b.h)).collect();
+            let reference = page.children.iter().find(|c| c.get("id").and_then(Value::as_u64) == Some(id)).and_then(bounds).map(|b| (b.x, b.y, b.w, b.h));
+            reference.map(|r| below_position(r, &boxes))
+        }
+        _ => None,
+    };
     let right = page.children.iter().filter_map(bounds).map(Rect::right).fold(None, |r: Option<f64>, v| Some(r.map_or(v, |r| r.max(v))));
     let calls0 = HOST_CALLS.load(Ordering::Relaxed);
-    // 3. The Section: the one that is there, or a new one right of everything (512 px beyond it, at y = 0).
+    // 3. The Section: the one that is there, or a new one right of everything (512 px beyond it, at y = 0), or below the first one.
     let (section, sx, sy, existing, created) = match section_id {
         Some(id) => {
             let (sb, frames) = read_frames(lang, id)?;
             (id, sb.x, sb.y, frames, false)
         }
         None => {
-            let (x, y) = (right.map_or(0.0, |r| r + GAP_RIGHT), 0.0);
+            let (x, y) = below.unwrap_or((right.map_or(0.0, |r| r + GAP_RIGHT), 0.0));
             let made = host(
                 lang,
                 "node.create",
@@ -832,7 +870,7 @@ pub fn generate(input: Input) -> Result<Value> {
         kit_frame = Some((e.id, "kept"));
     } else {
         let kit_name = tf(lang, Key::SectionFrameName, &[("title", t(lang, Sec::Kit.title_key())), ("name", &name)]);
-        let frame = new_frame(lang, section, SECTION_PAD, &kit_name, &comp_key, Sec::Kit)?;
+        let frame = new_frame(lang, section, &kit_name, &comp_key, Sec::Kit)?;
         ctx.pills = Some(build_kit(&ctx, frame)?);
         kit_frame = Some((frame, "created"));
     }
@@ -844,7 +882,7 @@ pub fn generate(input: Input) -> Result<Value> {
         }
     }
     // 7. The frames, in order.
-    let mut y = SECTION_PAD;
+    let mut tallest: f64 = 0.0;
     let mut report: Vec<Value> = Vec::new();
     let mut master_moved: Option<u64> = None;
     for sec in Sec::ALL {
@@ -858,7 +896,7 @@ pub fn generate(input: Input) -> Result<Value> {
             if sec != Sec::Master && let Some(e) = old(sec) {
                 host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
             }
-            let frame = new_frame(lang, section, y, &frame_name, &comp_key, sec)?;
+            let frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
             match sec {
                 Sec::Cover => build_cover(&ctx, frame)?,
                 Sec::Changelog => build_changelog(&ctx, frame)?,
@@ -880,21 +918,18 @@ pub fn generate(input: Input) -> Result<Value> {
         } else {
             continue;
         };
-        // A frame that is not where it should be (kept, or the support frame made at the top) moves to its place.
-        let at = match (sec, action) {
-            (Sec::Kit, "created" | "replaced") => SECTION_PAD,
-            (_, "created" | "replaced") => y,
-            _ => old(sec).map_or(y, |e| e.y),
-        };
-        if (at - y).abs() > 0.5 {
-            host(lang, "node.set", &json!({"ids": [id], "props": {"y": y}}))?;
+        // A frame that is not where it should be (a kept one from an older layout) moves to its place in the row.
+        let (want_x, want_y) = (frame_x(sec.index()), SECTION_PAD);
+        let (at_x, at_y) = if action == "kept" { old(sec).map_or((want_x, want_y), |e| (e.x, e.y)) } else { (want_x, want_y) };
+        if (at_x - want_x).abs() > 0.5 || (at_y - want_y).abs() > 0.5 {
+            host(lang, "node.set", &json!({"ids": [id], "props": {"x": want_x, "y": want_y}}))?;
         }
-        report.push(json!({"key": sec.key(), "id": id, "y": y, "h": h, "action": action}));
-        y += h + FRAME_GAP;
+        tallest = tallest.max(h);
+        report.push(json!({"key": sec.key(), "id": id, "x": want_x, "y": want_y, "h": h, "action": action}));
     }
-    // 8. The Section is as tall as its frames and the room around them (`y` already holds the last gap).
-    let section_h = (y - FRAME_GAP + SECTION_PAD).max(2.0 * SECTION_PAD);
-    host(lang, "node.set", &json!({"ids": [section], "props": {"height": section_h}}))?;
+    // 8. The Section is as wide as the row and as tall as its tallest frame and the room around it.
+    let section_h = section_height(tallest);
+    host(lang, "node.set", &json!({"ids": [section], "props": {"width": SECTION_W, "height": section_h}}))?;
     let export_result = if created {
         match call("export.add", &json!({"ids": [section], "setting": {"size": "1x", "suffix": "", "format": "svg"}})) {
             Ok(_) => "ok".to_string(),
@@ -906,7 +941,7 @@ pub fn generate(input: Input) -> Result<Value> {
     warnings.sort_by_key(|w| Warn::ALL.iter().position(|x| x == w));
     Ok(json!({
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
-        "frame_size": {"w": SECTION_W}, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
+        "frame_size": {"w": SECTION_W}, "view_w": 2.0 * FRAME_W + FRAME_GAP, "tallest": tallest, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
         "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
@@ -966,22 +1001,42 @@ mod tests {
     }
 
     #[test]
-    fn the_section_is_as_tall_as_its_frames_plus_the_gaps_plus_the_room_around() {
-        // 9 frames: 256 + sum + 64 × 8 + 256.
-        let hs = [100.0, 200.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0];
-        let mut y = SECTION_PAD;
-        for h in hs {
-            y += h + FRAME_GAP;
+    fn the_frames_are_in_one_row_at_y_256_with_64_between_them() {
+        let xs: Vec<f64> = (0..FRAME_COUNT).map(frame_x).collect();
+        assert_eq!(xs, [256.0, 2240.0, 4224.0, 6208.0, 8192.0, 10176.0, 12160.0, 14144.0, 16128.0]);
+        assert!(xs.windows(2).all(|w| w[1] - w[0] - FRAME_W == FRAME_GAP));
+        assert_eq!(xs[8] + FRAME_W + SECTION_PAD, SECTION_W);
+        assert_eq!(SECTION_W, 18304.0);
+        assert_eq!(SECTION_W, 256.0 + 9.0 * 1920.0 + 8.0 * 64.0 + 256.0);
+        for (i, s) in Sec::ALL.iter().enumerate() {
+            assert_eq!(s.index(), i);
         }
-        let section_h = y - FRAME_GAP + SECTION_PAD;
-        assert_eq!(section_h, SECTION_PAD + hs.iter().sum::<f64>() + FRAME_GAP * 8.0 + SECTION_PAD);
+    }
+
+    #[test]
+    fn the_section_is_as_tall_as_its_tallest_frame_plus_the_room_around() {
+        assert_eq!(section_height(1359.0), 256.0 + 1359.0 + 256.0);
+        assert_eq!(section_height(0.0), 512.0);
+    }
+
+    #[test]
+    fn a_new_section_goes_below_everything_in_the_column_of_the_reference_and_not_beside_other_components() {
+        let button = (3552.0, 0.0, SECTION_W, 4000.0);
+        let card = (3552.0 + SECTION_W + 512.0, 0.0, SECTION_W, 3500.0);
+        let loose = (0.0, 0.0, 1000.0, 5000.0); // a frame to the left, not in the column
+        // Below the Button alone: its bottom + 512, same x.
+        assert_eq!(below_position(button, &[button, card, loose]), (3552.0, 4512.0));
+        // A second Button Section already below: the next one goes under that one.
+        let second = (3552.0, 4512.0, SECTION_W, 4200.0);
+        assert_eq!(below_position(button, &[button, card, loose, second]), (3552.0, 4512.0 + 4200.0 + 512.0));
+        // The Card's column is its own.
+        assert_eq!(below_position(card, &[button, card, loose, second]), (card.0, 3500.0 + 512.0));
     }
 
     #[test]
     fn the_columns_of_the_table_fill_the_useful_width() {
         assert_eq!(USEFUL_W, 1824.0);
         assert_eq!(CHANGELOG_COLS.iter().sum::<f64>(), USEFUL_W);
-        assert_eq!(SECTION_W, 2432.0);
     }
 
     #[test]

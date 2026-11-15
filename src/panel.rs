@@ -410,7 +410,7 @@ fn show_start(lang: Lang, out: &Value) -> Value {
         let view = host(lang, "view.get", &json!({}))?;
         let (vw, vh) = (num(&view, "vw").unwrap_or(0.0), num(&view, "vh").unwrap_or(0.0));
         let (x, y) = (num(out, "x").unwrap_or(0.0), num(out, "y").unwrap_or(0.0));
-        let w = out.get("frame_size").and_then(|f| num(f, "w")).unwrap_or(0.0);
+        let w = num(out, "view_w").or_else(|| out.get("frame_size").and_then(|f| num(f, "w"))).unwrap_or(0.0);
         let (zoom, cx, cy) = view_for(vw, vh, x, y, w);
         host(lang, "view.set", &json!({"zoom": zoom, "cx": cx, "cy": cy}))?;
         let after = host(lang, "view.get", &json!({}))?;
