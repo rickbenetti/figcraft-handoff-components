@@ -371,7 +371,7 @@ pub(super) fn pick_stage_for(mode: StageMode, variants: &[Judged], set_fill: Opt
 }
 
 /// The most variants, and the most layers in all of them, the automatic stage looks at (each layer is a host call).
-const MAX_STAGE_VARIANTS: usize = 80;
+pub const MAX_STAGE_VARIANTS: usize = 30;
 const MAX_STAGE_NODES: usize = 1_200;
 
 /// The layers under `root` (itself first), as far as `budget` allows, with only what the stage's colours need: their paints, their
@@ -393,13 +393,45 @@ fn colour_nodes(lang: Lang, root: u64, budget: usize) -> Result<Vec<Value>> {
 }
 
 /// The stage of the Component Master for `target` in `mode`.
-fn choose_stage(lang: Lang, target: &Picked, mode: StageMode) -> Result<StageChoice> {
+/// The variants the automatic stage reads: all of them when there are at most `max`; otherwise the default variant and, for each
+/// option of each axis, the variant with that option and the others at the default (one per value of each axis), cut evenly when
+/// even those are more than `max`. Every colour a single property can bring is in the sample; a colour that exists only in a
+/// combination of two properties may not be.
+pub fn stage_sample(info: &SetInfo, default: &Pairs, max: usize) -> Vec<u64> {
+    let all: Vec<u64> = info.variants.iter().map(|v| v.id).collect();
+    if all.len() <= max {
+        return all;
+    }
+    let mut ids: Vec<u64> = info.find(default).map(|v| v.id).into_iter().collect();
+    for axis in variants::axes(info, default, &[]) {
+        for opt in axis.options {
+            if let Some(v) = opt.variant
+                && !ids.contains(&v.id)
+            {
+                ids.push(v.id);
+            }
+        }
+    }
+    if ids.len() > max {
+        let step = ids.len() as f64 / max as f64;
+        ids = (0..max).map(|i| ids[(i as f64 * step) as usize]).collect();
+    }
+    ids
+}
+
+fn choose_stage(lang: Lang, target: &Picked, mode: StageMode, sampled: &std::cell::Cell<Option<(usize, usize)>>) -> Result<StageChoice> {
     match mode {
         StageMode::Light => Ok(StageChoice { stage: Stage::Light, lowest: None, auto: false }),
         StageMode::Dark => Ok(StageChoice { stage: Stage::Dark, lowest: None, auto: false }),
         StageMode::Auto => {
             let ids: Vec<u64> = match &target.set {
-                Some(s) => s.info.variants.iter().map(|v| v.id).take(MAX_STAGE_VARIANTS).collect(),
+                Some(s) => {
+                    let ids = stage_sample(&s.info, &s.default, MAX_STAGE_VARIANTS);
+                    if ids.len() < s.info.variants.len() {
+                        sampled.set(Some((ids.len(), s.info.variants.len())));
+                    }
+                    ids
+                }
                 None => vec![target.component],
             };
             let set_fill = set_backdrop(lang, target)?;
@@ -976,9 +1008,10 @@ pub fn generate(input: Input) -> Result<Value> {
         ctx.pills = Some(build_kit(&ctx, frame)?);
         kit_frame = Some((frame, "created"));
     }
-    // 6. The stage of the Master, over every variant, when the Master is made now.
+    // 6. The stage of the Master, over every variant (a sample of them in a big set), when the Master is made now.
+    let stage_sampled: std::cell::Cell<Option<(usize, usize)>> = std::cell::Cell::new(None);
     if will_make(Sec::Master) {
-        ctx.stage = choose_stage(lang, &target, page.settings.stage_mode())?;
+        ctx.stage = choose_stage(lang, &target, page.settings.stage_mode(), &stage_sampled)?;
         if ctx.stage.too_low() {
             warnings.push(Warn::NoStage);
         }
@@ -1066,7 +1099,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
         "frame_size": {"w": SECTION_W}, "view_w": 2.0 * FRAME_W + FRAME_GAP, "tallest": tallest, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
-        "stage": {"name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
+        "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
         "failed": failed, "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
@@ -1218,6 +1251,29 @@ mod tests {
         let pick = pick_union(&quiet, None);
         assert_eq!(pick.stage, Stage::Light);
         assert!(near(pick.lowest, 15.656), "{pick:?}");
+    }
+
+    #[test]
+    fn a_big_set_is_sampled_one_variant_per_value_of_each_axis_and_a_small_one_is_read_whole() {
+        let names: Vec<String> = ["Primary", "Secondary", "Outline", "Destructive"]
+            .iter()
+            .flat_map(|t| ["Small", "Medium", "Large"].iter().flat_map(move |s| ["Enabled", "Hover", "Pressed", "Disabled", "Focus"].iter().map(move |st| format!("Type={t}, Size={s}, State={st}"))))
+            .collect();
+        let variants: Vec<Variant> = names.iter().enumerate().map(|(i, n)| Variant { id: 100 + i as u64, name: n.clone(), w: 10.0, h: 10.0 }).collect();
+        let info = SetInfo::new(1, "Button".into(), variants);
+        let default = variants::parse_name("Type=Primary, Size=Medium, State=Enabled");
+        assert_eq!(info.variants.len(), 60);
+        // 60 variants > 30: the default plus 3 + 2 + 4 more = 10.
+        let sample = stage_sample(&info, &default, MAX_STAGE_VARIANTS);
+        assert_eq!(sample.len(), 10);
+        let name_of = |id: u64| info.variants.iter().find(|v| v.id == id).map(|v| v.name.clone()).unwrap_or_default();
+        assert_eq!(name_of(sample[0]), "Type=Primary, Size=Medium, State=Enabled");
+        assert!(sample.iter().any(|id| name_of(*id) == "Type=Outline, Size=Medium, State=Enabled"));
+        assert!(sample.iter().any(|id| name_of(*id) == "Type=Primary, Size=Medium, State=Focus"));
+        // At most `max`: read whole.
+        assert_eq!(stage_sample(&info, &default, 60).len(), 60);
+        // Even the axes' variants may be too many: cut evenly to `max`.
+        assert_eq!(stage_sample(&info, &default, 5).len(), 5);
     }
 
     #[test]
