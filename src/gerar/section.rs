@@ -3,8 +3,10 @@
 //! apart, with 256 px of room around them inside the Section.
 //!
 //! The first generation makes everything. A rerun replaces only the frames "Update" names (the five that are drawn from the
-//! component); Cover, Component Master, Changelog and the support components are made once, never replaced, and made again
-//! only when they were deleted by hand. "New Section" makes another Section beside the first, with every frame but the Master.
+//! component); Cover, Changelog and the support components are made once, never replaced, and made again only when they were
+//! deleted by hand. The Component Master is made again on every run (so a new version of the plugin reaches a document that
+//! exists), with the original component moved out of the old frame and into the new one. "New Section" makes another Section
+//! beside the first, with every frame but the Master.
 //!
 //! In this step Cover, Component Master, Changelog and the support components have their content; the other five frames carry
 //! their title and a line that says when they are made.
@@ -41,11 +43,11 @@ pub mod pal {
     pub const LINE: &str = "#D4D4D8";
     pub const TEXT: &str = "#1C1C1F";
     pub const TEXT2: &str = "#56565C";
-    pub const GUIDE: &str = "#74747B";
+    pub const GUIDE: &str = "#6E6E75";
     pub const OK: &str = "#167A4C";
     pub const COND: &str = "#9A6410";
     pub const BAD: &str = "#C13B30";
-    pub const PEND: &str = "#74747B";
+    pub const PEND: &str = "#6E6E75";
     /// The symbol inside a state circle.
     pub const ON_STATE: &str = "#FFFFFF";
 }
@@ -112,9 +114,10 @@ impl Sec {
         Sec::ALL.into_iter().find(|s| s.key() == key)
     }
 
-    /// Made once, never replaced by a rerun, made again only when it was deleted by hand.
+    /// Made once, never replaced by a rerun, made again only when it was deleted by hand. (The Component Master is not one of
+    /// them: it is made again on every run.)
     pub fn permanent(self) -> bool {
-        matches!(self, Sec::Cover | Sec::Master | Sec::Changelog | Sec::Kit)
+        matches!(self, Sec::Cover | Sec::Changelog | Sec::Kit)
     }
 }
 
@@ -514,6 +517,8 @@ struct Ctx<'a> {
     /// The set of approval pills (its default variant is Estado=pendente).
     pills: Option<u64>,
     stage: StageChoice,
+    /// How many areas of the Cover's pills did not read back as written and were written again.
+    area_retries: std::cell::Cell<u32>,
 }
 
 fn bold() -> Value {
@@ -576,6 +581,23 @@ fn state_circle(lang: Lang, parent: u64, a: Approval) -> Result<u64> {
     Ok(id)
 }
 
+/// Write the area of a pill and read it back; written once more when it did not take (the answer says how many times).
+fn write_area(c: &Ctx, inst: u64, property: &str, value: &str) -> Result<()> {
+    let lang = c.lang;
+    for attempt in 0..2 {
+        host(lang, "instance.setProperties", &json!({"ids": [inst], "properties": {property: value}}))?;
+        let now = host(lang, "component.properties", &json!({"id": inst}))?;
+        let read = now.get("properties").and_then(Value::as_array).into_iter().flatten().find(|p| p.get("name").and_then(Value::as_str) == Some(property)).and_then(|p| p.get("value")).and_then(Value::as_str);
+        if read == Some(value) {
+            return Ok(());
+        }
+        if attempt == 0 {
+            c.area_retries.set(c.area_retries.get() + 1);
+        }
+    }
+    Ok(())
+}
+
 fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
     let lang = c.lang;
     // 1. Overview: the small label, the big title (the component's name) and the two chips.
@@ -609,7 +631,7 @@ fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
         for role in [Key::RoleDesigner, Key::RoleEngineering, Key::RoleQa, Key::RoleWriters, Key::RolePo, Key::RolePm] {
             let made = host(lang, "instance.create", &json!({"component": set, "parent": grid}))?;
             let inst = id_of(lang, &made, "instance.create")?;
-            host(lang, "instance.setProperties", &json!({"ids": [inst], "properties": {area: t(lang, role)}}))?;
+            write_area(c, inst, area, t(lang, role))?;
         }
     }
     // 5. The legend of the four states: drawn, not components.
@@ -784,9 +806,9 @@ pub fn generate(input: Input) -> Result<Value> {
     };
     let old = |sec: Sec| existing.iter().find(|e| e.sec == sec);
     // 4. What is made. The first generation and a new Section make everything (a new Section: not the Master); a rerun replaces
-    // what "Update" names and makes again any permanent frame that is missing. The Master moves the original component, so
-    // it is made only when no other Section of the component holds it.
-    let master_allowed = !beside && old(Sec::Master).is_none() && !other_has_master(lang, &page, &comp_key, section_id)?;
+    // what "Update" names and makes again any permanent frame that is missing. The Master is made again on every run when this
+    // Section has one; a Section that has none makes it only when no other Section of the component holds the original.
+    let master_allowed = !beside && (old(Sec::Master).is_some() || !other_has_master(lang, &page, &comp_key, section_id)?);
     let will_make = |sec: Sec| -> bool {
         match (old(sec), sec) {
             (_, Sec::Master) => master_allowed,
@@ -798,7 +820,7 @@ pub fn generate(input: Input) -> Result<Value> {
     };
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
     // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
-    let mut ctx = Ctx { lang, target: &target, pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false } };
+    let mut ctx = Ctx { lang, target: &target, pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0) };
     let kit_frame: Option<(u64, &str)>;
     let mut set_added = false;
     if let Some(e) = old(Sec::Kit) {
@@ -832,7 +854,8 @@ pub fn generate(input: Input) -> Result<Value> {
         } else if will_make(sec) {
             let frame_name = if sec == Sec::Master { tf(lang, Key::MasterFrameName, &[("name", &name)]) } else { tf(lang, Key::SectionFrameName, &[("title", t(lang, sec.title_key())), ("name", &name)]) };
             let replaced = old(sec).is_some();
-            if let Some(e) = old(sec) {
+            // The old Master is deleted only AFTER the original component is in the new one (deleting a frame deletes what is in it).
+            if sec != Sec::Master && let Some(e) = old(sec) {
                 host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
             }
             let frame = new_frame(lang, section, y, &frame_name, &comp_key, sec)?;
@@ -841,6 +864,9 @@ pub fn generate(input: Input) -> Result<Value> {
                 Sec::Changelog => build_changelog(&ctx, frame)?,
                 Sec::Master => {
                     let (moved, wide) = build_master(&ctx, frame)?;
+                    if let Some(e) = old(sec) {
+                        host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
+                    }
                     master_moved = Some(moved);
                     if wide {
                         warnings.push(Warn::WideMaster);
@@ -883,7 +909,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": SECTION_W}, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "pill_set": ctx.pills, "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
@@ -906,9 +932,9 @@ mod tests {
     }
 
     #[test]
-    fn four_frames_are_made_once_and_the_other_five_are_the_ones_a_rerun_replaces() {
+    fn three_frames_are_made_once_and_the_other_five_are_the_ones_a_rerun_replaces() {
         let permanent: Vec<Sec> = Sec::ALL.into_iter().filter(|s| s.permanent()).collect();
-        assert_eq!(permanent, [Sec::Cover, Sec::Master, Sec::Changelog, Sec::Kit]);
+        assert_eq!(permanent, [Sec::Cover, Sec::Changelog, Sec::Kit], "the Master is not among them: it is made again on every run");
         assert_eq!(Update::All.sections(), [Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens]);
         assert!(Update::ALL.iter().all(|u| u.sections().iter().all(|s| !s.permanent())), "no choice of Update replaces a permanent frame");
     }
@@ -931,7 +957,7 @@ mod tests {
         assert_eq!(
             all,
             [
-                ("Estado=pendente".to_string(), "…", "#74747B"),
+                ("Estado=pendente".to_string(), "…", "#6E6E75"),
                 ("Estado=aprovado".to_string(), "✓", "#167A4C"),
                 ("Estado=ressalvas".to_string(), "!", "#9A6410"),
                 ("Estado=reprovado".to_string(), "✕", "#C13B30"),

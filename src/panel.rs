@@ -517,7 +517,7 @@ mod tests {
         assert_eq!(
             signature(&spec(Lang::En, &Form::defaults(), &Message::Idle)),
             [
-                "note:THIS PAGE", "lang", "stage", "note:UPDATE", "update", "note:Cover, Component Master and Changelog are created once and are not updated here.",
+                "note:THIS PAGE", "lang", "stage", "note:UPDATE", "update", "note:Cover, Changelog and Support are made once, not updated here. Component Master is remade on every Generate.",
                 "generate", "new_section", "defaults", "close", "note:Select a component, set or variant and press Generate."
             ]
         );
@@ -525,7 +525,7 @@ mod tests {
         assert_eq!(
             signature(&spec(Lang::Pt, &pt, &Message::Done("Botão de teste".into()))),
             [
-                "note:ESTA PÁGINA", "lang", "stage", "note:ATUALIZAR", "update", "note:Cover, Component Master e Changelog são criados uma vez e não são atualizados aqui.",
+                "note:ESTA PÁGINA", "lang", "stage", "note:ATUALIZAR", "update", "note:Cover, Changelog e Apoio são criados uma vez e não são atualizados aqui. O Component Master é refeito a cada Gerar.",
                 "generate", "new_section", "defaults", "close", "note:✔ Documentação gerada: Botão de teste."
             ]
         );
@@ -656,6 +656,14 @@ mod tests {
         // Usable heights, minus about 52 for the menu bar and the title: 1366×768 at 125% is 614 → 562, 1920×1080 at 125% is 864 → 812
         // and at 150% is 720 → 668. The panel fits all three with room.
         assert!(worst <= 562.0);
+    }
+
+    #[test]
+    fn the_note_under_update_takes_at_most_three_lines() {
+        for lang in [Lang::En, Lang::Pt] {
+            let n = t(lang, Key::PanelUpdateNote).chars().count();
+            assert!(n <= 3 * 39, "{n} characters: {}", t(lang, Key::PanelUpdateNote));
+        }
     }
 
     #[test]

@@ -257,7 +257,7 @@
   "UpdAnatomy": "Anatomy only",
   "UpdVariants": "States and variants only",
   "UpdLayouts": "Layouts only",
-  "PanelUpdateNote": "Cover, Component Master and Changelog are created once and are not updated here.",
+  "PanelUpdateNote": "Cover, Changelog and Support are made once, not updated here. Component Master is remade on every Generate.",
   "PanelNewSection": "New Section",
   "PanelWarnNoStage": "No stage suits every variant: change it in Stage.",
   "SecKit": "Support components",
