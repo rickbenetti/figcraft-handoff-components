@@ -10,8 +10,9 @@ a field's event comes first, so the button already sees the new value. This scri
      selection is the component set / component (it lives in the Component Master now, not the frame).
   3. Nothing selected: refused with a note, nothing in the document. A selection that is not a component: refused.
   4. The stage typed, then the button: saved on the page on the first click; Restore defaults puts language and stage back.
-  5. "Update": a rerun replaces only the frames it names (Tokens only: one frame); the Cover, the Master, the Changelog and the
-     support components keep their ids; "New Section" makes a second Section without a Master and leaves the first one alone.
+  5. "Update": a rerun replaces only the frames it names (Tokens only: one frame) and the Component Master, which is remade
+     on every run; the Cover, the Changelog and the support components keep their ids; "New Section" makes a second Section
+     without a Master and leaves the first one alone.
   6. A loose 0.10.0 documentation (a frame with the old mark and no Section) is left alone and the panel says so.
   7. The panel has the same controls and labels before and after a document and a refusal.
   8. A forced error (an instruction budget too small for the callback): everything is rolled back.
@@ -155,7 +156,7 @@ def main():
         r = run(copia, [select(32), generate(), event("generate"), select(32), generate(), event("update", "Tokens only"), event("generate")], tmp)
         first, second = {f["key"]: f for f in output(r[2])["frames"]}, {f["key"]: f for f in output(r[6])["frames"]}
         acts = {k: v["action"] for k, v in second.items()}
-        check([k for k, a in acts.items() if a == "replaced"] == ["tokens"] and all(first[k]["id"] == second[k]["id"] for k in ("cover", "master", "changelog", "kit")), "Tokens only: one frame replaced; Cover, Master, Changelog and the support frame keep their ids", str(acts))
+        check([k for k, a in acts.items() if a == "replaced"] == ["master", "tokens"] and all(first[k]["id"] == second[k]["id"] for k in ("cover", "changelog", "kit")) and first["master"]["id"] != second["master"]["id"], "Tokens only: Tokens and the Master (remade on every run) are replaced; Cover, Changelog and the support frame keep their ids", str(acts))
         r = run(copia, [select(32), generate(), event("generate"), select(32), generate(), event("new_section"), find(EN), {"command": "node.find", "params": {"type": "section", "limit": 5}}], tmp)
         out = output(r[5])
         keys = [f["key"] for f in out["frames"]]
