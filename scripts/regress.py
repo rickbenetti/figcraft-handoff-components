@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Regression net for Handoff Components: runs `generate` headless on a fixed set of cases and
-compares what comes out (summary line, audited lines, sections, instances, the Anatomy's blocks, badges and counts, the variant rows' delta lines, fuel) with
-tests/baseline.json. `--update [text]` rewrites the baseline from the current build (only the cases whose name
+"""Regression net for Handoff Components (0.11): runs `generate` headless on a fixed set of cases and compares what comes out
+with tests/baseline.json: the frames of the Section (key, x, y, height), the Section's size, the rows of each table (Properties,
+Anatomy, the matrix of each variant axis, Layouts), the warnings, the frames that failed, and fuel and host calls (5% tolerance).
+It records no ids and no texts. `--update [text]` rewrites the baseline from the current build (only the cases whose name
 contains `text`, when given; the other entries are kept). `--dump FILE` writes the results to FILE and compares nothing.
-`--private` runs only the cases in tests/private/ (a folder git ignores) and compares them with
-tests/private/baseline-private.json; without the folder it says so and exits 0.
+`--baseline FILE` compares with another baseline file. `--private` runs only the cases in tests/private/ (a folder git ignores) and
+compares them with tests/private/baseline-private.json; without the folder it says so and exits 0. A private baseline written by
+an older version (without the "frames" key) is reported as old: regenerate it with `scripts/regress.sh --private --update`.
 
-The cases named "pt-BR / ..." run the same way with the language set to pt-BR in the parameters (their summary,
-deltas and block titles are in Portuguese). The cases without that prefix run in English (the default) and are the
-net that the English report does not change.
+The cases named "pt-BR / ..." run the same way with the language set to pt-BR in the parameters.
 
 The DS Base Demo cases run on demo/ds-base-demo.figcraft and find each component BY NAME every time (never by a fixed id).
 Everything is written to a temporary folder (never over a fixture)."""
@@ -22,9 +22,7 @@ BASELINE = os.path.join(ROOT, "tests/baseline.json")
 PRIVATE = os.path.join(ROOT, "tests/private")
 BASELINE_PRIVATE = os.path.join(PRIVATE, "baseline-private.json")
 PID = "me.benetti.handoff-components"
-# What every documentation must carry, short or tall: one SVG export at 1x (no suffix), and no note about a height rule.
-EXPECTED_EXPORT = {"output": {"format": "svg", "size": "1x", "result": "ok"}, "settings": [{"format": "svg", "size": {"by": "scale", "value": 1.0}, "suffix": ""}], "note_texts": 0}
-FUEL_TOLERANCE = 0.15
+FUEL_TOLERANCE = 0.05
 CLI = os.environ.get("FIGCRAFT_CLI", "figcraft-cli")
 
 # name: (file, id of the layer to select, or name of the top-level component/set to look up)
@@ -108,43 +106,16 @@ def run_case(src, layer, tmp, n, lang=None):
     if not run.get("ok"):
         return {"error": (run.get("error") or p.stderr or "no output")[:300]}
     o = run["result"]["output"]
-    frame = o["frame"]
-    # Sections are the report's frames named "... section" and "Axis: ...".
-    steps = [
-        {"command": "node.find", "params": {"root": frame, "type": "frame", "name": "section", "limit": 1000}},
-        {"command": "node.find", "params": {"root": frame, "type": "frame", "name": "Axis:", "limit": 1000}},
-    ]
-    json.dump(steps, open(script, "w"))
-    steps += [
-        {"command": "node.get", "params": {"id": frame, "fields": ["exports"]}},
-        {"command": "node.find", "params": {"root": frame, "type": "text", "text": "px, so its PNG", "limit": 10}},
-        {"command": "node.find", "params": {"root": frame, "type": "text", "text": "px de altura, ent", "limit": 10}},
-    ]
-    json.dump(steps, open(script, "w"))
-    q = cli(["run", "--in", out, "--out", out + ".q", script])
-    found = [json.loads(l) for l in q.stdout.splitlines() if l.startswith("{")]
-    exports = found[2]["result"]["exports"] if len(found) > 2 and found[2].get("ok") else None
-    note_texts = sum(f["result"]["total"] for f in found[3:5] if f.get("ok"))
-    sections = sum(f["result"]["total"] for f in found[:2] if f.get("ok"))
-    instances = 1 + (1 if o.get("spacing") else 0) + ((o.get("axes") or {}).get("rows") or 0)
     return {
-        "summary": o["summary"],
-        "lines": o["rows"]["in_table"],
-        "sections": sections,
-        "instances": instances,
+        "frames": [[f["key"], f["x"], f["y"], f["h"]] for f in o["frames"]],
+        "section": [o["section_size"]["w"], o["section_size"]["h"]],
+        "tables": [[t["name"], t["rows"]] for t in o["tables"]],
+        "warnings": o["warnings"],
+        "failed": o["failed"],
         "fuel": run["result"]["fuel"],
-        # Not in the baseline: the same for every case (see EXPECTED_EXPORT).
-        "export": {"output": {k: o["export"].get(k) for k in ("format", "size", "result")}, "settings": exports, "note_texts": note_texts},
-        # The variant axes: for each row, the lines of what it changes from the default (the default row has none).
-        "deltas": {st["name"]: st.get("deltas", []) for st in (o.get("axes") or {}).get("stages", [])},
-        # The Anatomy: the legend's blocks in order (title, number of the badge or null), the numbers of the
-        # badges on the stage, the "xN" counts and what was left without a number.
-        "anatomy": {
-            "blocks": [[b["title"], b["badge"]] for b in o.get("anatomy_blocks", [])],
-            "badges": [m["n"] for m in o.get("badge_info", [])],
-            "multiples": {b["title"]: b["count"] for b in o.get("anatomy_blocks", []) if b["count"] > 1},
-            "unnumbered": o.get("unnumbered_layers", 0),
-        },
+        "calls": run["result"]["calls"],
+        # Not in the baseline: the Section is born with one SVG export.
+        "export": o["export"],
     }
 
 
@@ -159,6 +130,8 @@ def main():
             only = args[k + 1]
     dump = args[args.index("--dump") + 1] if "--dump" in args else None
     cases, baseline = {**{k: (*v, None) for k, v in CASES.items()}, **PT_CASES}, BASELINE
+    if "--baseline" in args:
+        baseline = args[args.index("--baseline") + 1]
     if private:
         if not os.path.isdir(PRIVATE):
             print("tests/private/ does not exist: nothing to run (that folder is not part of the repository).")
@@ -197,14 +170,18 @@ def main():
         if "error" in got:
             diffs.append(f"{name}: ERROR {got['error']}")
             continue
-        for key in ("summary", "lines", "sections", "instances", "anatomy", "deltas"):
+        if "frames" not in want:
+            diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")
+            continue
+        for key in ("frames", "section", "tables", "warnings", "failed"):
             if got[key] != want.get(key):
                 diffs.append(f"{name}: {key}: baseline {want.get(key)!r}, now {got[key]!r}")
-        if got["export"] != EXPECTED_EXPORT:
-            diffs.append(f"{name}: export: expected {EXPECTED_EXPORT!r}, now {got['export']!r}")
-        wf, gf = want.get("fuel"), got["fuel"]
-        if wf and abs(gf - wf) / wf > FUEL_TOLERANCE:
-            diffs.append(f"{name}: fuel: baseline {wf}, now {gf} ({(gf - wf) / wf:+.0%}, tolerance {FUEL_TOLERANCE:.0%})")
+        if got["export"] != "ok":
+            diffs.append(f"{name}: export: expected 'ok', now {got['export']!r}")
+        for key in ("fuel", "calls"):
+            wf, gf = want.get(key), got[key]
+            if wf and abs(gf - wf) / wf > FUEL_TOLERANCE:
+                diffs.append(f"{name}: {key}: baseline {wf}, now {gf} ({(gf - wf) / wf:+.0%}, tolerance {FUEL_TOLERANCE:.0%})")
     for name in base:
         if name not in results:
             diffs.append(f"{name}: in the baseline but not run")
