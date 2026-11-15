@@ -5,7 +5,7 @@
 
 #![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
-use super::section::{Ctx, Cv, StageChoice, USEFUL_W, bold, header, judge, pal, pick_stage_for, table, table_nodes};
+use super::section::{Ctx, Cv, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
 
 /// A table of the frame, noted for the answer (its name and how many rows it has).
 fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
@@ -52,6 +52,19 @@ fn walk_instance(lang: Lang, stage: u64, component: u64) -> Result<Vec<(Value, u
     let instance = id_of(lang, &made, "instance.create")?;
     let walked = walk_layers(lang, instance)?;
     host(lang, "edit.delete", &json!({"ids": [instance]}))?;
+    Ok(walked)
+}
+
+/// The walk of the default variant's instance: the one Anatomy already made in this run, else a new one (kept for the run).
+fn base_walk(c: &Ctx) -> Result<Walk> {
+    if let Some(w) = c.base_walk.borrow().as_ref() {
+        return Ok(w.clone());
+    }
+    let temp = temp_stage(c.lang)?;
+    let walked = walk_instance(c.lang, temp, c.target.component)?;
+    host(c.lang, "edit.delete", &json!({"ids": [temp]}))?;
+    let walked = std::rc::Rc::new(walked);
+    *c.base_walk.borrow_mut() = Some(walked.clone());
     Ok(walked)
 }
 
@@ -172,9 +185,7 @@ pub fn capped_layout_rows(lang: Lang, layers: &[(Spacing, usize)]) -> (Vec<Vec<C
 pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
     let lang = c.lang;
     header(c, frame, t(lang, Key::SecLayouts))?;
-    let temp = temp_stage(lang)?;
-    let walked = walk_instance(lang, temp, c.target.component)?;
-    host(lang, "edit.delete", &json!({"ids": [temp]}))?;
+    let walked = base_walk(c)?;
     let nodes: Vec<Value> = walked.iter().map(|(n, _)| n.clone()).collect();
     let vars = c.vars_for(&nodes)?;
     let styles = Styles::default();
@@ -332,8 +343,8 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
         muted_note(lang, frame, t(lang, Key::VariantsNone))?;
         return Ok(());
     }
+    let base_walked = base_walk(c)?;
     let temp = temp_stage(lang)?;
-    let base_walked = walk_instance(lang, temp, c.target.component)?;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
     let vars = c.vars_for(&base_nodes)?;
     let styles = c.styles_for(&base_nodes)?;
@@ -441,6 +452,7 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let stage = make_stage(lang, sb0, false)?;
     let (instance, ib0) = place_instance(lang, target.component, stage, sb0, size)?;
     let walked = walk_layers(lang, instance)?;
+    *c.base_walk.borrow_mut() = Some(std::rc::Rc::new(walked.clone()));
     let mut nodes: Vec<Value> = walked.iter().map(|(n, _)| n.clone()).collect();
     let vars = c.vars_for(&nodes)?;
     let styles = c.styles_for(&nodes)?;

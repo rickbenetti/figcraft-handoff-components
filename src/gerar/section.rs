@@ -597,6 +597,9 @@ fn value_cell(lang: Lang, cell: u64, token: Option<&str>, text: &str, swatch: Op
     cell_text(lang, col, text, if token.is_some() { pal::TEXT2 } else { pal::TEXT }, false)
 }
 
+/// A walk of the layers of an instance (shared by the frames of a run).
+pub(super) type Walk = std::rc::Rc<Vec<(Value, usize)>>;
+
 /// What every frame needs to be drawn.
 pub(super) struct Ctx<'a> {
     pub(super) lang: Lang,
@@ -612,6 +615,9 @@ pub(super) struct Ctx<'a> {
     /// budget in a big file).
     pub(super) vars: std::cell::RefCell<Option<std::rc::Rc<Vars>>>,
     pub(super) styles: std::cell::RefCell<Option<std::rc::Rc<Styles>>>,
+    /// The walk of the default variant's instance, made by the first frame that needs it (Anatomy, when it is made in the same run) and
+    /// used by the others: the instance is made and read once.
+    pub(super) base_walk: std::cell::RefCell<Option<Walk>>,
     /// The tables the content frames made: (name, rows), for the answer.
     pub(super) tables: std::cell::RefCell<Vec<(String, usize)>>,
 }
@@ -954,7 +960,7 @@ pub fn generate(input: Input) -> Result<Value> {
     };
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
     // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), base_walk: std::cell::RefCell::new(None) };
     let kit_frame: Option<(u64, &str)>;
     let mut set_added = false;
     if let Some(e) = old(Sec::Kit) {
