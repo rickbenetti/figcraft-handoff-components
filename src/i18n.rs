@@ -160,7 +160,7 @@ keys! {
     PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelGenerate,
     SectionName, SectionFrameName,
     SecCover, SecMaster, SecProperties, SecAnatomy, SecVariants, SecLayouts, SecTokens, SecChangelog, ReservedB, ReservedC, CoverDescription, CoverLastDesigner, CoverUpdatedOn, CoverGuideDescription, CoverGuideDesigner, CoverGuideUpdated, CoverApprovals, RoleDesigner, RoleEngineering, RoleQa, RoleWriters, RolePo, RolePm, MasterFrameName, MasterDescription, MasterNote, ChangelogVersion, ChangelogDate, ChangelogChange, ChangelogGuideVersion, ChangelogGuideDate, ChangelogGuideChange, PanelWarnWide, PanelWarnLegacy, ErrMainGone,
-    PanelUpdate, PanelTitleUpdate, UpdAll, UpdTables, UpdTokens, UpdProperties, UpdAnatomy, UpdVariants, UpdLayouts, PanelUpdateNote, PanelNewSection, PanelWarnNoStage, SecKit, KitNote, KitSetName, StatePending, StateApproved, StateConditional, StateRejected, CoverOverview, CoverGuideVersion, CoverGuideStatus, CoverGuideNameDate, MasterTitle, ApprPropArea, ApprPropName,
+    PanelUpdate, PanelTitleUpdate, UpdAll, UpdTables, UpdTokens, UpdProperties, UpdAnatomy, UpdVariants, UpdLayouts, PanelUpdateNote, PanelNewSection, PanelWarnNoStage, SecKit, KitNote, KitSetName, StatePending, StateApproved, StateConditional, StateRejected, CoverOverview, CoverGuideVersion, CoverGuideStatus, CoverGuideNameDate, MasterTitle, ApprPropArea, ApprPropName, TblProperty, TblType, TblOptions, TblNumber, TblLayer, TblNote, TblElement, TblSide, TblToken, TblValue, SideTop, SideRight, SideBottom, SideLeft, PropVisibility, MatrixLeftOut, MatrixLeftOutOne, PropsNone, LayoutsNone, VariantsNone, TableFailed,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
@@ -242,7 +242,7 @@ mod tests {
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "ChangelogGuideVersion", "CoverGuideVersion", "RoleDesigner", "RolePm", "RolePo", "RoleQa", "RoleWriters", "SecChangelog", "SecTokens", "SectionFrameName", "SectionName"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "ChangelogGuideVersion", "CoverGuideVersion", "TblToken", "RoleDesigner", "RolePm", "RolePo", "RoleQa", "RoleWriters", "SecChangelog", "SecTokens", "SectionFrameName", "SectionName"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();

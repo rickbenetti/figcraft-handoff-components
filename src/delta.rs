@@ -37,7 +37,7 @@ pub enum Label {
 }
 
 impl Label {
-    fn key(self) -> Key {
+    pub(crate) fn key(self) -> Key {
         match self {
             Label::Prop(Prop::Radius) => Key::PropRadius,
             Label::Prop(Prop::Gap) => Key::PropGap,
@@ -499,7 +499,7 @@ fn colour_of(value: &str) -> Option<Swatch> {
 }
 
 /// A side as a cell.
-fn cell_of(s: &Side, label: Label, lang: Lang) -> Cell {
+pub(crate) fn cell_of(s: &Side, label: Label, lang: Lang) -> Cell {
     let shown = show_value(&s.value, label, lang);
     let alone = shown.trim().is_empty() || shown == DASH || s.token.as_deref() == Some(shown.as_str());
     let colour = matches!(label, Label::Prop(Prop::Fill | Prop::Stroke)).then(|| colour_of(&shown)).flatten();
@@ -646,7 +646,7 @@ fn change_text(lang: Lang, label: Label, from: &Side, to: &Side) -> String {
 }
 
 /// A layer's path as a title: "Left icon / Cube".
-fn title(path: &str) -> String {
+pub(crate) fn title(path: &str) -> String {
     path.trim_start_matches('/').split('/').collect::<Vec<_>>().join(" / ")
 }
 

@@ -281,3 +281,24 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | MasterTitle | Base component | Componente base |
 | ApprPropArea | Area | Área |
 | ApprPropName | Name · date | Nome · data |
+| TblProperty | Property | Propriedade |
+| TblType | Type | Tipo |
+| TblOptions | Options | Opções |
+| TblNumber | No. | Nº |
+| TblLayer | Layer | Camada |
+| TblNote | Note | Nota |
+| TblElement | Element | Elemento |
+| TblSide | Side | Lado |
+| TblToken | Token | Token |
+| TblValue | Value | Valor |
+| SideTop | Top | Topo |
+| SideRight | Right | Direita |
+| SideBottom | Bottom | Base |
+| SideLeft | Left | Esquerda |
+| PropVisibility | Visibility | Visibilidade |
+| MatrixLeftOut | {n} rows were left out | Ficaram de fora {n} linhas |
+| MatrixLeftOutOne | {n} row was left out | Ficou de fora {n} linha |
+| PropsNone | This component has no properties. | Este componente não tem propriedades. |
+| LayoutsNone | No layer has padding or a gap. | Nenhuma camada tem espaçamento interno nem espaço entre itens. |
+| VariantsNone | This component has no variants. | Este componente não tem variantes. |
+| TableFailed | This section could not be made: {reason} | Esta seção não pôde ser feita: {reason} |
