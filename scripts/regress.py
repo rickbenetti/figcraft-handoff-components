@@ -297,7 +297,9 @@ def main():
         for key in ("frames", "section", "tables", "warnings", "failed", "markers"):
             if got[key] != want.get(key):
                 diffs.append(f"{name}: {key}: baseline {want.get(key)!r}, now {got[key]!r}")
-        if got["export"] != "ok":
+        # A private file may already hold a Section of the component (the person generated it in the app): then the run is a rerun and the
+        # Section's export is kept.
+        if got["export"] != "ok" and not (private and got["export"] == "kept"):
             diffs.append(f"{name}: export: expected 'ok', now {got['export']!r}")
         for key in ("fuel", "calls"):
             wf, gf = want.get(key), got[key]
