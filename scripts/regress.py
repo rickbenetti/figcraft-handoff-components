@@ -217,6 +217,20 @@ def cover_case(tmp):
     r, err = go(plugin(pills[0], {}), g2, os.path.join(tmp, "cv_pill.figcraft"))
     refused = len(r) <= 2 or not r[2]["ok"]
     out["cover editada / a pill selected"] = {"refused": refused, "mentions_support": "support component" in (err + json.dumps(r[-1:]))}
+    # The support set: a new Section names it with a leading dot; a Section made before (the name without it) is found by its mark: its Cover,
+    # deleted by hand, is made again with six pills of that very set, and the set keeps its name.
+    set_id = r_set = None
+    r, _ = go([step("node.get", {"id": cover, "fields": ["name"]}), step("node.find", {"root": cover, "type": "instance", "limit": 1})], g1, os.path.join(tmp, "cvs.figcraft"))
+    inst = r[1]["result"]["ids"][0]
+    r, _ = go([step("component.properties", {"id": inst})], g1, os.path.join(tmp, "cvs.figcraft"))
+    set_id = r[0]["result"].get("set")
+    r, _ = go([step("node.get", {"id": set_id, "fields": ["name"]})], g1, os.path.join(tmp, "cvs.figcraft"))
+    new_name = r[0]["result"]["name"]
+    old_name = new_name.lstrip(".")
+    r, _ = go([step("node.set", {"ids": [set_id], "props": {"name": old_name}}), step("edit.delete", {"ids": [cover]})] + plugin(cid, {})[0:3] + [step("node.get", {"id": set_id, "fields": ["name"]}), step("node.find", {"type": "instance", "name": old_name, "limit": 100})], g1, os.path.join(tmp, "cvs2.figcraft"))
+    ok = r[-1]["ok"] and r[-2]["ok"]
+    now_name = r[-2]["result"]["name"] if ok else None
+    out["cover editada / support set"] = {"new_section_name_has_dot": new_name.startswith("."), "old_name_kept": now_name == old_name, "pills_of_the_old_set": len(r[-1]["result"]["ids"]) if ok else None}
     return out
 
 

@@ -959,7 +959,8 @@ fn build_master(c: &Ctx, frame: u64) -> Result<u64> {
     Ok(moved)
 }
 
-/// The set of approval pills, made inside `frame`: four variants (Estado = pendente, aprovado, ressalvas, reprovado), each the pill
+/// The set of approval pills, made inside `frame` (its name starts with a dot, which keeps it out of a published library; it is found by its
+/// mark, never by name, so a set of an older Section with the name it had before is found just the same): four variants (Estado = pendente, aprovado, ressalvas, reprovado), each the pill
 /// itself (a circle with the state's symbol, and the area and a "name · date" guide), with the text properties "Area" and
 /// "Name · date" bound to those two texts in every variant. Returns the set's id.
 fn build_approval_set(c: &Ctx, frame: u64) -> Result<u64> {
@@ -1610,5 +1611,18 @@ mod tests {
         assert!(!frame_is_made(Sec::Properties, true, false, Update::Tokens, false));
         assert!(frame_is_made(Sec::Layouts, false, true, Update::Tokens, false));
         assert!(frame_is_made(Sec::Master, true, false, Update::Layouts, true));
+    }
+    #[test]
+    fn the_approval_set_has_a_hidden_name_and_is_found_by_its_mark_not_by_name() {
+        for lang in [Lang::En, Lang::Pt] {
+            assert!(t(lang, Key::KitSetName).starts_with('.'), "a name that starts with a dot keeps the set out of a published library");
+        }
+        assert_eq!(t(Lang::En, Key::KitSetName), ".Handoff · Approval");
+        assert_eq!(t(Lang::Pt, Key::KitSetName), ".Handoff · Aprovação");
+        // A set of an older Section (the name without the dot) and one of a new Section both carry the mark, which is all that is looked at.
+        for name in ["Handoff · Approval", ".Handoff · Approval", "renamed by hand"] {
+            let child = json!({"id": 7, "name": name, "pluginData": {APPROVAL_SET_MARK: "1"}});
+            assert_eq!(mark_of(&child, APPROVAL_SET_MARK), Some("1"), "{name}");
+        }
     }
 }

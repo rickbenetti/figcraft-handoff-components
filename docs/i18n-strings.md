@@ -267,7 +267,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnNoStage | No stage suits every variant: change it in Stage. | Nenhum palco serve a todas as variantes: troque em Palco. |
 | SecKit | Support components | Componentes de apoio |
 | KitNote | Do not delete: the approval pills on the Cover are instances of the component that lives here. | Não apague: as pílulas de aprovação da Cover são instâncias do componente que mora aqui. |
-| KitSetName | Handoff · Approval | Handoff · Aprovação |
+| KitSetName | .Handoff · Approval | .Handoff · Aprovação |
 | StatePending | Pending | Pendente |
 | StateApproved | Approved | Aprovado |
 | StateConditional | With reservations | Com ressalvas |

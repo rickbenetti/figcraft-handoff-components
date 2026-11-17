@@ -1417,5 +1417,10 @@
   "cover editada / a pill selected": {
     "refused": true,
     "mentions_support": true
+  },
+  "cover editada / support set": {
+    "new_section_name_has_dot": true,
+    "old_name_kept": true,
+    "pills_of_the_old_set": 6
   }
 }
