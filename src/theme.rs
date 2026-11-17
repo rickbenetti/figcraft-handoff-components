@@ -42,8 +42,6 @@ pub const STAGE_MID: &str = "#777777";
 pub const STAGE_LIGHT: &str = "#E5E5E5";
 /// The redlines on the light stage (Prussian blue), with the default line colour.
 pub const PRUSSIAN: &str = "#14213D";
-/// The ring around a badge on the light stage.
-pub const RING_WEIGHT: f64 = 1.5;
 /// A variant row of the axes sections is a block: this fill, this padding on its four sides and this radius (its border is `BORDER`).
 pub const BLOCK_FILL: &str = "#2E2E2E";
 pub const BLOCK_PAD: f64 = 20.0;

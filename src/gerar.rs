@@ -49,11 +49,15 @@ const STAGE_RADIUS: f64 = 12.0;
 const FONT: f64 = theme::MIN_SIZE;
 /// Markers: diameter, least distance from the component to the marker's edge, least distance
 /// between two markers' centres, and the margin kept to the stage's edge.
-const MARKER_D: f64 = 28.0;
+const MARKER_D: f64 = 36.0;
+/// The number inside a marker: its size, the width of a digit and the height of its line (a marker is 36 px, 28 before: +29%).
+const MARKER_FONT: f64 = 18.0;
+const MARKER_CHAR_W: f64 = 10.8;
+const MARKER_LABEL_H: f64 = 22.0;
 const MARKER_CLEAR: f64 = 24.0;
 const MARKER_GAP: f64 = 8.0;
-/// Least distance between two markers' centres: the circles, the least gap and the ring.
-const MARKER_STEP: f64 = MARKER_D + MARKER_GAP + 2.0;
+/// Least distance between two markers' centres: the circles and the least gap (a marker has no border).
+const MARKER_STEP: f64 = MARKER_D + MARKER_GAP;
 const STAGE_EDGE: f64 = 32.0;
 /// Rough width of a character at 14 px, to centre texts.
 const CHAR_W: f64 = 8.5;
@@ -975,7 +979,7 @@ fn draw_block(lang: Lang, legend: u64, walked: &[(Value, usize)], variant: bool,
             b.fill = Some(accent);
             b.extra = json!({"cornerRadius": MARKER_D / 2.0, "mainAlign": "center", "crossAlign": "center"});
             let badge = flow_frame(lang, header, b)?;
-            text_with(lang, badge, &n.to_string(), FONT, on_accent(accent), &badge_name, json!({}))?;
+            text_with(lang, badge, &n.to_string(), MARKER_FONT, on_accent(accent), &badge_name, json!({}))?;
             // The badge already says where it sits: the title drops the "↳".
             let plain = match glyphs::layer(&node, depth == 0, variant) {
                 Some(g) => glyphs::with_word(g, &name),
@@ -1318,11 +1322,10 @@ fn make_stage(lang: Lang, at: Rect, dark: bool) -> Result<u64> {
 /// The colours of the redlines (badges, guides, measures and overlay) on a stage: a fixed palette by stage and by
 /// section (see `Palette`). The guides and the overlay's outline have a fixed weight (`GUIDE_WEIGHT`,
 /// `OVERLAY_WEIGHT`). The anatomy colour is the badges' and the guides'; the spacing colour is the measure rectangles'
-/// (outline and fill). On the light stage the measure values are Prussian blue and the badge has a Prussian ring; on
-/// the dark stage the values are the spacing colour and there is no ring.
+/// (outline and fill). On the light stage the measure values are Prussian blue and a marker has no border on either stage; on
+/// the dark stage the values are the spacing colour.
 struct RedStyle {
     accent: String,
-    ring: Option<&'static str>,
     guide: String,
     /// The measure rectangles' fill: the spacing colour at `MEASURE_FILL_PERCENT`.
     overlay_fill: Option<String>,
@@ -1332,7 +1335,7 @@ struct RedStyle {
 }
 
 /// The stroke weight of a marker's guide: the same on every stage.
-const GUIDE_WEIGHT: f64 = 1.5;
+const GUIDE_WEIGHT: f64 = 2.0;
 /// The stroke weight of the outline of a measure rectangle: likewise the same everywhere.
 const OVERLAY_WEIGHT: f64 = 1.5;
 
@@ -1359,7 +1362,6 @@ fn red_style(dark: bool) -> RedStyle {
     let p = palette(dark);
     RedStyle {
         accent: p.anatomy.to_string(),
-        ring: if dark { None } else { Some(theme::PRUSSIAN) },
         guide: p.anatomy.to_string(),
         overlay_fill: Some(fill_colour(theme::MEASURE_FILL_PERCENT, p.spacing)),
         overlay_stroke: p.spacing.to_string(),
@@ -1496,12 +1498,9 @@ fn draw_overlay(lang: Lang, stage: u64, sb: Rect, ib: Rect, lines: &[Value], red
     Ok((rects, labels))
 }
 
-/// The badge's circle: the accent colour, with a ring when the style has one.
+/// The badge's circle: the accent colour and nothing else (a marker has no border on any stage).
 fn badge_props(red: &RedStyle) -> Value {
-    match red.ring {
-        Some(ring) => json!({"fill": red.accent, "stroke": ring, "strokeWeight": theme::RING_WEIGHT, "strokeAlign": "outside"}),
-        None => json!({"fill": red.accent}),
-    }
+    json!({"fill": red.accent})
 }
 
 /// What `draw_badges` made.
@@ -1562,8 +1561,8 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
                 "name": name, "select": false, "props": badge_props(red)}),
         )?;
         let digits = m.number.to_string();
-        let tw = CHAR_W * digits.chars().count() as f64;
-        text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - LABEL_H / 2.0 - origin.1, FONT, on_accent(&red.accent), None, &name)?;
+        let tw = MARKER_CHAR_W * digits.chars().count() as f64;
+        text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - MARKER_LABEL_H / 2.0 - origin.1, MARKER_FONT, on_accent(&red.accent), None, &name)?;
         ids.push(id_of(lang, &c, "shape.ellipse")?);
     }
     let info = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1]})).collect();
@@ -3076,15 +3075,15 @@ mod tests {
 
     #[test]
     fn redlines_follow_the_stage_by_a_fixed_palette() {
-        // Light stage: anatomy in #C54600 (guides, badges), spacing in #007D00 (outline, fill at 30%), Prussian values and ring.
+        // Light stage: anatomy in #C54600 (guides, badges), spacing in #007D00 (outline, fill at 30%), Prussian values, a marker with no border.
         let light = red_style(false);
-        assert_eq!((light.guide.as_str(), light.accent.as_str(), light.ring), ("#C54600", "#C54600", Some("#14213D")));
+        assert_eq!((light.guide.as_str(), light.accent.as_str()), ("#C54600", "#C54600"));
         assert_eq!((light.overlay_stroke.as_str(), light.value.as_str()), ("#007D00", "#14213D"));
         assert_eq!(light.overlay_fill.as_deref(), Some("#007D004D"));
-        assert_eq!((GUIDE_WEIGHT, OVERLAY_WEIGHT), (1.5, 1.5), "one weight for every guide, on any stage");
-        // Dark stage: anatomy in #FCA311, spacing in #4ADE80 (the values too), no ring.
+        assert_eq!((GUIDE_WEIGHT, OVERLAY_WEIGHT), (2.0, 1.5), "one weight for every guide, on any stage");
+        // Dark stage: anatomy in #FCA311, spacing in #4ADE80 (the values too), a marker with no border.
         let dark = red_style(true);
-        assert_eq!((dark.guide.as_str(), dark.accent.as_str(), dark.ring), ("#FCA311", "#FCA311", None));
+        assert_eq!((dark.guide.as_str(), dark.accent.as_str()), ("#FCA311", "#FCA311"));
         assert_eq!((dark.overlay_stroke.as_str(), dark.value.as_str(), dark.overlay_fill.as_deref()), ("#4ADE80", "#4ADE80", Some("#4ADE804D")));
         // The number on a badge: white on the light colours, dark on the dark ones.
         assert_eq!((on_accent("#C54600"), on_accent("#007D00"), on_accent("#FCA311"), on_accent("#4ADE80")), ("#FFFFFF", "#FFFFFF", "#232323", "#232323"));
