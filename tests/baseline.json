@@ -41,7 +41,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        736.0
       ],
       [
         "changelog",
@@ -58,7 +58,7 @@
     ],
     "section": [
       18304.0,
-      1127.0
+      1248.0
     ],
     "tables": [
       [
@@ -68,12 +68,20 @@
       [
         "Layouts",
         5
+      ],
+      [
+        "Tokens by layer",
+        2
+      ],
+      [
+        "Resolved colors",
+        3
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 61395556,
-    "calls": 807
+    "fuel": 83289099,
+    "calls": 1089
   },
   "copia-2 / id 3 (Toast variant)": {
     "frames": [
@@ -117,7 +125,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        727.0
       ],
       [
         "changelog",
@@ -148,12 +156,16 @@
       [
         "Layouts",
         10
+      ],
+      [
+        "Resolved colors",
+        7
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 99503241,
-    "calls": 1245
+    "fuel": 118486242,
+    "calls": 1455
   },
   "carga-v2 / id 3 (Toast variant)": {
     "frames": [
@@ -197,7 +209,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        935.0
       ],
       [
         "changelog",
@@ -214,7 +226,7 @@
     ],
     "section": [
       18304.0,
-      1440.0
+      1447.0
     ],
     "tables": [
       [
@@ -228,12 +240,20 @@
       [
         "Layouts",
         10
+      ],
+      [
+        "Tokens by layer",
+        1
+      ],
+      [
+        "Resolved colors",
+        7
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 203723962,
-    "calls": 1245
+    "fuel": 265886216,
+    "calls": 1542
   },
   "carga-v2 / id 194 (Card de carga)": {
     "frames": [
@@ -277,7 +297,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        2440.0
       ],
       [
         "changelog",
@@ -304,12 +324,20 @@
       [
         "Layouts",
         40
+      ],
+      [
+        "Tokens by layer",
+        19
+      ],
+      [
+        "Resolved colors",
+        18
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 553055466,
-    "calls": 3021
+    "fuel": 776440729,
+    "calls": 4824
   },
   "ds-base-demo / Button": {
     "frames": [
@@ -353,7 +381,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        1441.0
       ],
       [
         "changelog",
@@ -396,14 +424,22 @@
       [
         "Layouts",
         5
+      ],
+      [
+        "Tokens by layer",
+        3
+      ],
+      [
+        "Resolved colors",
+        17
       ]
     ],
     "warnings": [
       "no_stage"
     ],
     "failed": [],
-    "fuel": 246545333,
-    "calls": 2616
+    "fuel": 368340163,
+    "calls": 4464
   },
   "ds-base-demo / Card": {
     "frames": [
@@ -447,7 +483,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        2491.0
       ],
       [
         "changelog",
@@ -464,7 +500,7 @@
     ],
     "section": [
       18304.0,
-      2253.0
+      3003.0
     ],
     "tables": [
       [
@@ -482,12 +518,20 @@
       [
         "Layouts",
         35
+      ],
+      [
+        "Tokens by layer",
+        22
+      ],
+      [
+        "Resolved colors",
+        8
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 303625150,
-    "calls": 3018
+    "fuel": 419246516,
+    "calls": 4530
   },
   "ds-base-demo / Accordion": {
     "frames": [
@@ -531,7 +575,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        948.0
       ],
       [
         "changelog",
@@ -548,7 +592,7 @@
     ],
     "section": [
       18304.0,
-      1360.0
+      1460.0
     ],
     "tables": [
       [
@@ -566,12 +610,20 @@
       [
         "Layouts",
         10
+      ],
+      [
+        "Tokens by layer",
+        6
+      ],
+      [
+        "Resolved colors",
+        3
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 123043024,
-    "calls": 1425
+    "fuel": 158190210,
+    "calls": 1869
   },
   "ds-base-demo / Code": {
     "frames": [
@@ -615,7 +667,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        653.0
       ],
       [
         "changelog",
@@ -632,7 +684,7 @@
     ],
     "section": [
       18304.0,
-      1158.0
+      1165.0
     ],
     "tables": [
       [
@@ -642,12 +694,20 @@
       [
         "Layouts",
         5
+      ],
+      [
+        "Tokens by layer",
+        2
+      ],
+      [
+        "Resolved colors",
+        2
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 69916374,
-    "calls": 840
+    "fuel": 90236839,
+    "calls": 1071
   },
   "ds-base-demo / Icon": {
     "frames": [
@@ -691,7 +751,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        507.0
       ],
       [
         "changelog",
@@ -730,12 +790,20 @@
       [
         "Size 1",
         2
+      ],
+      [
+        "Tokens by layer",
+        1
+      ],
+      [
+        "Resolved colors",
+        1
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 167928563,
-    "calls": 2157
+    "fuel": 188765536,
+    "calls": 2469
   },
   "pt-BR / copia-2 / id 32": {
     "frames": [
@@ -779,7 +847,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        736.0
       ],
       [
         "changelog",
@@ -796,7 +864,7 @@
     ],
     "section": [
       18304.0,
-      1127.0
+      1248.0
     ],
     "tables": [
       [
@@ -806,12 +874,20 @@
       [
         "Layouts",
         5
+      ],
+      [
+        "Tokens por camada",
+        2
+      ],
+      [
+        "Cores resolvidas",
+        3
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 62039293,
-    "calls": 816
+    "fuel": 83883002,
+    "calls": 1098
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
     "frames": [
@@ -855,7 +931,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        935.0
       ],
       [
         "changelog",
@@ -872,7 +948,7 @@
     ],
     "section": [
       18304.0,
-      1440.0
+      1447.0
     ],
     "tables": [
       [
@@ -886,12 +962,20 @@
       [
         "Layouts",
         10
+      ],
+      [
+        "Tokens por camada",
+        1
+      ],
+      [
+        "Cores resolvidas",
+        7
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 204703988,
-    "calls": 1254
+    "fuel": 266861924,
+    "calls": 1551
   },
   "pt-BR / ds-base-demo / Button": {
     "frames": [
@@ -935,7 +1019,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        1441.0
       ],
       [
         "changelog",
@@ -978,14 +1062,22 @@
       [
         "Layouts",
         5
+      ],
+      [
+        "Tokens por camada",
+        3
+      ],
+      [
+        "Cores resolvidas",
+        17
       ]
     ],
     "warnings": [
       "no_stage"
     ],
     "failed": [],
-    "fuel": 248415239,
-    "calls": 2625
+    "fuel": 370188662,
+    "calls": 4473
   },
   "pt-BR / ds-base-demo / Card": {
     "frames": [
@@ -1029,7 +1121,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        2491.0
       ],
       [
         "changelog",
@@ -1046,7 +1138,7 @@
     ],
     "section": [
       18304.0,
-      2253.0
+      3003.0
     ],
     "tables": [
       [
@@ -1064,12 +1156,20 @@
       [
         "Layouts",
         35
+      ],
+      [
+        "Tokens por camada",
+        22
+      ],
+      [
+        "Cores resolvidas",
+        8
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 305183009,
-    "calls": 3027
+    "fuel": 421085036,
+    "calls": 4539
   },
   "pt-BR / ds-base-demo / Accordion": {
     "frames": [
@@ -1113,7 +1213,7 @@
         "tokens",
         12160.0,
         256.0,
-        211.0
+        948.0
       ],
       [
         "changelog",
@@ -1130,7 +1230,7 @@
     ],
     "section": [
       18304.0,
-      1360.0
+      1460.0
     ],
     "tables": [
       [
@@ -1148,11 +1248,19 @@
       [
         "Layouts",
         10
+      ],
+      [
+        "Tokens por camada",
+        6
+      ],
+      [
+        "Cores resolvidas",
+        3
       ]
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 124768119,
-    "calls": 1434
+    "fuel": 159692009,
+    "calls": 1878
   }
 }
