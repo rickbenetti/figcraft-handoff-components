@@ -4,7 +4,7 @@ with tests/baseline.json: the frames of the Section (key, x, y, height), the Sec
 Anatomy, the matrix of each variant axis, Layouts), the warnings, the frames that failed, and fuel and host calls (5% tolerance).
 It records no ids and no texts. `--update [text]` rewrites the baseline from the current build (only the cases whose name
 contains `text`, when given; the other entries are kept). `--dump FILE` writes the results to FILE and compares nothing.
-`--baseline FILE` compares with another baseline file. `--private` runs only the cases in tests/private/ (a folder git ignores) and
+`--baseline FILE` compares with another baseline file. `--private` runs only the cases in tests/private/ (a folder git ignores; extra cases can be listed in tests/private/cases.json) and
 compares them with tests/private/baseline-private.json; without the folder it says so and exits 0. A private baseline written by
 an older version (without the "frames" key) is reported as old: regenerate it with `scripts/regress.sh --private --update`.
 
@@ -54,6 +54,13 @@ PRIVATE_CASES = {
     "private / component 4 (id 77211)": (f"{PRIVATE}/handoff-demo.figcraft", 77211),
     "private / styles frame (id 99941)": (f"{PRIVATE}/fixture-estilos.figcraft", 99941),
 }
+
+# More private cases may be listed in tests/private/cases.json (that folder is ignored by git, so what it names never enters the
+# repository): {"case name": ["file inside tests/private/", id of the component or set]}.
+_EXTRA = os.path.join(PRIVATE, "cases.json")
+if os.path.exists(_EXTRA):
+    for _name, (_file, _id) in json.load(open(_EXTRA)).items():
+        PRIVATE_CASES[_name] = (os.path.join(PRIVATE, _file), _id)
 
 
 def cli(args, timeout=300):
