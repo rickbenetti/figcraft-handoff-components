@@ -64,6 +64,8 @@ pub mod pal {
     /// Cards, pills and chips.
     pub const CARD: &str = "#FFFFFF";
     pub const LINE: &str = "#D4D4D8";
+    /// The border of a colour sample (a white or a pale one must not vanish on the frame).
+    pub const SWATCH_BORDER: &str = "#A1A1AA";
     pub const TEXT: &str = "#1C1C1F";
     pub const TEXT2: &str = "#56565C";
     pub const GUIDE: &str = "#6E6E75";
@@ -623,7 +625,7 @@ pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &
     Ok(grid)
 }
 
-/// A value cell. With a colour: a square of it (every square has a 1 px border in the `line` colour, so a white one does not vanish)
+/// A value cell. With a colour: a square of it (every square has a 1 px border in the `swatch border` colour, so a white one does not vanish)
 /// and a column of the token and the value. Without: the token (when there is one) and the value are in the cell itself.
 fn value_cell(lang: Lang, cell: u64, token: Option<&str>, text: &str, swatch: Option<&(String, bool)>) -> Result<u64> {
     let (tok_parent, value_parent) = match swatch {
@@ -632,7 +634,7 @@ fn value_cell(lang: Lang, cell: u64, token: Option<&str>, text: &str, swatch: Op
                 lang,
                 "shape.rectangle",
                 &json!({"x": 0, "y": 0, "width": 16, "height": 16, "parent": cell, "name": "Swatch", "select": false,
-                    "props": {"fill": hex, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 3}}),
+                    "props": {"fill": hex, "stroke": pal::SWATCH_BORDER, "strokeWeight": 1, "strokeAlign": "inside", "cornerRadius": 3}}),
             )?;
             let mut col = FlowSpec::new("Value", 100.0, "vertical");
             col.gap = 2.0;
