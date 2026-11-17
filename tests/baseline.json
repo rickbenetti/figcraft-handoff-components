@@ -87,7 +87,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 85062999,
+    "fuel": 85062542,
     "calls": 1116
   },
   "copia-2 / id 3 (Toast variant)": {
@@ -178,7 +178,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 120740292,
+    "fuel": 120738152,
     "calls": 1482
   },
   "carga-v2 / id 3 (Toast variant)": {
@@ -273,7 +273,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 268143304,
+    "fuel": 268141160,
     "calls": 1569
   },
   "carga-v2 / id 194 (Card de carga)": {
@@ -364,7 +364,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 782052056,
+    "fuel": 782474691,
     "calls": 4869
   },
   "ds-base-demo / Button": {
@@ -473,7 +473,7 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 371363300,
+    "fuel": 371361957,
     "calls": 4494
   },
   "ds-base-demo / Card": {
@@ -525,24 +525,24 @@
         "tokens",
         256.0,
         6373.0,
-        2509.0
+        2131.0
       ],
       [
         "changelog",
         256.0,
-        8946.0,
+        8568.0,
         279.0
       ],
       [
         "kit",
         256.0,
-        9289.0,
+        8911.0,
         357.0
       ]
     ],
     "section": [
       2232.0,
-      9902.0
+      9524.0
     ],
     "tables": [
       [
@@ -563,7 +563,7 @@
       ],
       [
         "Tokens by layer",
-        22
+        16
       ],
       [
         "Resolved colors",
@@ -572,8 +572,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 423756183,
-    "calls": 4560
+    "fuel": 409138881,
+    "calls": 4350
   },
   "ds-base-demo / Accordion": {
     "markers": {
@@ -671,7 +671,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 160819017,
+    "fuel": 160817673,
     "calls": 1899
   },
   "ds-base-demo / Code": {
@@ -762,7 +762,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 92233143,
+    "fuel": 92232220,
     "calls": 1098
   },
   "ds-base-demo / Icon": {
@@ -865,7 +865,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 191279400,
+    "fuel": 191278901,
     "calls": 2496
   },
   "pt-BR / copia-2 / id 32": {
@@ -956,7 +956,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 85656916,
+    "fuel": 85656459,
     "calls": 1125
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
@@ -1051,7 +1051,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 269450416,
+    "fuel": 269448272,
     "calls": 1578
   },
   "pt-BR / ds-base-demo / Button": {
@@ -1160,7 +1160,7 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 372591093,
+    "fuel": 372589750,
     "calls": 4503
   },
   "pt-BR / ds-base-demo / Card": {
@@ -1212,24 +1212,24 @@
         "tokens",
         256.0,
         6499.0,
-        2527.0
+        2149.0
       ],
       [
         "changelog",
         256.0,
-        9090.0,
+        8712.0,
         279.0
       ],
       [
         "kit",
         256.0,
-        9433.0,
+        9055.0,
         357.0
       ]
     ],
     "section": [
       2232.0,
-      10046.0
+      9668.0
     ],
     "tables": [
       [
@@ -1250,7 +1250,7 @@
       ],
       [
         "Tokens por camada",
-        22
+        16
       ],
       [
         "Cores resolvidas",
@@ -1259,8 +1259,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 426099253,
-    "calls": 4569
+    "fuel": 411362402,
+    "calls": 4359
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
@@ -1358,7 +1358,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 162469998,
+    "fuel": 162468654,
     "calls": 1908
   },
   "cover editada / pills before": {

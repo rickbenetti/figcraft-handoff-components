@@ -240,13 +240,14 @@ pub fn layer_tokens(lang: Lang, name: &str, rows: &[Row], effect_style: Option<&
     (!out.colours.is_empty() || !out.measures.is_empty() || !out.styles.is_empty()).then_some(out)
 }
 
-/// Layers that follow each other and are alike (same name, same tokens) are one, with how many they are.
-pub fn merge_consecutive(list: Vec<LayerTokens>) -> Vec<(LayerTokens, usize)> {
+/// Layers that are alike (the same name and the same tokens) are one, wherever they stand: the first of them keeps its place with how many
+/// there are, the others are left out.
+pub fn merge_identical(list: Vec<LayerTokens>) -> Vec<(LayerTokens, usize)> {
     let mut out: Vec<(LayerTokens, usize)> = Vec::new();
     for l in list {
-        match out.last_mut() {
-            Some((last, n)) if *last == l => *n += 1,
-            _ => out.push((l, 1)),
+        match out.iter_mut().find(|(seen, _)| *seen == l) {
+            Some((_, n)) => *n += 1,
+            None => out.push((l, 1)),
         }
     }
     out
@@ -539,7 +540,7 @@ pub(super) fn build_tokens(c: &Ctx, frame: u64) -> Result<()> {
         let name = if i == 0 { c.target.title.clone() } else { n.get("name").and_then(Value::as_str).unwrap_or_default().to_string() };
         layers.extend(layer_tokens(lang, &name, &rows, effect.as_deref()));
     }
-    let layer_list = merge_consecutive(layers);
+    let layer_list = merge_identical(layers);
     let layer_body = layer_rows(&layer_list);
     // 2. Every variant's colours, each once.
     let ids = variant_ids(c);
@@ -782,13 +783,20 @@ mod tests {
     }
 
     #[test]
-    fn layers_that_follow_each_other_and_are_alike_are_one_with_a_count() {
+    fn layers_that_are_alike_are_one_wherever_they_stand_with_a_count() {
         let l = |name: &str, token: &str| LayerTokens { name: name.into(), colours: vec![Cv::Text(token.into())], measures: vec![], styles: vec![] };
-        let merged = merge_consecutive(vec![l("Icon", "a"), l("Icon", "a"), l("Icon", "a"), l("Label", "b"), l("Icon", "a")]);
-        assert_eq!(merged.iter().map(|(l, n)| (l.name.as_str(), *n)).collect::<Vec<_>>(), [("Icon", 3), ("Label", 1), ("Icon", 1)], "only consecutive layers merge");
+        // Two that alternate ("Tab menu" and "Overview" in the file the report came from), then a third that only has the same name.
+        let merged = merge_identical(vec![l("Icon", "a"), l("Label", "b"), l("Icon", "a"), l("Label", "b"), l("Icon", "a"), l("Icon", "other token")]);
+        assert_eq!(merged.iter().map(|(l, n)| (l.name.as_str(), *n)).collect::<Vec<_>>(), [("Icon", 3), ("Label", 2), ("Icon", 1)], "the first keeps its place, the rest are gone");
+        // The same name with other cells is another row; a different name with the same cells too.
+        assert_eq!(merge_identical(vec![l("Icon", "a"), l("Glyph", "a")]).len(), 2);
         let rows = layer_rows(&merged);
+        assert_eq!(rows.len(), 3);
         assert_eq!(rows[0][0], Cv::Bold("Icon (x3)".into()));
+        assert_eq!(rows[1][0], Cv::Bold("Label (x2)".into()));
+        assert_eq!(rows[2][0], Cv::Bold("Icon".into()));
         assert_eq!(rows[1][2], Cv::Guide("—".into()));
+        assert!(merge_identical(vec![]).is_empty());
     }
 
     #[test]
