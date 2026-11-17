@@ -228,8 +228,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | SecLayouts | Layouts | Layouts (espaçamento) |
 | SecTokens | Tokens | Tokens |
 | SecChangelog | Changelog | Changelog |
-| ReservedB | Generated in the next step (B). | Gerado na próxima etapa (B). |
-| ReservedC | Generated in the next step (C). | Gerado na próxima etapa (C). |
 | CoverDescription | Description | Descrição |
 | CoverLastDesigner | Last designer | Último designer |
 | CoverUpdatedOn | Updated on | Atualizado em |
@@ -303,3 +301,19 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | VariantsNone | This component has no variants. | Este componente não tem variantes. |
 | TableFailed | This section could not be made: {reason} | Esta seção não pôde ser feita: {reason} |
 | PanelWarnFailed | A section could not be made: see its frame. | Uma seção não pôde ser feita: veja o quadro dela. |
+| TblColours | Colors | Cores |
+| TblMeasures | Measures | Medidas |
+| TblStyles | Styles | Estilos |
+| TblDark | Dark | Dark |
+| TblLight | Light | Light |
+| TokTableLayers | Tokens by layer | Tokens por camada |
+| TokTableColours | Resolved colors | Cores resolvidas |
+| TokNone | no tokens | sem tokens |
+| TokNoColours | No layer has a color. | Nenhuma camada tem cor. |
+| TokLoose | loose value | valor solto |
+| TokOneMode | one mode only | um modo só |
+| TokTargetModes | target has {n} modes: used {mode} | alvo com {n} modos: usado {mode} |
+| TokNoValue | alias with no value | alias sem valor |
+| TokBroken | Aliases with no value: {n}. A loop, a chain of more than 8 hops or a missing target. | Aliases sem valor: {n}. Um ciclo, uma cadeia de mais de 8 saltos ou um alvo que não existe. |
+| TokNotRead | {n} variants were not read: their colors may be missing. | Não foram lidas {n} variantes: podem faltar cores. |
+| TokNotReadOne | {n} variant was not read: its colors may be missing. | Não foi lida {n} variante: podem faltar cores. |

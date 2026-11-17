@@ -539,6 +539,8 @@ pub enum Cv {
     /// A value: its token (secondary, above it) and the value, with a square of its colour when it is one (`true`: hollow, a colour
     /// with an alpha).
     Val { token: Option<String>, text: String, swatch: Option<(String, bool)> },
+    /// Several values stacked in one cell (the tokens of one layer), each in a frame of its own.
+    Many(Vec<Cv>),
 }
 
 impl Cv {
@@ -547,6 +549,8 @@ impl Cv {
         match self {
             // Without a colour the token and the value are in the cell itself; with one, a square and a column of the two lines.
             Cv::Val { token, swatch, .. } => usize::from(token.is_some()) + if swatch.is_some() { 4 } else { 2 },
+            // The cell, and each item: a value has a frame of its own (what `nodes` says of a value cell), a text is one node.
+            Cv::Many(items) => 1 + items.iter().map(|i| if matches!(i, Cv::Val { .. } | Cv::Many(_)) { i.nodes() } else { 1 }).sum::<usize>(),
             _ => 2,
         }
     }
@@ -610,7 +614,7 @@ pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &
     for (i, row) in rows.iter().enumerate() {
         let gr = 2 + 2 * i;
         for (col, v) in row.iter().enumerate() {
-            let direction = if matches!(v, Cv::Val { swatch: None, .. }) { "vertical" } else { "horizontal" };
+            let direction = if matches!(v, Cv::Val { swatch: None, .. } | Cv::Many(_)) { "vertical" } else { "horizontal" };
             let c = cell_in(lang, grid, col, gr, None, direction)?;
             match v {
                 Cv::Text(s) => cell_text(lang, c, s, pal::TEXT, false)?,
@@ -618,11 +622,41 @@ pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &
                 Cv::Muted(s) => cell_text(lang, c, s, pal::TEXT2, false)?,
                 Cv::Guide(s) => cell_text(lang, c, s, pal::GUIDE, false)?,
                 Cv::Val { token, text, swatch } => value_cell(lang, c, token.as_deref(), text, swatch.as_ref())?,
+                Cv::Many(items) => many_cell(lang, c, items)?,
             };
         }
         separator(lang, grid, gr + 1, n)?;
     }
     Ok(grid)
+}
+
+/// A cell with several values: each in a frame of its own (a row when it has a square of a colour, else a column), the first line of
+/// a value's text bold when it has a token.
+fn many_cell(lang: Lang, cell: u64, items: &[Cv]) -> Result<u64> {
+    for item in items {
+        match item {
+            Cv::Val { token, text, swatch } => {
+                let mut f = FlowSpec::new("Item", 100.0, if swatch.is_some() { "horizontal" } else { "vertical" });
+                f.gap = if swatch.is_some() { 8.0 } else { 2.0 };
+                f.extra = json!({"sizingH": "fill", "crossAlign": "min"});
+                let frame = flow_frame(lang, cell, f)?;
+                value_cell(lang, frame, token.as_deref(), text, swatch.as_ref())?;
+            }
+            Cv::Text(s) | Cv::Bold(s) | Cv::Muted(s) | Cv::Guide(s) => {
+                let (colour, bold) = match item {
+                    Cv::Bold(_) => (pal::TEXT, true),
+                    Cv::Muted(_) => (pal::TEXT2, false),
+                    Cv::Guide(_) => (pal::GUIDE, false),
+                    _ => (pal::TEXT, false),
+                };
+                cell_text(lang, cell, s, colour, bold)?;
+            }
+            Cv::Many(inner) => {
+                many_cell(lang, cell, inner)?;
+            }
+        }
+    }
+    Ok(cell)
 }
 
 /// A value cell. With a colour: a square of it (every square has a 1 px border in the `swatch border` colour, so a white one does not vanish)
@@ -668,11 +702,15 @@ pub(super) struct Ctx<'a> {
     /// budget in a big file).
     pub(super) vars: std::cell::RefCell<Option<std::rc::Rc<Vars>>>,
     pub(super) styles: std::cell::RefCell<Option<std::rc::Rc<Styles>>>,
+    /// The same `variable.list` reply read with every mode of every collection (the Tokens frame): made when `vars` is.
+    pub(super) modes: std::cell::RefCell<Option<std::rc::Rc<super::tokens::ModeVars>>>,
     /// The walk of the default variant's instance, made by the first frame that needs it (Anatomy, when it is made in the same run) and
     /// used by the others: the instance is made and read once.
     pub(super) base_walk: std::cell::RefCell<Option<Walk>>,
     /// The tables the content frames made: (name, rows), for the answer.
     pub(super) tables: std::cell::RefCell<Vec<(String, usize)>>,
+    /// What the Tokens frame found (its counts), for the answer.
+    pub(super) tokens: std::cell::RefCell<Option<Value>>,
 }
 
 impl Ctx<'_> {
@@ -685,9 +723,18 @@ impl Ctx<'_> {
         if !any_bound(nodes) {
             return Ok(std::rc::Rc::new(Vars::default()));
         }
-        let v = std::rc::Rc::new(Vars::parse(&host(self.lang, "variable.list", &json!({}))?));
+        let list = host(self.lang, "variable.list", &json!({}))?;
+        let v = std::rc::Rc::new(Vars::parse(&list));
+        *self.modes.borrow_mut() = Some(std::rc::Rc::new(super::tokens::ModeVars::parse(&list)));
         *slot = Some(v.clone());
         Ok(v)
+    }
+
+    /// The variables with all their modes, from the one `variable.list` of the run (read here only if nothing has read it yet and a
+    /// layer is bound to a variable).
+    pub(super) fn modes_for(&self, nodes: &[Value]) -> Result<std::rc::Rc<super::tokens::ModeVars>> {
+        self.vars_for(nodes)?;
+        Ok(self.modes.borrow().clone().unwrap_or_default())
     }
 
     /// The styles, likewise.
@@ -840,14 +887,6 @@ fn build_changelog(c: &Ctx, frame: u64) -> Result<()> {
     let headers: Vec<String> = [Key::ChangelogVersion, Key::ChangelogDate, Key::ChangelogChange].iter().map(|k| t(lang, *k).to_string()).collect();
     let rows = vec![vec![Cv::Guide(t(lang, Key::ChangelogGuideVersion).to_string()), Cv::Guide(t(lang, Key::ChangelogGuideDate).to_string()), Cv::Guide(t(lang, Key::ChangelogGuideChange).to_string())]];
     table(lang, frame, "Changelog", &CHANGELOG_COLS, &headers, &rows)?;
-    Ok(())
-}
-
-/// A section that is not made yet: its title and a line that says when it will be.
-fn build_reserved(c: &Ctx, frame: u64, sec: Sec) -> Result<()> {
-    header(c, frame, t(c.lang, sec.title_key()))?;
-    let step = if sec == Sec::Tokens { Key::ReservedC } else { Key::ReservedB };
-    text_with(c.lang, frame, t(c.lang, step), LINE_SIZE, pal::GUIDE, "Note", json!({}))?;
     Ok(())
 }
 
@@ -1013,7 +1052,7 @@ pub fn generate(input: Input) -> Result<Value> {
     };
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
     // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), base_walk: std::cell::RefCell::new(None) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
     let kit_frame: Option<(u64, &str)>;
     let mut set_added = false;
     if let Some(e) = old(Sec::Kit) {
@@ -1063,6 +1102,7 @@ pub fn generate(input: Input) -> Result<Value> {
                     }
                 })),
                 Sec::Variants => Some(tables::build_variants(&ctx, frame)),
+                Sec::Tokens => Some(tokens::build_tokens(&ctx, frame)),
                 Sec::Layouts => Some(tables::build_layouts(&ctx, frame)),
                 _ => None,
             };
@@ -1088,7 +1128,6 @@ pub fn generate(input: Input) -> Result<Value> {
                         warnings.push(Warn::WideMaster);
                     }
                 }
-                Sec::Tokens => build_reserved(&ctx, frame, Sec::Tokens)?,
                 _ => {}
             }
             (frame, height_of(lang, frame)?, if replaced { "replaced" } else { "created" })
@@ -1126,7 +1165,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": SECTION_W}, "view_w": 2.0 * FRAME_W + FRAME_GAP, "tallest": tallest, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "failed": failed, "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "failed": failed, "tokens": ctx.tokens.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
@@ -1377,5 +1416,17 @@ mod tests {
         assert!(!StageChoice { stage: Stage::Dark, lowest: Some(1.0), auto: false }.too_low());
         assert!(!StageChoice { stage: Stage::Light, lowest: Some(3.0), auto: true }.too_low());
         assert_eq!(StageChoice { stage: Stage::Mid, lowest: None, auto: true }.fill(), "#777777");
+    }
+    #[test]
+    fn a_cell_with_several_values_counts_its_cell_and_a_frame_and_the_contents_of_each() {
+        let colour = Cv::Val { token: Some("t".into()), text: "Fill · #000000".into(), swatch: Some(("#000000".into(), false)) };
+        let plain = Cv::Val { token: Some("t".into()), text: "Gap · 8px".into(), swatch: None };
+        // A value cell is its frame (counted in `nodes`), a square, a column and the two texts; a plain one its frame and two texts.
+        assert_eq!((colour.nodes(), plain.nodes()), (5, 3));
+        assert_eq!(Cv::Many(vec![colour.clone(), plain.clone()]).nodes(), 1 + 5 + 3);
+        assert_eq!(Cv::Many(vec![Cv::Muted("x".into()), plain]).nodes(), 1 + 1 + 3, "a text in a cell of several values is one node");
+        // The table counts them: the grid, the headers (2 each), the separator and the row (its frame and its cells).
+        let rows = vec![vec![Cv::Bold("a".into()), Cv::Many(vec![colour.clone(), colour])]];
+        assert_eq!(table_nodes(2, &rows), 1 + 4 + 1 + (1 + 2 + (1 + 5 + 5)));
     }
 }

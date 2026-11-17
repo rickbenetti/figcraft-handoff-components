@@ -18,6 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 pub mod section;
 pub mod tables;
+pub mod tokens;
 
 /// Host calls made through `host` so far (the legend's cost is measured with it).
 static HOST_CALLS: AtomicU64 = AtomicU64::new(0);
@@ -1129,7 +1130,7 @@ fn walk_layers(lang: Lang, root: u64) -> Result<Vec<(Value, usize)>> {
 /// Whether any layer has a style applied (otherwise `style.list` isn't worth asking).
 fn any_styled(nodes: &[Value]) -> bool {
     nodes.iter().any(|n| {
-        n.get("styles").and_then(Value::as_object).is_some_and(|s| ["fill", "stroke", "text"].iter().any(|k| s.get(*k).is_some_and(|v| !v.is_null())))
+        n.get("styles").and_then(Value::as_object).is_some_and(|s| ["fill", "stroke", "text", "effect"].iter().any(|k| s.get(*k).is_some_and(|v| !v.is_null())))
             || n.get("textStyleRanges").and_then(Value::as_array).is_some_and(|r| !r.is_empty())
     })
 }

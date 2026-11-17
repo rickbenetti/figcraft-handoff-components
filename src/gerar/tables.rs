@@ -8,7 +8,7 @@
 use super::section::{Ctx, Cv, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
 
 /// A table of the frame, noted for the answer (its name and how many rows it has).
-fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
+pub(super) fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
     c.tables.borrow_mut().push((name.to_string(), rows.len()));
     table(c.lang, parent, name, cols, headers, rows)
 }
@@ -33,11 +33,11 @@ pub const LAYOUT_NODE_CAP: usize = 400;
 /// Longest value text in a matrix cell.
 const CELL_CHARS: usize = 60;
 
-fn muted_note(lang: Lang, parent: u64, text: &str) -> Result<u64> {
+pub(super) fn muted_note(lang: Lang, parent: u64, text: &str) -> Result<u64> {
     text_with(lang, parent, text, LINE_SIZE, pal::GUIDE, "Note", json!({"width": USEFUL_W, "textAutoResize": "height"}))
 }
 
-fn heads(lang: Lang, keys: &[Key]) -> Vec<String> {
+pub(super) fn heads(lang: Lang, keys: &[Key]) -> Vec<String> {
     keys.iter().map(|k| t(lang, *k).to_string()).collect()
 }
 
@@ -56,7 +56,7 @@ fn walk_instance(lang: Lang, stage: u64, component: u64) -> Result<Vec<(Value, u
 }
 
 /// The walk of the default variant's instance: the one Anatomy already made in this run, else a new one (kept for the run).
-fn base_walk(c: &Ctx) -> Result<Walk> {
+pub(super) fn base_walk(c: &Ctx) -> Result<Walk> {
     if let Some(w) = c.base_walk.borrow().as_ref() {
         return Ok(w.clone());
     }
