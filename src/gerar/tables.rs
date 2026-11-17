@@ -1,4 +1,4 @@
-//! The four frames of 0.11 part B, drawn as tables in the Section's frames (1920 wide, padding 48, 1824 useful): Properties, Anatomy
+//! The four frames of 0.11 part B, drawn as tables in the Section's frames (1180 wide, padding 48, 1084 useful): Properties, Anatomy
 //! (the stage with the numbered layers, and a table of them), States and Variants (one matrix per variant axis) and Layouts
 //! (padding and gap by layer). They reuse what the 0.10.0 report collected (the audit of a layer's properties, the comparison of
 //! a variant with the default, the variant axes) and draw it as tables in the palette of the Section.
@@ -16,13 +16,13 @@ use super::*;
 use crate::delta::{Diff, Kind, Label, Swatch};
 use crate::variants::Axis;
 
-/// The columns (they add up to 1824).
-const PROPS_COLS: [f64; 4] = [360.0, 200.0, 900.0, 364.0];
-const ANATOMY_COLS: [f64; 4] = [80.0, 160.0, 380.0, 1204.0];
-const LAYOUT_COLS: [f64; 4] = [300.0, 200.0, 700.0, 624.0];
-/// The first two columns of a matrix; the options share what is left.
-const MATRIX_ELEMENT_W: f64 = 200.0;
-const MATRIX_PROPERTY_W: f64 = 280.0;
+/// The columns (they add up to 1084).
+const PROPS_COLS: [f64; 4] = [240.0, 140.0, 460.0, 244.0];
+const ANATOMY_COLS: [f64; 4] = [60.0, 120.0, 280.0, 624.0];
+const LAYOUT_COLS: [f64; 4] = [180.0, 120.0, 420.0, 364.0];
+/// The first two columns of a matrix (the widths of the 1824 layout scaled to 1084); the options share what is left, in whole pixels.
+const MATRIX_ELEMENT_W: f64 = 119.0;
+const MATRIX_PROPERTY_W: f64 = 166.0;
 /// The most options a matrix shows side by side; more are stacked in tables of the same frame.
 const MATRIX_SLICE: usize = 5;
 /// The most nodes the matrices of one run may make.
@@ -353,11 +353,12 @@ pub fn allocate_rows(axes: &[AxisAsk], cap: usize) -> Vec<usize> {
     taken
 }
 
-/// The columns of a matrix of `n` options.
+/// The columns of a matrix of `n` options: the first two as above and the rest shared in whole pixels (the first options take the
+/// remainder), adding up to exactly 1084.
 fn matrix_cols(n: usize) -> Vec<f64> {
-    let each = (USEFUL_W - MATRIX_ELEMENT_W - MATRIX_PROPERTY_W) / n as f64;
+    let rest = USEFUL_W as usize - (MATRIX_ELEMENT_W + MATRIX_PROPERTY_W) as usize;
     let mut cols = vec![MATRIX_ELEMENT_W, MATRIX_PROPERTY_W];
-    cols.extend(std::iter::repeat_n(each, n));
+    cols.extend((0..n).map(|i| (rest / n + usize::from(i < rest % n)) as f64));
     cols
 }
 
@@ -580,12 +581,17 @@ mod tests {
         for cols in [PROPS_COLS, ANATOMY_COLS, LAYOUT_COLS] {
             assert_eq!(cols.iter().sum::<f64>(), USEFUL_W);
         }
+        assert_eq!(PROPS_COLS, [240.0, 140.0, 460.0, 244.0]);
+        assert_eq!(ANATOMY_COLS, [60.0, 120.0, 280.0, 624.0]);
+        assert_eq!(LAYOUT_COLS, [180.0, 120.0, 420.0, 364.0]);
         for n in 1..=5 {
             let cols = matrix_cols(n);
-            assert_eq!(cols[0], 200.0);
-            assert_eq!(cols[1], 280.0);
-            assert!((cols.iter().sum::<f64>() - USEFUL_W).abs() < 1e-9, "{n} options");
+            assert_eq!(cols[0], 119.0);
+            assert_eq!(cols[1], 166.0);
+            assert_eq!(cols.iter().sum::<f64>(), USEFUL_W, "{n} options add up exactly");
+            assert!(cols[2..].iter().all(|c| c.fract() == 0.0 && *c >= 100.0), "whole pixels: {cols:?}");
         }
+        assert_eq!(matrix_cols(5), [119.0, 166.0, 160.0, 160.0, 160.0, 160.0, 159.0], "799 shared by 5: the first four take the remainder");
     }
 
     #[test]

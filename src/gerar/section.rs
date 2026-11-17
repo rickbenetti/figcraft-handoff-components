@@ -16,38 +16,85 @@
 use super::*;
 use crate::contrast::{self, Pick3, Stage};
 
-/// The frame's width, its padding and the useful width inside it.
-pub const FRAME_W: f64 = 1920.0;
+/// The frame's width, its padding and the useful width inside it (the tables are always this wide).
+pub const FRAME_W: f64 = 1180.0;
 pub const FRAME_PAD: f64 = 48.0;
 pub const USEFUL_W: f64 = FRAME_W - 2.0 * FRAME_PAD;
 /// The room around the frames inside the Section, and the gap between them.
 pub const SECTION_PAD: f64 = 256.0;
 pub const FRAME_GAP: f64 = 64.0;
-/// The frames are in ONE ROW, left to right, all at y = 256: the one of order `i` is at x = 256 + i × (1920 + 64).
-pub const FRAME_COUNT: usize = 9;
-/// The Section's width: 256 + 9 × 1920 + 8 × 64 + 256.
-pub const SECTION_W: f64 = FRAME_COUNT as f64 * FRAME_W + (FRAME_COUNT as f64 - 1.0) * FRAME_GAP + 2.0 * SECTION_PAD;
-/// The room between a Section and the one made below it with "New Section".
-pub const SECTION_BELOW_GAP: f64 = 512.0;
+/// The frames are in ONE COLUMN, top to bottom, all at x = 256 inside the Section, the first at y = 256 and each one 64 below the one above
+/// (nine frames: 256 + the heights + 8 × 64 + 256).
+/// The room between the right edge of everything on the page and a new Section.
+pub const SECTION_RIGHT_GAP: f64 = 512.0;
 
-/// The x, inside the Section, of the frame of order `i`.
-pub fn frame_x(i: usize) -> f64 {
-    SECTION_PAD + i as f64 * (FRAME_W + FRAME_GAP)
+/// The x, inside the Section, of every frame.
+pub const FRAME_X: f64 = SECTION_PAD;
+
+/// A frame of the Section where it stands: its place inside the Section, and its size.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Placed {
+    pub sec: Sec,
+    pub id: u64,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
 }
 
-/// The Section's height: the room around the tallest frame.
-pub fn section_height(tallest: f64) -> f64 {
-    SECTION_PAD + tallest + SECTION_PAD
+impl Placed {
+    pub fn bottom(&self) -> f64 {
+        self.y + self.h
+    }
 }
 
-/// Where "New Section" goes: at the x of the reference Section, below everything on the page that stands in its column (that
-/// is, whose horizontal extent meets the reference's) at or under its top, plus 512. `boxes` are the page's top-level boxes as
-/// (x, y, w, h); the reference is among them.
-pub fn below_position(reference: (f64, f64, f64, f64), boxes: &[(f64, f64, f64, f64)]) -> (f64, f64) {
-    let (rx, ry, rw, rh) = reference;
-    let bottom = boxes.iter().filter(|(x, y, w, h)| *x < rx + rw && rx < *x + *w && *y + *h > ry).map(|(_, y, _, h)| y + h).fold(ry + rh, f64::max);
-    (rx, bottom + SECTION_BELOW_GAP)
+/// The y of each frame of a new column, from the heights of the frames in order: the first at 256, each 64 under the one above.
+pub fn column_ys(heights: &[f64]) -> Vec<f64> {
+    let mut y = SECTION_PAD;
+    heights
+        .iter()
+        .map(|h| {
+            let at = y;
+            y += h + FRAME_GAP;
+            at
+        })
+        .collect()
 }
+
+/// The Section's size: 256 + the widest frame + 256 wide, and 256 + the lowest bottom + 256 tall (for a column that was never touched
+/// by hand that is 256 + the sum of the heights + 64 between each + 256).
+pub fn section_size(frames: &[Placed]) -> (f64, f64) {
+    let widest = frames.iter().map(|f| f.w).fold(0.0, f64::max);
+    let lowest = frames.iter().map(Placed::bottom).fold(SECTION_PAD, f64::max);
+    (SECTION_PAD + widest + SECTION_PAD, lowest + SECTION_PAD)
+}
+
+/// A frame of `sec` was replaced and its height went from `old_h` to `new_h`: the frames whose top was at or under its old bottom move by
+/// the difference (the frame itself keeps its place). Nothing else is rearranged, what the person moved by hand stays where it is.
+pub fn shift_below(frames: &mut [Placed], sec: Sec, old_y: f64, old_h: f64, new_h: f64) {
+    let delta = new_h - old_h;
+    if delta.abs() < 0.5 {
+        return;
+    }
+    let old_bottom = old_y + old_h;
+    for f in frames.iter_mut().filter(|f| f.sec != sec && f.y >= old_bottom - 0.5) {
+        f.y += delta;
+    }
+}
+
+/// Where a Section goes: to the right of everything on the page (its largest right edge + 512; 0 on an empty page), at y = 256, or at
+/// the y of the Section it goes beside ("New Section"). `boxes` are the page's top-level boxes as (x, y, w, h).
+pub fn section_origin(boxes: &[(f64, f64, f64, f64)], beside_y: Option<f64>) -> (f64, f64) {
+    let right = boxes.iter().map(|(x, _, w, _)| x + w).fold(None, |r: Option<f64>, v| Some(r.map_or(v, |r| r.max(v))));
+    (right.map_or(0.0, |r| r + SECTION_RIGHT_GAP), beside_y.unwrap_or(SECTION_PAD))
+}
+
+/// The width of the Component Master frame for a component `w` wide: the stage has 48 around the component and the frame 48 around the
+/// stage, and the frame grows rather than cutting or shrinking the component; never narrower than the other frames.
+pub fn master_width(component_w: f64) -> f64 {
+    FRAME_W.max(component_w + 2.0 * STAGE_PAD + 2.0 * FRAME_PAD)
+}
+
 /// The mark of the Section on the page (the value is the id of the component), of a frame's section, and of the set of approval pills.
 pub const SECTION_MARK: &str = "handoff-report-section";
 pub const NAME_MARK: &str = "handoff-section";
@@ -79,7 +126,7 @@ pub mod pal {
 
 const CELL_PAD: [f64; 4] = [12.0, 16.0, 12.0, 16.0];
 const TABLE_RADIUS: f64 = 8.0;
-const CHANGELOG_COLS: [f64; 3] = [200.0, 240.0, 1384.0];
+const CHANGELOG_COLS: [f64; 3] = [160.0, 180.0, 744.0];
 /// The circle of a state, the pill that holds it, and the name of the variant property of the set that holds the four pills.
 const STATE_D: f64 = 44.0;
 const PILL_W: f64 = 290.0;
@@ -271,20 +318,17 @@ pub enum Warn {
     Failed,
     /// No stage suits every variant (the automatic stage's lowest contrast is under 3:1).
     NoStage,
-    /// The component is wider than the stage's useful width.
-    WideMaster,
     /// A loose documentation of version 0.10.0 was found and left as it was.
     LegacyDoc,
 }
 
 impl Warn {
-    pub const ALL: [Warn; 4] = [Warn::Failed, Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc];
+    pub const ALL: [Warn; 3] = [Warn::Failed, Warn::NoStage, Warn::LegacyDoc];
 
     pub fn code(self) -> &'static str {
         match self {
             Warn::Failed => "table_failed",
             Warn::NoStage => "no_stage",
-            Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
         }
     }
@@ -293,7 +337,6 @@ impl Warn {
         t(lang, match self {
             Warn::Failed => Key::PanelWarnFailed,
             Warn::NoStage => Key::PanelWarnNoStage,
-            Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
         })
     }
@@ -484,6 +527,7 @@ pub struct Existing {
     pub sec: Sec,
     pub x: f64,
     pub y: f64,
+    pub w: f64,
     pub h: f64,
 }
 
@@ -498,7 +542,7 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
         if out.iter().any(|e| e.sec == sec) {
             continue;
         }
-        out.push(Existing { id, sec, x: b.x - sb.x, y: b.y - sb.y, h: b.h });
+        out.push(Existing { id, sec, x: b.x - sb.x, y: b.y - sb.y, w: b.w, h: b.h });
     }
     Ok((sb, out))
 }
@@ -518,7 +562,7 @@ fn new_frame(lang: Lang, section: u64, name: &str, comp_key: &str, sec: Sec) -> 
     let created = host(
         lang,
         "frame.create",
-        &json!({"parent": section, "x": frame_x(sec.index()), "y": SECTION_PAD, "width": FRAME_W, "height": 200, "name": name, "select": false,
+        &json!({"parent": section, "x": FRAME_X, "y": SECTION_PAD, "width": FRAME_W, "height": 200, "name": name, "select": false,
             "props": {"fill": pal::FRAME, "layout": "vertical", "gap": 32, "padding": FRAME_PAD, "crossAlign": "min", "sizingH": "fixed", "sizingV": "hug", "cornerRadius": TABLE_RADIUS, "clip": false,
                 "pluginData": {REPORT_KEY: comp_key, NAME_MARK: sec.key()}}}),
     )?;
@@ -855,7 +899,7 @@ fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
     text_with(lang, frame, t(lang, Key::CoverApprovals), theme::SECTION_SIZE, pal::TEXT, "Approvals title", bold())?;
     if let Some(set) = c.pills {
         let mut g = FlowSpec::new("Approvals", USEFUL_W, "grid");
-        g.extra = json!({"gridColumns": 6, "gridRows": 1, "columnTracks": [PILL_W, PILL_W, PILL_W, PILL_W, PILL_W, PILL_W], "rowTracks": ["auto"], "rowGap": 0, "sizingH": "fixed"});
+        g.extra = json!({"gridColumns": 3, "gridRows": 2, "columnTracks": [350, 350, 350], "rowTracks": ["auto", "auto"], "rowGap": 16, "sizingH": "fixed"});
         g.gap = 16.0;
         let grid = flow_frame(lang, frame, g)?;
         let area = t(lang, Key::ApprPropArea);
@@ -891,8 +935,8 @@ fn build_changelog(c: &Ctx, frame: u64) -> Result<()> {
 }
 
 /// The Component Master: the title, a line about it, the fixed warning, and the stage with the original component moved onto it.
-/// Returns the moved layer's id and whether it is wider than the stage's useful width.
-fn build_master(c: &Ctx, frame: u64) -> Result<(u64, bool)> {
+/// Returns the moved layer's id; the frame is made as wide as the component asks.
+fn build_master(c: &Ctx, frame: u64) -> Result<u64> {
     let lang = c.lang;
     header(c, frame, t(lang, Key::MasterTitle))?;
     text_with(lang, frame, t(lang, Key::MasterDescription), LINE_SIZE, pal::TEXT2, "Description", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
@@ -904,9 +948,13 @@ fn build_master(c: &Ctx, frame: u64) -> Result<(u64, bool)> {
     let stage = flow_frame(lang, frame, st)?;
     let moved = c.target.holder;
     host(lang, "node.reparent", &json!({"ids": [moved], "parent": stage}))?;
+    // The frame grows to hold the component (it is never cut or shrunk), and so does the Section.
     let node = host(lang, "node.get", &json!({"id": moved, "fields": ["absoluteBounds"]}))?;
-    let wide = bounds(&node).is_some_and(|b| b.w > USEFUL_W - 2.0 * STAGE_PAD + 0.5);
-    Ok((moved, wide))
+    let width = master_width(bounds(&node).map_or(0.0, |b| b.w));
+    if width > FRAME_W + 0.5 {
+        host(lang, "node.set", &json!({"ids": [frame], "props": {"width": width}}))?;
+    }
+    Ok(moved)
 }
 
 /// The set of approval pills, made inside `frame`: four variants (Estado = pendente, aprovado, ressalvas, reprovado), each the pill
@@ -1027,29 +1075,26 @@ pub fn generate(input: Input) -> Result<Value> {
     if first_run && has_legacy_frame(&page, &comp_key) {
         warnings.push(Warn::LegacyDoc);
     }
-    // "New Section" goes BELOW the reference Section (the first of the component), at the same x.
-    let below = match found {
-        Some(id) if beside => {
-            let boxes: Vec<(f64, f64, f64, f64)> = page.children.iter().filter_map(bounds).map(|b| (b.x, b.y, b.w, b.h)).collect();
-            let reference = page.children.iter().find(|c| c.get("id").and_then(Value::as_u64) == Some(id)).and_then(bounds).map(|b| (b.x, b.y, b.w, b.h));
-            reference.map(|r| below_position(r, &boxes))
-        }
+    // A Section goes to the right of everything on the page (+ 512), at y = 256; "New Section" at the y of the reference Section (the
+    // first of the component), so the new column stands beside the old one.
+    let boxes: Vec<(f64, f64, f64, f64)> = page.children.iter().filter_map(bounds).map(|b| (b.x, b.y, b.w, b.h)).collect();
+    let beside_y = match found {
+        Some(id) if beside => page.children.iter().find(|c| c.get("id").and_then(Value::as_u64) == Some(id)).and_then(bounds).map(|b| b.y),
         _ => None,
     };
-    let right = page.children.iter().filter_map(bounds).map(Rect::right).fold(None, |r: Option<f64>, v| Some(r.map_or(v, |r| r.max(v))));
     let calls0 = HOST_CALLS.load(Ordering::Relaxed);
-    // 3. The Section: the one that is there, or a new one right of everything (512 px beyond it, at y = 0), or below the first one.
+    // 3. The Section: the one that is there, or a new one right of everything.
     let (section, sx, sy, existing, created) = match section_id {
         Some(id) => {
             let (sb, frames) = read_frames(lang, id)?;
             (id, sb.x, sb.y, frames, false)
         }
         None => {
-            let (x, y) = below.unwrap_or((right.map_or(0.0, |r| r + GAP_RIGHT), 0.0));
+            let (x, y) = section_origin(&boxes, beside_y);
             let made = host(
                 lang,
                 "node.create",
-                &json!({"type": "section", "name": tf(lang, Key::SectionName, &[("name", &name)]), "x": x, "y": y, "width": SECTION_W, "height": 400, "select": false,
+                &json!({"type": "section", "name": tf(lang, Key::SectionName, &[("name", &name)]), "x": x, "y": y, "width": FRAME_W + 2.0 * SECTION_PAD, "height": 400, "select": false,
                     "props": {"fill": pal::SECTION, "pluginData": {SECTION_MARK: comp_key}}}),
             )?;
             (id_of(lang, &made, "node.create")?, x, y, Vec::new(), true)
@@ -1087,15 +1132,21 @@ pub fn generate(input: Input) -> Result<Value> {
             warnings.push(Warn::NoStage);
         }
     }
-    // 7. The frames, in order.
-    let mut tallest: f64 = 0.0;
+    // 7. The frames, in order. A frame that is made again takes the place of the old one; a frame that was not there is placed below.
     let mut report: Vec<Value> = Vec::new();
     let mut master_moved: Option<u64> = None;
     let mut failed: Vec<&str> = Vec::new();
+    // Where every frame stands now (inside the Section) and what it was made as.
+    let mut placed: Vec<Placed> = existing.iter().map(|e| Placed { sec: e.sec, id: e.id, x: e.x, y: e.y, w: e.w, h: e.h }).collect();
+    let mut actions: Vec<(Sec, &str)> = Vec::new();
+    let mut fresh: Vec<Sec> = Vec::new();
     for sec in Sec::ALL {
-        let (id, h, action): (u64, f64, &str) = if sec == Sec::Kit {
+        let (id, action): (u64, &str) = if sec == Sec::Kit {
             let (id, action) = kit_frame.unwrap_or((0, "kept"));
-            (id, height_of(lang, id)?, action)
+            if action == "created" {
+                fresh.push(sec);
+            }
+            (id, action)
         } else if will_make(sec) {
             let frame_name = if sec == Sec::Master { tf(lang, Key::MasterFrameName, &[("name", &name)]) } else { tf(lang, Key::SectionFrameName, &[("title", t(lang, sec.title_key())), ("name", &name)]) };
             let replaced = old(sec).is_some();
@@ -1130,35 +1181,81 @@ pub fn generate(input: Input) -> Result<Value> {
                 Sec::Cover => build_cover(&ctx, frame)?,
                 Sec::Changelog => build_changelog(&ctx, frame)?,
                 Sec::Master => {
-                    let (moved, wide) = build_master(&ctx, frame)?;
+                    let moved = build_master(&ctx, frame)?;
                     if let Some(e) = old(sec) {
                         host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
                     }
                     master_moved = Some(moved);
-                    if wide {
-                        warnings.push(Warn::WideMaster);
-                    }
                 }
                 _ => {}
             }
-            (frame, height_of(lang, frame)?, if replaced { "replaced" } else { "created" })
-        } else if let Some(e) = old(sec) {
-            (e.id, e.h, "kept")
+            let (w, h) = size_of(lang, frame)?;
+            match old(sec) {
+                // The new frame takes the old one's place; what is under the old one moves by the difference in height.
+                Some(e) => {
+                    shift_below(&mut placed, sec, e.y, e.h, h);
+                    placed.retain(|p| p.sec != sec);
+                    placed.push(Placed { sec, id: frame, x: e.x, y: e.y, w, h });
+                }
+                None => {
+                    placed.retain(|p| p.sec != sec);
+                    placed.push(Placed { sec, id: frame, x: FRAME_X, y: SECTION_PAD, w, h });
+                    fresh.push(sec);
+                }
+            }
+            (frame, if replaced { "replaced" } else { "created" })
+        } else if old(sec).is_some() {
+            (old(sec).map_or(0, |e| e.id), "kept")
         } else {
             continue;
         };
-        // A frame that is not where it should be (a kept one from an older layout) moves to its place in the row.
-        let (want_x, want_y) = (frame_x(sec.index()), SECTION_PAD);
-        let (at_x, at_y) = if action == "kept" { old(sec).map_or((want_x, want_y), |e| (e.x, e.y)) } else { (want_x, want_y) };
-        if (at_x - want_x).abs() > 0.5 || (at_y - want_y).abs() > 0.5 {
-            host(lang, "node.set", &json!({"ids": [id], "props": {"x": want_x, "y": want_y}}))?;
+        if fresh.contains(&sec) && !placed.iter().any(|p| p.sec == sec) {
+            let (w, h) = size_of(lang, id)?;
+            placed.push(Placed { sec, id, x: FRAME_X, y: SECTION_PAD, w, h });
         }
-        tallest = tallest.max(h);
-        report.push(json!({"key": sec.key(), "id": id, "x": want_x, "y": want_y, "h": h, "action": action}));
+        actions.push((sec, action));
     }
-    // 8. The Section is as wide as the row and as tall as its tallest frame and the room around it.
-    let section_h = section_height(tallest);
-    host(lang, "node.set", &json!({"ids": [section], "props": {"width": SECTION_W, "height": section_h}}))?;
+    // 8. The frames that were not there go in their place of the column: the whole column of a new Section is stacked from the top;
+    // a frame made again in a Section that lacked it goes under the frame above it, and the ones under it move down.
+    let all_fresh = placed.iter().all(|p| fresh.contains(&p.sec));
+    if all_fresh {
+        let ordered: Vec<Sec> = Sec::ALL.into_iter().filter(|s| placed.iter().any(|p| p.sec == *s)).collect();
+        let heights: Vec<f64> = ordered.iter().filter_map(|s| placed.iter().find(|p| p.sec == *s).map(|p| p.h)).collect();
+        for (sec, y) in ordered.iter().zip(column_ys(&heights)) {
+            if let Some(p) = placed.iter_mut().find(|p| p.sec == *sec) {
+                p.y = y;
+            }
+        }
+    } else {
+        for sec in Sec::ALL.into_iter().filter(|s| fresh.contains(s)) {
+            let Some(me) = placed.iter().find(|p| p.sec == sec).cloned() else { continue };
+            let above = Sec::ALL.iter().take(sec.index()).rev().find_map(|s| placed.iter().find(|p| p.sec == *s));
+            let y = above.map_or(SECTION_PAD, |a| a.bottom() + FRAME_GAP);
+            // Open room for it: what stood at or under that line moves down by its height and a gap.
+            for p in placed.iter_mut().filter(|p| p.sec != sec && p.y >= y - 0.5) {
+                p.y += me.h + FRAME_GAP;
+            }
+            if let Some(p) = placed.iter_mut().find(|p| p.sec == sec) {
+                p.y = y;
+            }
+        }
+    }
+    // Every frame stands where `placed` says (the moves are written only when a frame is not already there).
+    for p in &placed {
+        let before = existing.iter().find(|e| e.sec == p.sec && e.id == p.id);
+        if before.is_none_or(|e| (e.x - p.x).abs() > 0.5 || (e.y - p.y).abs() > 0.5) {
+            host(lang, "node.set", &json!({"ids": [p.id], "props": {"x": p.x, "y": p.y}}))?;
+        }
+    }
+    for (sec, action) in &actions {
+        if let Some(p) = placed.iter().find(|p| p.sec == *sec) {
+            report.push(json!({"key": sec.key(), "id": p.id, "x": p.x, "y": p.y, "w": p.w, "h": p.h, "action": action}));
+        }
+    }
+    // 9. The Section is as wide as its widest frame and as tall as the column, with the room around it.
+    let (section_w, section_h) = section_size(&placed);
+    let tallest = placed.iter().map(|p| p.h).fold(0.0, f64::max);
+    host(lang, "node.set", &json!({"ids": [section], "props": {"width": section_w, "height": section_h}}))?;
     let export_result = if created {
         match call("export.add", &json!({"ids": [section], "setting": {"size": "1x", "suffix": "", "format": "svg"}})) {
             Ok(_) => "ok".to_string(),
@@ -1173,7 +1270,7 @@ pub fn generate(input: Input) -> Result<Value> {
     warnings.sort_by_key(|w| Warn::ALL.iter().position(|x| x == w));
     Ok(json!({
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
-        "frame_size": {"w": SECTION_W}, "view_w": 2.0 * FRAME_W + FRAME_GAP, "tallest": tallest, "section_size": {"w": SECTION_W, "h": section_h}, "frames": report, "master_moved": master_moved,
+        "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
         "failed": failed, "tokens": ctx.tokens.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
@@ -1232,43 +1329,97 @@ mod tests {
         );
     }
 
+    fn frame(sec: Sec, y: f64, w: f64, h: f64) -> Placed {
+        Placed { sec, id: sec.index() as u64 + 1, x: FRAME_X, y, w, h }
+    }
+
     #[test]
-    fn the_frames_are_in_one_row_at_y_256_with_64_between_them() {
-        let xs: Vec<f64> = (0..FRAME_COUNT).map(frame_x).collect();
-        assert_eq!(xs, [256.0, 2240.0, 4224.0, 6208.0, 8192.0, 10176.0, 12160.0, 14144.0, 16128.0]);
-        assert!(xs.windows(2).all(|w| w[1] - w[0] - FRAME_W == FRAME_GAP));
-        assert_eq!(xs[8] + FRAME_W + SECTION_PAD, SECTION_W);
-        assert_eq!(SECTION_W, 18304.0);
-        assert_eq!(SECTION_W, 256.0 + 9.0 * 1920.0 + 8.0 * 64.0 + 256.0);
+    fn the_frames_are_in_one_column_at_x_256_with_64_between_them_the_first_at_y_256() {
+        assert_eq!((FRAME_W, FRAME_PAD, USEFUL_W, FRAME_GAP, SECTION_PAD), (1180.0, 48.0, 1084.0, 64.0, 256.0));
+        let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0, 357.0];
+        let ys = column_ys(&heights);
+        assert_eq!(ys[0], 256.0);
+        assert!(ys.windows(2).zip(&heights).all(|(w, h)| w[1] - w[0] - h == FRAME_GAP));
         for (i, s) in Sec::ALL.iter().enumerate() {
             assert_eq!(s.index(), i);
         }
+        // The Section: 256 + the widest frame + 256 wide; 256 + the sum of the heights + 8 x 64 + 256 tall.
+        let frames: Vec<Placed> = Sec::ALL.iter().zip(&heights).zip(&ys).map(|((s, h), y)| frame(*s, *y, FRAME_W, *h)).collect();
+        assert_eq!(section_size(&frames), (256.0 + 1180.0 + 256.0, 256.0 + heights.iter().sum::<f64>() + 8.0 * 64.0 + 256.0));
+        assert_eq!(section_size(&[]), (512.0, 512.0));
+    }
+
+    fn page(boxes: &[(f64, f64, f64, f64)]) -> Vec<(f64, f64, f64, f64)> {
+        boxes.to_vec()
     }
 
     #[test]
-    fn the_section_is_as_tall_as_its_tallest_frame_plus_the_room_around() {
-        assert_eq!(section_height(1359.0), 256.0 + 1359.0 + 256.0);
-        assert_eq!(section_height(0.0), 512.0);
+    fn the_first_section_goes_right_of_everything_at_y_256() {
+        // An empty page: x = 0. A page with one Section 1692 wide at x = 0: its right edge + 512.
+        assert_eq!(section_origin(&[], None), (0.0, 256.0));
+        let first = (0.0, 256.0, 1692.0, 6000.0);
+        assert_eq!(section_origin(&page(&[first]), None), (1692.0 + 512.0, 256.0));
+        // The Section of another component goes to the right of both.
+        let second = (2204.0, 256.0, 1692.0, 4000.0);
+        assert_eq!(section_origin(&page(&[first, second]), None), (2204.0 + 1692.0 + 512.0, 256.0));
     }
 
     #[test]
-    fn a_new_section_goes_below_everything_in_the_column_of_the_reference_and_not_beside_other_components() {
-        let button = (3552.0, 0.0, SECTION_W, 4000.0);
-        let card = (3552.0 + SECTION_W + 512.0, 0.0, SECTION_W, 3500.0);
-        let loose = (0.0, 0.0, 1000.0, 5000.0); // a frame to the left, not in the column
-        // Below the Button alone: its bottom + 512, same x.
-        assert_eq!(below_position(button, &[button, card, loose]), (3552.0, 4512.0));
-        // A second Button Section already below: the next one goes under that one.
-        let second = (3552.0, 4512.0, SECTION_W, 4200.0);
-        assert_eq!(below_position(button, &[button, card, loose, second]), (3552.0, 4512.0 + 4200.0 + 512.0));
-        // The Card's column is its own.
-        assert_eq!(below_position(card, &[button, card, loose, second]), (card.0, 3500.0 + 512.0));
+    fn a_new_section_of_the_same_component_goes_beside_the_old_one_at_its_y() {
+        let old = (0.0, 256.0, 1692.0, 6000.0);
+        let other = (2204.0, 256.0, 2400.0, 4000.0); // a wide Section of another component
+        // At the y of the reference, to the right of everything (the other component's Section included).
+        assert_eq!(section_origin(&page(&[old, other]), Some(256.0)), (2204.0 + 2400.0 + 512.0, 256.0));
+        // The reference is not at 256 (the person moved it): the new column is level with it.
+        assert_eq!(section_origin(&page(&[(0.0, 900.0, 1692.0, 6000.0)]), Some(900.0)), (1692.0 + 512.0, 900.0));
+    }
+
+    #[test]
+    fn a_frame_of_version_0_10_0_on_the_page_counts_as_something_to_clear() {
+        let legacy = (0.0, 0.0, 3000.0, 1200.0); // "Documentation: X"
+        assert_eq!(section_origin(&page(&[legacy]), None), (3000.0 + 512.0, 256.0));
+        let section = (3512.0, 256.0, 1692.0, 5000.0);
+        assert_eq!(section_origin(&page(&[legacy, section]), None), (3512.0 + 1692.0 + 512.0, 256.0));
+    }
+
+    #[test]
+    fn a_rerun_that_changes_the_height_of_a_middle_frame_moves_the_ones_under_it_down_by_the_difference() {
+        let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0, 357.0];
+        let ys = column_ys(&heights);
+        let mut frames: Vec<Placed> = Sec::ALL.iter().zip(&heights).zip(&ys).map(|((s, h), y)| frame(*s, *y, FRAME_W, *h)).collect();
+        let before: Vec<f64> = frames.iter().map(|f| f.y).collect();
+        // Anatomy (index 3) goes from 723 to 900: Variants and everything under it move 177 down; Cover, Master and Properties stay.
+        let anatomy = frames[3].clone();
+        shift_below(&mut frames, Sec::Anatomy, anatomy.y, anatomy.h, 900.0);
+        for (i, f) in frames.iter().enumerate() {
+            let want = if i > 3 { before[i] + 177.0 } else { before[i] };
+            assert_eq!(f.y, want, "{:?}", f.sec);
+        }
+        // The same height: nothing moves.
+        let snapshot = frames.clone();
+        shift_below(&mut frames, Sec::Anatomy, anatomy.y, 723.0, 723.0);
+        assert_eq!(frames, snapshot);
+        // A frame the person moved UP over the changed one (its top above the old bottom) is left alone.
+        let mut moved = vec![frame(Sec::Properties, 300.0, FRAME_W, 200.0), frame(Sec::Anatomy, 256.0, FRAME_W, 723.0), frame(Sec::Variants, 1043.0, FRAME_W, 100.0)];
+        shift_below(&mut moved, Sec::Anatomy, 256.0, 723.0, 800.0);
+        assert_eq!((moved[0].y, moved[2].y), (300.0, 1120.0));
+    }
+
+    #[test]
+    fn a_master_wider_than_the_frames_grows_and_the_section_follows_it() {
+        // A component of up to 988 fits the 1180 frame (48 + 48 + 988 + 48 + 48 = 1180); one of 1400 makes the frame 1592.
+        assert_eq!(master_width(500.0), 1180.0);
+        assert_eq!(master_width(988.0), 1180.0);
+        assert_eq!(master_width(1400.0), 1400.0 + 192.0);
+        let frames = [frame(Sec::Cover, 256.0, FRAME_W, 615.0), frame(Sec::Master, 935.0, master_width(1400.0), 900.0), frame(Sec::Properties, 1899.0, FRAME_W, 500.0)];
+        assert_eq!(section_size(&frames), (256.0 + 1592.0 + 256.0, 1899.0 + 500.0 + 256.0));
     }
 
     #[test]
     fn the_columns_of_the_table_fill_the_useful_width() {
-        assert_eq!(USEFUL_W, 1824.0);
+        assert_eq!(USEFUL_W, 1084.0);
         assert_eq!(CHANGELOG_COLS.iter().sum::<f64>(), USEFUL_W);
+        assert_eq!(CHANGELOG_COLS, [160.0, 180.0, 744.0]);
     }
 
     #[test]

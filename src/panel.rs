@@ -450,8 +450,8 @@ mod tests {
                         Message::WrongKind(kind_word(lang, "FRAME")),
                         Message::WrongKind(kind_word(lang, "BOOLEAN_OPERATION")),
                         Message::Restored,
-                        Message::Warned("Botão".into(), vec![Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc]),
-                        Message::Warned("y".repeat(2000), vec![Warn::WideMaster]),
+                        Message::Warned("Botão".into(), vec![Warn::NoStage, Warn::Failed, Warn::LegacyDoc]),
+                        Message::Warned("y".repeat(2000), vec![Warn::Failed]),
                         Message::Warned("Botão".into(), vec![Warn::LegacyDoc]),
                         Message::Warned("y".repeat(2000), vec![Warn::Failed, Warn::NoStage]),
                     ] {
@@ -704,7 +704,7 @@ mod tests {
         assert_eq!(message_text(Lang::En, &Message::Done("Button".into())), "✔ Documentation generated: Button.");
         assert_eq!(message_text(Lang::En, &Message::NothingSelected), "✖ Nothing is selected. Select a component, set or variant and press Generate.");
         assert_eq!(message_text(Lang::En, &Message::WrongKind("Frame".into())), "✖ The selection is a Frame. Select a component, set or variant.");
-        assert_eq!(message_text(Lang::Pt, &Message::Warned("Botão".into(), vec![Warn::NoStage, Warn::WideMaster])), "✔ Documentação gerada: Botão. ℹ Nenhum palco serve a todas as variantes: troque em Palco.");
+        assert_eq!(message_text(Lang::Pt, &Message::Warned("Botão".into(), vec![Warn::NoStage, Warn::LegacyDoc])), "✔ Documentação gerada: Botão. ℹ Nenhum palco serve a todas as variantes: troque em Palco.");
         for l in [Lang::En, Lang::Pt] {
             assert!(!message_text(l, &Message::Idle).starts_with(['✔', '●', '✖', 'ℹ']), "the opening note has no symbol");
             assert!(!message_text(l, &Message::Restored).starts_with(['✔', '●', '✖', 'ℹ']), "nor has the restore note");

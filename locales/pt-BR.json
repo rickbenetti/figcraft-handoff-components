@@ -243,7 +243,6 @@
   "ChangelogGuideVersion": "x.y.z",
   "ChangelogGuideDate": "Data, digitada à mão",
   "ChangelogGuideChange": "O que mudou nesta versão.",
-  "PanelWarnWide": "Componente mais largo que 1728 px: passa do palco.",
   "PanelWarnLegacy": "Documentação da 0.10.0 encontrada e mantida como estava.",
   "ErrMainGone": "O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?).",
   "PanelUpdate": "Atualizar",

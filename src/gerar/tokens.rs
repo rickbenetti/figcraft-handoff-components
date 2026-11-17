@@ -15,9 +15,9 @@ use super::tables::{base_walk, heads, muted_note, put_table};
 use super::*;
 use std::collections::HashMap;
 
-/// The columns of the two tables (they add up to 1824).
-const LAYER_COLS: [f64; 4] = [300.0, 520.0, 520.0, 484.0];
-const COLOUR_COLS: [f64; 3] = [700.0, 562.0, 562.0];
+/// The columns of the two tables (they add up to 1084).
+const LAYER_COLS: [f64; 4] = [220.0, 320.0, 320.0, 224.0];
+const COLOUR_COLS: [f64; 3] = [400.0, 342.0, 342.0];
 /// The most nodes the two tables of one run may make together (shared between them like the axes of States and Variants).
 pub const TOKENS_NODE_CAP: usize = 450;
 /// The most layers read, in all the variants, to find their colours (each layer is a host call, about 0.2 M of fuel).

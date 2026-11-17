@@ -1589,7 +1589,12 @@ fn legend_frame(lang: Lang, row: u64) -> Result<u64> {
 
 /// A frame's height (0 when it can't be read).
 fn height_of(lang: Lang, id: u64) -> Result<f64> {
-    Ok(bounds(&host(lang, "node.get", &json!({"id": id, "fields": ["absoluteBounds"]}))?).map_or(0.0, |b| b.h))
+    Ok(size_of(lang, id)?.1)
+}
+
+/// A layer's width and height.
+fn size_of(lang: Lang, id: u64) -> Result<(f64, f64)> {
+    Ok(bounds(&host(lang, "node.get", &json!({"id": id, "fields": ["absoluteBounds"]}))?).map_or((0.0, 0.0), |b| (b.w, b.h)))
 }
 
 /// A component property as the report shows it: its name, type and options (the default marked).

@@ -243,7 +243,6 @@
   "ChangelogGuideVersion": "x.y.z",
   "ChangelogGuideDate": "Date, typed by hand",
   "ChangelogGuideChange": "What changed in this version.",
-  "PanelWarnWide": "Component wider than 1728 px; it overflows the stage.",
   "PanelWarnLegacy": "A 0.10.0 documentation was found and left as it was.",
   "ErrMainGone": "The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?).",
   "PanelUpdate": "Update",
