@@ -126,6 +126,85 @@ def run_case(src, layer, tmp, n, lang=None):
     }
 
 
+UPDATES = ["all", "tables", "tokens", "properties", "anatomy", "variants", "layouts"]
+
+
+def cover_snapshot(src, cover, tmp):
+    """Everything inside the Cover frame: id, parent, name, text and, for an instance, its properties; plus its place."""
+    nodes, level = [], [(cover, None)]
+    while level:
+        steps = [{"command": "node.get", "params": {"id": i, "fields": ["name", "type", "characters", "children", "x", "y", "width", "height"]}} for i, _ in level]
+        json.dump(steps, open(os.path.join(tmp, "cs.json"), "w"))
+        p = cli(["run", "--in", src, "--out", os.path.join(tmp, "cs.figcraft"), os.path.join(tmp, "cs.json")])
+        res = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+        current, level = level, []
+        for (i, parent), r in zip(current, res):
+            v = r.get("result") or {}
+            nodes.append([i, parent, v.get("name"), v.get("type"), v.get("characters"), v.get("x"), v.get("y"), v.get("width"), v.get("height")])
+            level += [(c["id"], i) for c in v.get("children") or []]
+    inst = [n[0] for n in nodes if n[3] == "INSTANCE"]
+    props = []
+    if inst:
+        json.dump([{"command": "component.properties", "params": {"id": i}} for i in inst], open(os.path.join(tmp, "cs.json"), "w"))
+        p = cli(["run", "--in", src, "--out", os.path.join(tmp, "cs.figcraft"), os.path.join(tmp, "cs.json")])
+        props = [json.dumps(json.loads(l).get("result"), sort_keys=True) for l in p.stdout.splitlines() if l.startswith("{")]
+    return nodes, props
+
+
+def cover_case(tmp):
+    """"cover editada": the Button of the demo is documented, its Cover is edited by hand (texts, a pill's area, name and state, a
+    pill deleted, another duplicated), and each of the 7 options of Update is run from that same state. The Cover must come out the same:
+    same id, same nodes (ids, names, texts, properties of every pill, places). Also: selecting a pill and generating is refused."""
+    out = {}
+    name = "Button"
+    cid = find_by_name(DEMO, name, tmp, 900)
+    if cid is None:
+        return {"cover editada": {"error": "Button not found"}}
+    step = lambda cmd, params: {"command": cmd, "params": params}
+
+    def plugin(layer, params):
+        return [step("plugin.import", {"path": DIST}), step("select.set", {"ids": [layer]}), step("plugin.run", {"id": PID, "command": "generate", "params": {"direct": True, **params}})]
+
+    def go(steps, i, o):
+        json.dump(steps, open(os.path.join(tmp, "cv.json"), "w"))
+        p = cli(["run", "--in", i, "--out", o, os.path.join(tmp, "cv.json")])
+        return [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")], p.stderr
+
+    g1 = os.path.join(tmp, "cv1.figcraft")
+    r, _ = go(plugin(cid, {}), DEMO, g1)
+    o = r[2]["result"]["output"]
+    cover = next(f["id"] for f in o["frames"] if f["key"] == "cover")
+    find = lambda **q: step("node.find", {"root": cover, "limit": 100, **q})
+    r, _ = go([find(text="v0.0.0"), find(text="status:"), find(text="Write a short"), find(text="Name of the last"), find(type="instance")], g1, os.path.join(tmp, "cv0.figcraft"))
+    ids = [x["result"]["ids"] for x in r]
+    pills = ids[4]
+    edit = [step("node.set", {"ids": [ids[0][0]], "props": {"characters": "v1.2.3"}}), step("node.set", {"ids": [ids[1][0]], "props": {"characters": "status: approved"}}),
+            step("node.set", {"ids": [ids[2][0]], "props": {"characters": "Edited description"}}), step("node.set", {"ids": [ids[3][0]], "props": {"characters": "Rick B."}}),
+            step("instance.setProperties", {"ids": [pills[0]], "properties": {"Area": "Design lead", "Name · date": "Rick · 17/11", "Estado": "aprovado"}}),
+            step("edit.delete", {"ids": [pills[1]]}), step("edit.duplicate", {"ids": [pills[2]]})]
+    g2 = os.path.join(tmp, "cv2.figcraft")
+    r, err = go(edit, g1, g2)
+    if not all(x["ok"] for x in r):
+        return {"cover editada": {"error": f"the edit failed: {err[:200]}"}}
+    before = cover_snapshot(g2, cover, tmp)
+    out["cover editada / pills before"] = {"nodes": len(before[0]), "pills": len(before[1])}
+    for opt in UPDATES:
+        dst = os.path.join(tmp, f"cv_{opt}.figcraft")
+        r, _ = go(plugin(cid, {"update": opt}), g2, dst)
+        if not r or not r[-1]["ok"]:
+            out[f"cover editada / {opt}"] = {"error": str((r[-1] if r else {}).get("error"))[:200]}
+            continue
+        o = r[2]["result"]["output"]
+        f = next(f for f in o["frames"] if f["key"] == "cover")
+        after = cover_snapshot(dst, cover, tmp) if f["id"] == cover else ([], [])
+        out[f"cover editada / {opt}"] = {"cover_id_same": f["id"] == cover, "action": f["action"], "nodes_same": before[0] == after[0], "pills_same": before[1] == after[1], "pills": len(after[1])}
+    # a pill selected: refused, and nothing else is made
+    r, err = go(plugin(pills[0], {}), g2, os.path.join(tmp, "cv_pill.figcraft"))
+    refused = len(r) <= 2 or not r[2]["ok"]
+    out["cover editada / a pill selected"] = {"refused": refused, "mentions_support": "support component" in (err + json.dumps(r[-1:]))}
+    return out
+
+
 def main():
     args = sys.argv[1:]
     update = "--update" in args
@@ -153,6 +232,8 @@ def main():
             if update and only and only not in name:
                 continue
             results[name] = run_case(src, layer, tmp, n, lang)
+        if not private and not (update and only and only not in "cover editada"):
+            results.update(cover_case(tmp))
     secs = time.time() - started
     if dump:
         json.dump(results, open(dump, "w"), indent=2, ensure_ascii=False)
@@ -176,6 +257,10 @@ def main():
             continue
         if "error" in got:
             diffs.append(f"{name}: ERROR {got['error']}")
+            continue
+        if name.startswith("cover editada"):
+            if got != want:
+                diffs.append(f"{name}: baseline {want!r}, now {got!r}")
             continue
         if "frames" not in want:
             diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")

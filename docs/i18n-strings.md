@@ -253,6 +253,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnWide | Component wider than 1728 px; it overflows the stage. | Componente mais largo que 1728 px: passa do palco. |
 | PanelWarnLegacy | A 0.10.0 documentation was found and left as it was. | Documentação da 0.10.0 encontrada e mantida como estava. |
 | ErrMainGone | The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?). | O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?). |
+| ErrSupportComponent | This is a support component of the documentation (the approval pill). Select the component you want to document. | Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar. |
 | PanelUpdate | Update | Atualizar |
 | PanelTitleUpdate | UPDATE | ATUALIZAR |
 | UpdAll | All sections | Todas as seções |

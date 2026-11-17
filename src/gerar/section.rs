@@ -979,6 +979,19 @@ fn other_has_master(lang: Lang, page: &PageInfo, key: &str, this: Option<u64>) -
     Ok(false)
 }
 
+/// Whether a run makes the frame `sec`: the Component Master whenever it is allowed; a frame that is not there yet when the Section is new
+/// (a permanent one also when it was deleted by hand); and a frame that is there only when the update names it, never a permanent one.
+/// Cover, Changelog and Support, once made, are never touched by any option of "Update", nor by Generate.
+pub fn frame_is_made(sec: Sec, exists: bool, created: bool, update: Update, master_allowed: bool) -> bool {
+    match (exists, sec) {
+        (_, Sec::Master) => master_allowed,
+        (false, s) if s.permanent() => true,
+        (false, _) => created,
+        (true, s) if s.permanent() => false,
+        (true, s) => update.sections().contains(&s),
+    }
+}
+
 /// Make or update the document: the Section of the selected component and its frames.
 ///
 /// Parameters: `update` (a key of [`Update`], default `all`) says which frames a rerun replaces; `new_section` (bool) makes another
@@ -992,8 +1005,14 @@ pub fn generate(input: Input) -> Result<Value> {
     }
     let target = resolve(lang, &input.selection)?;
     // A component whose Section was deleted is gone with it: an instance may still name it.
-    if host(lang, "node.get", &json!({"id": target.holder, "fields": ["type"]}))?.is_null() {
+    let holder = host(lang, "node.get", &json!({"id": target.holder, "fields": ["type", "pluginData"]}))?;
+    if holder.is_null() {
         return Err(t(lang, Key::ErrMainGone).to_string());
+    }
+    // The approval pill is the plugin's own support component: documenting it (a pill of the Cover is an instance of it) would make a
+    // Section of it and take the set out of the support frame, so the Cover's pills would no longer be the ones of the Section.
+    if mark_of(&holder, APPROVAL_SET_MARK).is_some() {
+        return Err(t(lang, Key::ErrSupportComponent).to_string());
     }
     let comp_key = target.key.to_string();
     let name = target.title.clone();
@@ -1041,15 +1060,7 @@ pub fn generate(input: Input) -> Result<Value> {
     // what "Update" names and makes again any permanent frame that is missing. The Master is made again on every run when this
     // Section has one; a Section that has none makes it only when no other Section of the component holds the original.
     let master_allowed = !beside && (old(Sec::Master).is_some() || !other_has_master(lang, &page, &comp_key, section_id)?);
-    let will_make = |sec: Sec| -> bool {
-        match (old(sec), sec) {
-            (_, Sec::Master) => master_allowed,
-            (None, s) if s.permanent() => true,
-            (None, _) => created,
-            (Some(_), s) if s.permanent() => false,
-            (Some(_), s) => update.sections().contains(&s),
-        }
-    };
+    let will_make = |sec: Sec| frame_is_made(sec, old(sec).is_some(), created, update, master_allowed);
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
     // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
     let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
@@ -1428,5 +1439,23 @@ mod tests {
         // The table counts them: the grid, the headers (2 each), the separator and the row (its frame and its cells).
         let rows = vec![vec![Cv::Bold("a".into()), Cv::Many(vec![colour.clone(), colour])]];
         assert_eq!(table_nodes(2, &rows), 1 + 4 + 1 + (1 + 2 + (1 + 5 + 5)));
+    }
+    #[test]
+    fn no_option_of_update_makes_a_cover_changelog_or_support_frame_that_is_there() {
+        for update in Update::ALL {
+            for created in [false, true] {
+                for master in [false, true] {
+                    for sec in [Sec::Cover, Sec::Changelog, Sec::Kit] {
+                        assert!(!frame_is_made(sec, true, created, update, master), "{sec:?} under {update:?}");
+                        assert!(frame_is_made(sec, false, created, update, master), "{sec:?} is made again when it is gone");
+                    }
+                }
+            }
+        }
+        // The others: only what the update names; a new Section makes them all.
+        assert!(frame_is_made(Sec::Tokens, true, false, Update::Tokens, false));
+        assert!(!frame_is_made(Sec::Properties, true, false, Update::Tokens, false));
+        assert!(frame_is_made(Sec::Layouts, false, true, Update::Tokens, false));
+        assert!(frame_is_made(Sec::Master, true, false, Update::Layouts, true));
     }
 }

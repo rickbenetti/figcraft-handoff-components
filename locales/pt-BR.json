@@ -309,5 +309,6 @@
   "TokNoValue": "alias sem valor",
   "TokBroken": "Aliases sem valor: {n}. Um ciclo, uma cadeia de mais de 8 saltos ou um alvo que não existe.",
   "TokNotRead": "Não foram lidas {n} variantes: podem faltar cores.",
-  "TokNotReadOne": "Não foi lida {n} variante: podem faltar cores."
+  "TokNotReadOne": "Não foi lida {n} variante: podem faltar cores.",
+  "ErrSupportComponent": "Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar."
 }

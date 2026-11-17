@@ -1262,5 +1262,62 @@
     "failed": [],
     "fuel": 159692009,
     "calls": 1878
+  },
+  "cover editada / pills before": {
+    "nodes": 74,
+    "pills": 6
+  },
+  "cover editada / all": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / tables": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / tokens": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / properties": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / anatomy": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / variants": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / layouts": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / a pill selected": {
+    "refused": true,
+    "mentions_support": true
   }
 }
