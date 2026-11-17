@@ -91,6 +91,20 @@ def find_by_name(src, name, tmp, n):
     return None
 
 
+def marker_check(a):
+    """What the Anatomy's markers must be (item 3 of Prompt 50), as numbers: how many, the nearest a centre is to the stage's edge (never
+    under 48), the nearest two centres are (never under 36 + 8), and whether the component's own marker (the first one) is straight."""
+    if not a or not a.get("markers"):
+        return None
+    sx, sy, sw, sh = a["stage"]
+    ms = a["markers"]
+    edge = min(min(m["centre"][0] - sx, sx + sw - m["centre"][0], m["centre"][1] - sy, sy + sh - m["centre"][1]) for m in ms)
+    gap = min([((p["centre"][0] - q["centre"][0]) ** 2 + (p["centre"][1] - q["centre"][1]) ** 2) ** 0.5 for i, p in enumerate(ms) for q in ms[i + 1:]] or [999])
+    root = next((m for m in ms if m["way"] == "Root"), None)
+    straight = root is None or abs(root["centre"][0] - root["end"][0]) < 0.01 or abs(root["centre"][1] - root["end"][1]) < 0.01
+    return {"count": len(ms), "edge_ok": edge >= 47.99, "gap_ok": gap >= 43.99, "root_straight": straight, "dropped": len(a.get("dropped", []))}
+
+
 def run_case(src, layer, tmp, n, lang=None):
     if isinstance(layer, str):
         found = find_by_name(src, layer, tmp, n)
@@ -114,6 +128,7 @@ def run_case(src, layer, tmp, n, lang=None):
         return {"error": (run.get("error") or p.stderr or "no output")[:300]}
     o = run["result"]["output"]
     return {
+        "markers": marker_check(o.get("anatomy")),
         "frames": [[f["key"], f["x"], f["y"], f["h"]] for f in o["frames"]],
         "section": [o["section_size"]["w"], o["section_size"]["h"]],
         "tables": [[t["name"], t["rows"]] for t in o["tables"]],
@@ -265,7 +280,7 @@ def main():
         if "frames" not in want:
             diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")
             continue
-        for key in ("frames", "section", "tables", "warnings", "failed"):
+        for key in ("frames", "section", "tables", "warnings", "failed", "markers"):
             if got[key] != want.get(key):
                 diffs.append(f"{name}: {key}: baseline {want.get(key)!r}, now {got[key]!r}")
         if got["export"] != "ok":

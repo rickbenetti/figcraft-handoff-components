@@ -755,6 +755,8 @@ pub(super) struct Ctx<'a> {
     pub(super) tables: std::cell::RefCell<Vec<(String, usize)>>,
     /// What the Tokens frame found (its counts), for the answer.
     pub(super) tokens: std::cell::RefCell<Option<Value>>,
+    /// Where the Anatomy put its markers (centre, guide end, stage and component boxes), for the answer.
+    pub(super) markers: std::cell::RefCell<Option<Value>>,
 }
 
 impl Ctx<'_> {
@@ -1108,7 +1110,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let will_make = |sec: Sec| frame_is_made(sec, old(sec).is_some(), created, update, master_allowed);
     // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
     // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
     let kit_frame: Option<(u64, &str)>;
     let mut set_added = false;
     if let Some(e) = old(Sec::Kit) {
@@ -1273,7 +1275,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "failed": failed, "tokens": ctx.tokens.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "failed": failed, "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 

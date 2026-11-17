@@ -5,7 +5,7 @@
 
 #![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
-use super::section::{Ctx, Cv, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
+use super::section::{Ctx, Cv, FRAME_PAD, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
 
 /// A table of the frame, noted for the answer (its name and how many rows it has).
 pub(super) fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
@@ -488,7 +488,11 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let target = c.target;
     header(c, frame, t(lang, Key::SecAnatomy))?;
     let size = bounds(&target.node).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
-    let stage_w = USEFUL_W;
+    // The stage is as wide as the table, and wider (with its frame) when the component and the room its markers need do not fit.
+    let stage_w = USEFUL_W.max(size.w + STAGE_ROOM);
+    if stage_w > USEFUL_W {
+        host(lang, "node.set", &json!({"ids": [frame], "props": {"width": stage_w + 2.0 * FRAME_PAD}}))?;
+    }
     // The stage, far off the page (an instance can only be placed in a top-level frame); it moves into the frame when it is done.
     let h0 = (size.h + STAGE_ROOM).max(MIN_STAGE_H);
     let sb0 = Rect { x: -30_000.0, y: STAGING_Y, w: stage_w, h: h0 };
@@ -540,7 +544,8 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let red = red_style(choice.stage != contrast::Stage::Light);
     let tree = Tree::new(&nodes, walked.iter().map(|(_, d)| *d).collect());
     let numbered: Vec<(usize, usize)> = blocks_list.iter().filter_map(|b| b.badge.map(|n| b.nodes.iter().filter(|i| drawn.get(**i).copied().unwrap_or(false)).map(move |i| (n, *i)))).flatten().collect();
-    draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
+    let badges = draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
+    *c.markers.borrow_mut() = Some(json!({"markers": badges.info, "rounds": badges.rounds, "dropped": badges.dropped, "stage": [sb.x, sb.y, sb.w, sb.h], "component": [ib.x, ib.y, ib.w, ib.h]}));
     host(lang, "node.reparent", &json!({"ids": [stage], "parent": frame}))?;
     // The table of the numbers.
     let mut table_rows: Vec<Vec<Cv>> = Vec::new();

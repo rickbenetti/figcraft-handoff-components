@@ -1,5 +1,12 @@
 {
   "copia-2 / id 32": {
+    "markers": {
+      "count": 2,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -80,10 +87,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 84245305,
+    "fuel": 85062999,
     "calls": 1116
   },
   "copia-2 / id 3 (Toast variant)": {
+    "markers": {
+      "count": 7,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -164,10 +178,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 119428661,
+    "fuel": 120740292,
     "calls": 1482
   },
   "carga-v2 / id 3 (Toast variant)": {
+    "markers": {
+      "count": 7,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -252,10 +273,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 266722434,
+    "fuel": 268143304,
     "calls": 1569
   },
   "carga-v2 / id 194 (Card de carga)": {
+    "markers": {
+      "count": 11,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 1
+    },
     "frames": [
       [
         "cover",
@@ -336,10 +364,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 777157249,
-    "calls": 4851
+    "fuel": 782052056,
+    "calls": 4869
   },
   "ds-base-demo / Button": {
+    "markers": {
+      "count": 5,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -438,10 +473,17 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 369823256,
+    "fuel": 371363300,
     "calls": 4494
   },
   "ds-base-demo / Card": {
+    "markers": {
+      "count": 16,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -530,10 +572,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 420272973,
+    "fuel": 423756183,
     "calls": 4560
   },
   "ds-base-demo / Accordion": {
+    "markers": {
+      "count": 6,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -622,10 +671,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 159145436,
+    "fuel": 160819017,
     "calls": 1899
   },
   "ds-base-demo / Code": {
+    "markers": {
+      "count": 4,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -706,10 +762,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 91056430,
+    "fuel": 92233143,
     "calls": 1098
   },
   "ds-base-demo / Icon": {
+    "markers": {
+      "count": 2,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -802,10 +865,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 190510166,
+    "fuel": 191279400,
     "calls": 2496
   },
   "pt-BR / copia-2 / id 32": {
+    "markers": {
+      "count": 2,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -886,10 +956,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 84872929,
+    "fuel": 85656916,
     "calls": 1125
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
+    "markers": {
+      "count": 7,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -974,10 +1051,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 267766316,
+    "fuel": 269450416,
     "calls": 1578
   },
   "pt-BR / ds-base-demo / Button": {
+    "markers": {
+      "count": 5,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -1076,10 +1160,17 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 370007784,
+    "fuel": 372591093,
     "calls": 4503
   },
   "pt-BR / ds-base-demo / Card": {
+    "markers": {
+      "count": 16,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -1168,10 +1259,17 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 422313137,
+    "fuel": 426099253,
     "calls": 4569
   },
   "pt-BR / ds-base-demo / Accordion": {
+    "markers": {
+      "count": 6,
+      "edge_ok": true,
+      "gap_ok": true,
+      "root_straight": true,
+      "dropped": 0
+    },
     "frames": [
       [
         "cover",
@@ -1260,7 +1358,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 160400016,
+    "fuel": 162469998,
     "calls": 1908
   },
   "cover editada / pills before": {

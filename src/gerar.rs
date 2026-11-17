@@ -56,10 +56,13 @@ const MARKER_FONT: f64 = 18.0;
 const MARKER_CHAR_W: f64 = 10.8;
 const MARKER_LABEL_H: f64 = 22.0;
 const MARKER_CLEAR: f64 = 24.0;
+/// A layer whose edge is this close to the component's border (or past it) counts as touching it: its marker stands out in the diagonal.
+const MARKER_TOUCH: f64 = 12.0;
 const MARKER_GAP: f64 = 8.0;
 /// Least distance between two markers' centres: the circles and the least gap (a marker has no border).
 const MARKER_STEP: f64 = MARKER_D + MARKER_GAP;
-const STAGE_EDGE: f64 = 32.0;
+/// Least distance from a marker's CENTRE to the stage's edge: the circle's diameter and 12 more.
+const MARKER_EDGE: f64 = MARKER_D + 12.0;
 /// Rough width of a character at 14 px, to centre texts.
 const CHAR_W: f64 = 8.5;
 const LABEL_H: f64 = 18.0;
@@ -318,11 +321,24 @@ fn crosses(a: (f64, f64), b: (f64, f64), r: Rect) -> bool {
     true
 }
 
-/// Where a marker's guide goes: the side the marker sits on and the point the guide ends at.
+/// How a marker stands to the end of its guide.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Way {
+    /// In line with the end when it can be (the guide runs straight, perpendicular to the side), else shifted along the side.
+    Straight,
+    /// The component's own marker: always exactly in line, perpendicular to the side, and placed before every other.
+    Root,
+    /// A layer that touches the component's border: the marker stands out in the diagonal (45 degrees) and the guide points in; the
+    /// sign is the way along the side (-1: toward the start of the side).
+    Diagonal(i8),
+}
+
+/// Where a marker's guide goes: the side the marker sits on, the point the guide ends at and how the marker stands to it.
 #[derive(Clone, Copy, Debug)]
 struct Target {
     side: Side,
     end: (f64, f64),
+    way: Way,
 }
 
 /// Where the guide of the badge of layer `owner` goes: the side it comes from and the point on the
@@ -330,7 +346,7 @@ struct Target {
 /// nearest to, the first whose way crosses no other layer.
 fn layer_target(owner: usize, tree: &Tree, root: Rect, used: &[(f64, f64)], skip: &[Side]) -> Option<Target> {
     let b = tree.bounds(owner)?;
-    let t = |side, end| Target { side, end };
+    let t = |side, end| Target { side, end, way: if owner == 0 { Way::Root } else { Way::Straight } };
     let mut cands: Vec<(f64, Target)> = if owner == 0 {
         vec![
             (0.0, t(Side::Left, (b.x, b.y + b.h / 2.0))),
@@ -346,13 +362,37 @@ fn layer_target(owner: usize, tree: &Tree, root: Rect, used: &[(f64, f64)], skip
             (root.right() - b.right(), t(Side::Right, (b.right(), b.y + b.h / 2.0))),
         ]
     };
+    // A layer that touches the component's border goes out in the diagonal on that side (first, ahead of every other way); the way along
+    // the side is toward the nearer end of it.
+    if owner != 0 {
+        // At the border, within `MARKER_TOUCH` of it, or past it (a rotated vector's box may stick out of the component).
+        let at_or_past = |edge: f64, border: f64, dir: f64| (edge - border) * dir < MARKER_TOUCH;
+        let toward = |p: f64, lo: f64, len: f64| if p < lo + len / 2.0 { -1 } else { 1 };
+        let touches = [
+            (at_or_past(b.y, root.y, 1.0), Side::Top, (b.x + b.w / 2.0, b.y), toward(b.x + b.w / 2.0, root.x, root.w)),
+            (at_or_past(b.bottom(), root.bottom(), -1.0), Side::Bottom, (b.x + b.w / 2.0, b.bottom()), toward(b.x + b.w / 2.0, root.x, root.w)),
+            (at_or_past(b.x, root.x, 1.0), Side::Left, (b.x, b.y + b.h / 2.0), toward(b.y + b.h / 2.0, root.y, root.h)),
+            (at_or_past(b.right(), root.right(), -1.0), Side::Right, (b.right(), b.y + b.h / 2.0), toward(b.y + b.h / 2.0, root.y, root.h)),
+        ];
+        for (i, (hit, side, end, sign)) in touches.into_iter().enumerate() {
+            if hit {
+                cands.push((-100.0 + i as f64, Target { side, end, way: Way::Diagonal(sign) }));
+            }
+        }
+    }
     // A way that would end where another layer's guide already ends (a text inside its frame, say)
     // comes last: coincident layers get guides on different sides.
     // A way whose guide would pass through another guide's end comes last as well, and so does a side
     // already tried and given up on.
     for c in &mut cands {
         let start = side_start(c.1.side, c.1.end, root);
-        if used.iter().any(|u| (u.0 - c.1.end.0).hypot(u.1 - c.1.end.1) < MARKER_GAP || point_to_segment(*u, start, c.1.end) < 2.0) {
+        // A diagonal marker has two places at a point (the two ways along the side): the third layer that ends there goes to another edge.
+        let crowded = if matches!(c.1.way, Way::Diagonal(_)) {
+            used.iter().filter(|u| (u.0 - c.1.end.0).hypot(u.1 - c.1.end.1) < MARKER_STEP).count() >= 2
+        } else {
+            used.iter().any(|u| (u.0 - c.1.end.0).hypot(u.1 - c.1.end.1) < MARKER_GAP || point_to_segment(*u, start, c.1.end) < 2.0)
+        };
+        if crowded {
             c.0 += 10_000.0;
         }
         if skip.contains(&c.1.side) {
@@ -365,10 +405,19 @@ fn layer_target(owner: usize, tree: &Tree, root: Rect, used: &[(f64, f64)], skip
         .iter()
         .map(|c| c.1)
         .find(|c| {
+            // A diagonal guide is short and goes out through the border: what stands near its end (the layer's own surroundings) is no obstacle.
             let start = side_start(c.side, c.end, root);
-            !obstacles.iter().any(|o| crosses(start, c.end, *o))
+            matches!(c.way, Way::Diagonal(_)) || !obstacles.iter().any(|o| crosses(start, c.end, *o))
         })
-        .or_else(|| cands.first().map(|c| c.1))
+        // Every straight way is blocked: out in the diagonal on the nearest side (a guide through the component would be worse).
+        .or_else(|| {
+            let first = cands.iter().map(|c| c.1).find(|c| c.way != Way::Root && !skip.contains(&c.side)).or_else(|| cands.first().map(|c| c.1))?;
+            if first.way == Way::Root {
+                return Some(first);
+            }
+            let (p, lo, len) = if matches!(first.side, Side::Top | Side::Bottom) { (first.end.0, root.x, root.w) } else { (first.end.1, root.y, root.h) };
+            Some(Target { way: Way::Diagonal(if p < lo + len / 2.0 { -1 } else { 1 }), ..first })
+        })
 }
 
 /// Where a guide from `side` starts: on the component's border, in line with its end.
@@ -396,27 +445,75 @@ struct Marker {
     number: usize,
     centre: (f64, f64),
     end: (f64, f64),
+    way: Way,
 }
 
-/// Place the markers around `ib` inside `stage` (all in page coordinates): each on its target's
-/// side, `MARKER_CLEAR` away from the component, in line with its guide's end when it can be (the
-/// guide then runs straight), `MARKER_STEP` from the others and clear of `avoid` (the values).
-/// A guide that doesn't end on the component's border is kept in line first and the others give way.
+/// Place the markers around `ib` inside `stage` (all in page coordinates). In this order:
+/// 1. the component's own marker (`Way::Root`), exactly in line with the middle of its side, so its guide is straight and perpendicular;
+/// 2. the markers of layers that touch the component's border (`Way::Diagonal`), out in the 45-degree diagonal from where their guide
+///    ends, the guide pointing in (never along the edge); if the place is taken, the other way along the side, then further out;
+/// 3. the others, each on its target's side, `MARKER_CLEAR` away from the component, in line with its guide's end when it can be (the
+///    guide then runs straight), shifted along the side when not.
+///
+/// Every marker is `MARKER_STEP` from the others, clear of `avoid` (the values) and has its centre at least `MARKER_EDGE` (48) from the
+/// stage's edge; one that has no such place is left out (the stage is made roomy enough, a marker is never made smaller).
 fn place_markers(ib: Rect, stage: Rect, items: &[(usize, Target)], avoid: &[Rect]) -> Vec<Marker> {
     let r = MARKER_D / 2.0;
     let off = MARKER_CLEAR + r;
+    let inside = |c: (f64, f64)| c.0 >= stage.x + MARKER_EDGE - 0.01 && c.0 <= stage.right() - MARKER_EDGE + 0.01 && c.1 >= stage.y + MARKER_EDGE - 0.01 && c.1 <= stage.bottom() - MARKER_EDGE + 0.01;
+    let clear = |out: &[Marker], c: (f64, f64)| {
+        let circle = Rect { x: c.0 - r, y: c.1 - r, w: MARKER_D, h: MARKER_D };
+        inside(c) && out.iter().all(|m| (m.centre.0 - c.0).hypot(m.centre.1 - c.1) >= MARKER_STEP - 0.01) && !avoid.iter().any(|v| circle.grow(2.0).hits(*v))
+    };
     let mut out: Vec<Marker> = Vec::new();
+    // 1. The root: exactly in line, before every other marker.
+    for (item, (number, target)) in items.iter().enumerate().filter(|(_, (_, t))| t.way == Way::Root) {
+        let c = match target.side {
+            Side::Top => (target.end.0, ib.y - off),
+            Side::Bottom => (target.end.0, ib.bottom() + off),
+            Side::Left => (ib.x - off, target.end.1),
+            Side::Right => (ib.right() + off, target.end.1),
+        };
+        if clear(&out, c) {
+            out.push(Marker { item, number: *number, centre: c, end: target.end, way: target.way });
+        }
+    }
+    // 2. The layers that touch the border: in the diagonal.
+    for (item, (number, target)) in items.iter().enumerate() {
+        let Way::Diagonal(sign) = target.way else { continue };
+        let sign = f64::from(sign);
+        let mut chosen = None;
+        'tries: for k in 0..3 {
+            let d = off + MARKER_STEP * f64::from(k);
+            for s in [sign, -sign] {
+                let c = match target.side {
+                    Side::Top => (target.end.0 + s * d, target.end.1 - d),
+                    Side::Bottom => (target.end.0 + s * d, target.end.1 + d),
+                    Side::Left => (target.end.0 - d, target.end.1 + s * d),
+                    Side::Right => (target.end.0 + d, target.end.1 + s * d),
+                };
+                if clear(&out, c) {
+                    chosen = Some(c);
+                    break 'tries;
+                }
+            }
+        }
+        if let Some(c) = chosen {
+            out.push(Marker { item, number: *number, centre: c, end: target.end, way: target.way });
+        }
+    }
+    // 3. The others, side by side.
     for side in [Side::Top, Side::Right, Side::Bottom, Side::Left] {
         let horizontal = matches!(side, Side::Top | Side::Bottom);
         let along = |p: (f64, f64)| if horizontal { p.0 } else { p.1 };
-        let (lo, hi) = if horizontal { (stage.x + STAGE_EDGE + r, stage.right() - STAGE_EDGE - r) } else { (stage.y + STAGE_EDGE + r, stage.bottom() - STAGE_EDGE - r) };
+        let (lo, hi) = if horizontal { (stage.x + MARKER_EDGE, stage.right() - MARKER_EDGE) } else { (stage.y + MARKER_EDGE, stage.bottom() - MARKER_EDGE) };
         let centre_at = |a: f64| match side {
             Side::Top => (a, ib.y - off),
             Side::Bottom => (a, ib.bottom() + off),
             Side::Left => (ib.x - off, a),
             Side::Right => (ib.right() + off, a),
         };
-        let mut group: Vec<(usize, &(usize, Target))> = items.iter().enumerate().filter(|(_, (_, t))| t.side == side).collect();
+        let mut group: Vec<(usize, &(usize, Target))> = items.iter().enumerate().filter(|(_, (_, t))| t.side == side && t.way == Way::Straight).collect();
         // Guides that end inside the component first, then by position.
         group.sort_by(|a, b| {
             let pin = |t: &Target| !on_border(t.end, ib);
@@ -429,16 +526,14 @@ fn place_markers(ib: Rect, stage: Rect, items: &[(usize, Target)], avoid: &[Rect
                 let offset = MARKER_STEP * ((k + 1) / 2) as f64 * if k % 2 == 1 { 1.0 } else { -1.0 };
                 let a = (wanted + offset).clamp(lo, hi);
                 let c = centre_at(a);
-                let circle = Rect { x: c.0 - r, y: c.1 - r, w: MARKER_D, h: MARKER_D };
-                // Clear of every marker already placed, on any side (not only this one's).
-                if out.iter().all(|m| (m.centre.0 - c.0).hypot(m.centre.1 - c.1) >= MARKER_STEP - 0.01) && !avoid.iter().any(|v| circle.grow(2.0).hits(*v)) {
+                if clear(&out, c) {
                     chosen = Some(a);
                     break;
                 }
             }
             // No room that is clear: the marker is left out rather than crowded in.
             if let Some(a) = chosen {
-                out.push(Marker { item, number: *number, centre: centre_at(a), end: target.end });
+                out.push(Marker { item, number: *number, centre: centre_at(a), end: target.end, way: target.way });
             }
         }
     }
@@ -478,11 +573,13 @@ fn drop_tangled(markers: Vec<Marker>) -> (Vec<Marker>, Vec<Marker>) {
         let (a, b) = guide_of(&m);
         let tangled = kept.iter().any(|k| {
             let (c, d) = guide_of(k);
+            // Two diagonal guides to the same spot (two layers that end together, the arrow and the vector inside it) leave it in a V,
+            // each its own way: that is clear, not tangled.
+            let together = matches!(m.way, Way::Diagonal(_)) && matches!(k.way, Way::Diagonal(_)) && (m.end.0 - k.end.0).hypot(m.end.1 - k.end.1) < MARKER_GAP;
             segments_cross(a, b, c, d)
                 || point_to_segment(k.centre, a, b) < MARKER_D / 2.0 + MARKER_GAP / 2.0
                 || point_to_segment(m.centre, c, d) < MARKER_D / 2.0 + MARKER_GAP / 2.0
-                || point_to_segment(k.end, a, b) < 2.0
-                || point_to_segment(m.end, c, d) < 2.0
+                || (!together && (point_to_segment(k.end, a, b) < 2.0 || point_to_segment(m.end, c, d) < 2.0))
         });
         if tangled {
             dropped.push(m);
@@ -1510,6 +1607,8 @@ struct Badges {
     info: Vec<Value>,
     /// Numbers with no marker on the stage: no room that is clear and untangled.
     dropped: Vec<usize>,
+    /// What each round of placing tried (the ways, the guides' ends and the numbers that were kept), for the answer.
+    rounds: Vec<Value>,
 }
 
 /// The layers' badges on the stage: outside the component, on the free side nearest to the layer,
@@ -1520,6 +1619,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
     // another side of its layer in the next, up to two more times.
     let mut skips: Vec<Vec<Side>> = vec![Vec::new(); numbered.len()];
     let mut markers: Vec<Marker> = Vec::new();
+    let mut rounds: Vec<Value> = Vec::new();
     for round in 0..3 {
         let mut items: Vec<(usize, Target)> = Vec::new();
         let mut owner: Vec<usize> = Vec::new();
@@ -1532,6 +1632,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
             }
         }
         let (kept, _) = drop_tangled(place_markers(ib, sb, &items, &[]));
+        rounds.push(json!({"round": round, "items": items.iter().map(|(n, t)| json!([n, format!("{:?}", t.side), format!("{:?}", t.way), t.end])).collect::<Vec<_>>(), "kept": kept.iter().map(|m| m.number).collect::<Vec<_>>()}));
         let missing: Vec<usize> = (0..items.len()).filter(|i| !kept.iter().any(|m| m.item == *i)).collect();
         markers = kept;
         if missing.is_empty() || round == 2 {
@@ -1566,8 +1667,8 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
         text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - MARKER_LABEL_H / 2.0 - origin.1, MARKER_FONT, on_accent(&red.accent), None, &name)?;
         ids.push(id_of(lang, &c, "shape.ellipse")?);
     }
-    let info = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1]})).collect();
-    Ok(Badges { ids, info, dropped })
+    let info: Vec<Value> = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1], "way": format!("{:?}", m.way)})).collect();
+    Ok(Badges { ids, info, dropped, rounds })
 }
 
 /// A section of the report: its frame, a title and a divider under it, and the row that holds the
@@ -2686,8 +2787,8 @@ mod tests {
     fn markers_are_clear_of_the_component_and_of_each_other() {
         let ib = Rect { x: 145.0, y: 100.0, w: 70.0, h: 33.0 };
         let stage = Rect { x: 0.0, y: 0.0, w: 360.0, h: 240.0 };
-        let top = |x: f64| Target { side: Side::Top, end: (x, 100.0) };
-        let items = [(1, top(150.0)), (2, top(152.0)), (3, top(154.0)), (4, Target { side: Side::Left, end: (145.0, 116.0) })];
+        let top = |x: f64| Target { side: Side::Top, end: (x, 100.0), way: Way::Straight };
+        let items = [(1, top(150.0)), (2, top(152.0)), (3, top(154.0)), (4, Target { side: Side::Left, end: (145.0, 116.0), way: Way::Straight })];
         let ms = place_markers(ib, stage, &items, &[]);
         assert_eq!(ms.len(), 4);
         for m in &ms {
@@ -2702,11 +2803,93 @@ mod tests {
         }
     }
 
+    fn target(side: Side, end: (f64, f64), way: Way) -> Target {
+        Target { side, end, way }
+    }
+
+    /// The case from the report: a popover (390 x 128) with the arrow on its top edge, seven layers, the root's marker and the stage
+    /// of 1824 x 330 that the Anatomy draws it on.
+    fn popover() -> (Rect, Rect, Vec<(usize, Target)>) {
+        let stage = Rect { x: 48.0, y: 145.0, w: 1824.0, h: 330.0 };
+        let ib = Rect { x: 765.0, y: 252.0, w: 390.0, h: 128.0 };
+        let items = vec![
+            (1, target(Side::Left, (765.0, 316.0), Way::Root)),
+            (2, target(Side::Top, (960.0, 252.0), Way::Diagonal(1))),
+            (3, target(Side::Top, (960.0, 252.0), Way::Diagonal(1))),
+            (4, target(Side::Bottom, (960.0, 380.0), Way::Diagonal(1))),
+            (5, target(Side::Right, (1155.0, 276.0), Way::Diagonal(-1))),
+            (6, target(Side::Left, (785.0, 276.0), Way::Straight)),
+        ];
+        (ib, stage, items)
+    }
+
+    #[test]
+    fn the_root_marker_is_straight_and_perpendicular_never_diagonal() {
+        let (ib, stage, items) = popover();
+        let ms = place_markers(ib, stage, &items, &[]);
+        let root = ms.iter().find(|m| m.number == 1).unwrap();
+        // Level with the middle of the left side (the guide is horizontal), a clear distance out.
+        assert_eq!(root.centre.1, root.end.1);
+        assert_eq!(root.centre.0, ib.x - (MARKER_CLEAR + MARKER_D / 2.0));
+        // Even with another marker asking for the same spot on that side the root keeps it and the other gives way.
+        let crowded = [items[0], (2, target(Side::Left, (765.0, 318.0), Way::Straight))];
+        let ms = place_markers(ib, stage, &crowded, &[]);
+        assert_eq!(ms.iter().find(|m| m.number == 1).unwrap().centre.1, 316.0);
+        // The same on every side.
+        for (side, end) in [(Side::Top, (960.0, 252.0)), (Side::Right, (1155.0, 316.0)), (Side::Bottom, (960.0, 380.0))] {
+            let ms = place_markers(ib, stage, &[(1, target(side, end, Way::Root))], &[]);
+            let m = &ms[0];
+            assert!(if matches!(side, Side::Top | Side::Bottom) { m.centre.0 == end.0 } else { m.centre.1 == end.1 }, "{side:?}");
+        }
+    }
+
+    #[test]
+    fn no_marker_has_its_centre_nearer_than_48_to_the_stage_edge() {
+        let (ib, stage, items) = popover();
+        let ms = place_markers(ib, stage, &items, &[]);
+        assert!(!ms.is_empty());
+        for m in &ms {
+            let (x, y) = m.centre;
+            assert!(x - stage.x >= 48.0 && stage.right() - x >= 48.0 && y - stage.y >= 48.0 && stage.bottom() - y >= 48.0, "marker {} at {:?}", m.number, m.centre);
+        }
+        // A stage that is tight: a marker that would stand nearer than 48 is left out, never pushed to the edge.
+        let tight = Rect { x: 700.0, y: 215.0, w: 520.0, h: 200.0 };
+        for m in place_markers(ib, tight, &items, &[]) {
+            assert!(m.centre.1 - tight.y >= 48.0 && tight.bottom() - m.centre.1 >= 48.0 && m.centre.0 - tight.x >= 48.0 && tight.right() - m.centre.0 >= 48.0, "marker {} at {:?}", m.number, m.centre);
+        }
+    }
+
+    #[test]
+    fn six_markers_like_the_reported_popover_have_a_place_each_and_do_not_overlap() {
+        let (ib, stage, items) = popover();
+        let ms = place_markers(ib, stage, &items, &[]);
+        assert_eq!(ms.len(), 6, "{:?}", ms.iter().map(|m| (m.number, m.centre)).collect::<Vec<_>>());
+        for (i, a) in ms.iter().enumerate() {
+            for b in &ms[i + 1..] {
+                let d = (a.centre.0 - b.centre.0).hypot(a.centre.1 - b.centre.1);
+                assert!(d >= MARKER_D + MARKER_GAP - 0.01, "markers {} and {} are {} apart", a.number, b.number, d);
+            }
+        }
+        // The layers that touch the component's border stand in the 45-degree diagonal: out of the component and sideways by the same
+        // amount, never along the edge.
+        for m in ms.iter().filter(|m| (2..=5).contains(&m.number)) {
+            let (dx, dy) = ((m.centre.0 - m.end.0).abs(), (m.centre.1 - m.end.1).abs());
+            let out_of_it = !Rect { x: m.centre.0 - MARKER_D / 2.0, y: m.centre.1 - MARKER_D / 2.0, w: MARKER_D, h: MARKER_D }.hits(ib);
+            assert!(out_of_it, "marker {} is on the component", m.number);
+            // The first try is at 45 degrees; a marker pushed further out by a neighbour is too, since it moves on the diagonal.
+            assert!((dx - dy).abs() < 0.01, "marker {} is not at 45 degrees: {dx} x {dy}", m.number);
+            assert!(dy.min(dx) >= MARKER_CLEAR, "marker {} hugs the edge", m.number);
+        }
+        // The two on the arrow do not share a place: one went the other way along the side.
+        let (a, b) = (ms.iter().find(|m| m.number == 2).unwrap(), ms.iter().find(|m| m.number == 3).unwrap());
+        assert_ne!(a.centre, b.centre);
+    }
+
     #[test]
     fn a_marker_in_line_with_its_guide_end_gives_a_straight_guide() {
         let ib = Rect { x: 145.0, y: 100.0, w: 70.0, h: 33.0 };
         let stage = Rect { x: 0.0, y: 0.0, w: 360.0, h: 240.0 };
-        let items = [(1, Target { side: Side::Top, end: (180.0, 100.0) })];
+        let items = [(1, Target { side: Side::Top, end: (180.0, 100.0), way: Way::Straight })];
         let ms = place_markers(ib, stage, &items, &[]);
         assert!((ms[0].centre.0 - 180.0).abs() < 0.01);
     }
@@ -2974,7 +3157,13 @@ mod tests {
         let root = Rect { x: 100.0, y: 100.0, w: 100.0, h: 40.0 };
         let a = layer_target(1, &tree, root, &[], &[]).unwrap();
         let b = layer_target(2, &tree, root, &[a.end], &[]).unwrap();
-        assert_ne!(a.side, b.side);
+        // Both touch the border, so both stand out in the diagonal on the same side; their markers take the two ways along it.
+        assert_eq!((a.way, b.way), (Way::Diagonal(1), Way::Diagonal(1)));
+        let stage = Rect { x: 0.0, y: 0.0, w: 400.0, h: 300.0 };
+        let ms = place_markers(root.grow(0.0), stage, &[(1, a), (2, b)], &[]);
+        assert_eq!(ms.len(), 2);
+        assert_ne!(ms[0].centre, ms[1].centre);
+        assert!((ms[0].centre.0 - ms[1].centre.0).hypot(ms[0].centre.1 - ms[1].centre.1) >= MARKER_STEP - 0.01);
     }
 
     #[test]
@@ -2982,7 +3171,7 @@ mod tests {
         let ib = Rect { x: 145.0, y: 100.0, w: 70.0, h: 33.0 };
         let stage = Rect { x: 0.0, y: 0.0, w: 360.0, h: 240.0 };
         // Top and left guides close to the corner: the markers must not meet there.
-        let items = [(1, Target { side: Side::Top, end: (146.0, 100.0) }), (2, Target { side: Side::Left, end: (145.0, 101.0) }), (3, Target { side: Side::Top, end: (150.0, 100.0) })];
+        let items = [(1, Target { side: Side::Top, end: (146.0, 100.0), way: Way::Straight }), (2, Target { side: Side::Left, end: (145.0, 101.0), way: Way::Straight }), (3, Target { side: Side::Top, end: (150.0, 100.0), way: Way::Straight })];
         let ms = place_markers(ib, stage, &items, &[]);
         for (i, a) in ms.iter().enumerate() {
             for b in &ms[i + 1..] {
@@ -2994,7 +3183,7 @@ mod tests {
 
     #[test]
     fn a_guide_never_ends_on_another_guide() {
-        let m = |number, c: (f64, f64), end: (f64, f64)| Marker { item: 0, number, centre: c, end };
+        let m = |number, c: (f64, f64), end: (f64, f64)| Marker { item: 0, number, centre: c, end, way: Way::Straight };
         // The second guide ends on the first one's line.
         let (kept, dropped) = drop_tangled(vec![m(1, (0.0, 50.0), (100.0, 50.0)), m(2, (50.0, 0.0), (50.0, 50.0))]);
         assert_eq!((kept.len(), dropped.len()), (1, 1));
@@ -3011,7 +3200,7 @@ mod tests {
 
     #[test]
     fn crossing_guides_leave_the_later_marker_out() {
-        let m = |number, c: (f64, f64), end: (f64, f64)| Marker { item: 0, number, centre: c, end };
+        let m = |number, c: (f64, f64), end: (f64, f64)| Marker { item: 0, number, centre: c, end, way: Way::Straight };
         // Two guides that cross as an X.
         let (kept, dropped) = drop_tangled(vec![m(1, (0.0, 0.0), (100.0, 100.0)), m(2, (100.0, 0.0), (0.0, 100.0))]);
         assert_eq!((kept.len(), dropped.iter().map(|m| m.number).collect::<Vec<_>>()), (1, vec![2]));
