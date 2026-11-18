@@ -525,7 +525,7 @@ mod tests {
         assert_eq!(
             signature(&spec(Lang::En, &Form::defaults(), &Message::Idle)),
             [
-                "note:THIS PAGE", "lang", "stage", "note:UPDATE", "update", "note:Cover, Changelog and Support are made once, not updated here. Component Master is remade on every Generate.",
+                "note:THIS PAGE", "lang", "stage", "note:UPDATE", "update", "note:Applies to a Section that already exists; the first time, every frame is made. The Master is always remade.",
                 "generate", "new_section", "defaults", "close", "note:Select a component, set or variant and press Generate."
             ]
         );
@@ -533,7 +533,7 @@ mod tests {
         assert_eq!(
             signature(&spec(Lang::Pt, &pt, &Message::Done("Botão de teste".into()))),
             [
-                "note:ESTA PÁGINA", "lang", "stage", "note:ATUALIZAR", "update", "note:Cover, Changelog e Apoio são criados uma vez e não são atualizados aqui. O Component Master é refeito a cada Gerar.",
+                "note:ESTA PÁGINA", "lang", "stage", "note:ATUALIZAR", "update", "note:Vale para uma Section que já existe; na primeira vez todos os quadros são criados. O Master é sempre refeito.",
                 "generate", "new_section", "defaults", "close", "note:✔ Documentação gerada: Botão de teste."
             ]
         );

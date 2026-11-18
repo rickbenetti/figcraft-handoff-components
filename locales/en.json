@@ -254,7 +254,7 @@
   "UpdAnatomy": "Anatomy only",
   "UpdVariants": "States and variants only",
   "UpdLayouts": "Layouts only",
-  "PanelUpdateNote": "Cover, Changelog and Support are made once, not updated here. Component Master is remade on every Generate.",
+  "PanelUpdateNote": "Applies to a Section that already exists; the first time, every frame is made. The Master is always remade.",
   "PanelNewSection": "New Section",
   "PanelWarnNoStage": "No stage suits every variant: change it in Stage.",
   "SecKit": "Support components",

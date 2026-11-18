@@ -254,7 +254,7 @@
   "UpdAnatomy": "Só Anatomia",
   "UpdVariants": "Só Estados e variações",
   "UpdLayouts": "Só Layouts",
-  "PanelUpdateNote": "Cover, Changelog e Apoio são criados uma vez e não são atualizados aqui. O Component Master é refeito a cada Gerar.",
+  "PanelUpdateNote": "Vale para uma Section que já existe; na primeira vez todos os quadros são criados. O Master é sempre refeito.",
   "PanelNewSection": "Nova Section",
   "PanelWarnNoStage": "Nenhum palco serve a todas as variantes: troque em Palco.",
   "SecKit": "Componentes de apoio",

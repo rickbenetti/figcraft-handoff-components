@@ -266,7 +266,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | UpdAnatomy | Anatomy only | Só Anatomia |
 | UpdVariants | States and variants only | Só Estados e variações |
 | UpdLayouts | Layouts only | Só Layouts |
-| PanelUpdateNote | Cover, Changelog and Support are made once, not updated here. Component Master is remade on every Generate. | Cover, Changelog e Apoio são criados uma vez e não são atualizados aqui. O Component Master é refeito a cada Gerar. |
+| PanelUpdateNote | Applies to a Section that already exists; the first time, every frame is made. The Master is always remade. | Vale para uma Section que já existe; na primeira vez todos os quadros são criados. O Master é sempre refeito. |
 | PanelNewSection | New Section | Nova Section |
 | PanelWarnNoStage | No stage suits every variant: change it in Stage. | Nenhum palco serve a todas as variantes: troque em Palco. |
 | SecKit | Support components | Componentes de apoio |
