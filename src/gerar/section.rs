@@ -320,19 +320,22 @@ pub enum Warn {
     Failed,
     /// No stage suits every variant (the automatic stage's lowest contrast is under 3:1).
     NoStage,
-    /// The component is wider than the room a Master has even in one column: every frame of the Section was made wider.
+    /// The set could not be organized in lines (the host did not keep the auto layout with wrap): the Master was made as wide as the set.
+    ReflowFailed,
+    /// The component is wider than the room a Master has even in one line: every frame of the Section was made wider.
     WideMaster,
     /// A loose documentation of version 0.10.0 was found and left as it was.
     LegacyDoc,
 }
 
 impl Warn {
-    pub const ALL: [Warn; 4] = [Warn::Failed, Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc];
+    pub const ALL: [Warn; 5] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc];
 
     pub fn code(self) -> &'static str {
         match self {
             Warn::Failed => "table_failed",
             Warn::NoStage => "no_stage",
+            Warn::ReflowFailed => "reflow_failed",
             Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
         }
@@ -342,6 +345,7 @@ impl Warn {
         t(lang, match self {
             Warn::Failed => Key::PanelWarnFailed,
             Warn::NoStage => Key::PanelWarnNoStage,
+            Warn::ReflowFailed => Key::PanelWarnReflow,
             Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
         })
@@ -507,7 +511,7 @@ fn choose_stage(lang: Lang, target: &Picked, mode: StageMode, sampled: &std::cel
 // Finding what is already there
 // ---------------------------------------------------------------------------------------------
 
-fn mark_of<'a>(node: &'a Value, key: &str) -> Option<&'a str> {
+pub(super) fn mark_of<'a>(node: &'a Value, key: &str) -> Option<&'a str> {
     node.get("pluginData").and_then(|d| d.get(key)).and_then(Value::as_str)
 }
 
@@ -1007,12 +1011,16 @@ fn build_changelog(c: &Ctx, frame: u64) -> Result<()> {
 
 /// The Component Master: the title, a line about it, the fixed warning, and the stage with the original component moved onto it.
 /// Returns the moved layer's id; the frame is made as wide as the component asks.
-fn build_master(c: &Ctx, frame: u64, plan: &reflow::Plan) -> Result<u64> {
+fn build_master(c: &Ctx, frame: u64, plan: &reflow::Outcome) -> Result<u64> {
     let lang = c.lang;
     let useful = c.useful.get();
     header(c, frame, t(lang, Key::MasterTitle))?;
     text_with(lang, frame, t(lang, Key::MasterDescription), LINE_SIZE, pal::TEXT2, "Description", json!({"width": useful, "textAutoResize": "height"}))?;
     text_with(lang, frame, t(lang, Key::MasterNote), LINE_SIZE, pal::COND, "Warning", json!({"width": useful, "textAutoResize": "height"}))?;
+    // The set is the person's own component: when the plugin changed it (now or in an earlier run) the Master says so.
+    if plan.marked {
+        text_with(lang, frame, t(lang, Key::MasterOrganized), LINE_SIZE, pal::COND, "Organized", json!({"width": useful, "textAutoResize": "height"}))?;
+    }
     let mut st = FlowSpec::new("Stage", useful, "vertical");
     st.padding = json!(STAGE_PAD);
     st.fill = Some(c.stage.fill());
@@ -1020,13 +1028,7 @@ fn build_master(c: &Ctx, frame: u64, plan: &reflow::Plan) -> Result<u64> {
     let stage = flow_frame(lang, frame, st)?;
     let moved = c.target.holder;
     host(lang, "node.reparent", &json!({"ids": [moved], "parent": stage}))?;
-    // A set that does not fit in the stage has its variants laid out again in a grid inside it (the user's own set: the variants' places and
-    // the set's size change, nothing else). One that fits is not touched.
-    let moved_variants = match plan.grid() {
-        Some(grid) => reflow::apply(lang, moved, grid)?,
-        None => 0,
-    };
-    *c.master.borrow_mut() = Some(json!({"plan": plan.name(), "frame_w": plan.frame_width(), "moved": moved_variants, "grid": plan.grid().map(|g| json!({"columns": g.columns, "rows": g.rows, "w": g.width, "h": g.height}))}));
+    *c.master.borrow_mut() = Some(plan.json());
     Ok(moved)
 }
 
@@ -1187,14 +1189,17 @@ pub fn generate(input: Input) -> Result<Value> {
     // Section has one; a Section that has none makes it only when no other Section of the component holds the original.
     let master_allowed = !beside && (old(Sec::Master).is_some() || !other_has_master(lang, &page, &comp_key, section_id)?);
     let will_make = |sec: Sec| frame_is_made(sec, old(sec).is_some(), created, update, master_allowed);
-    // 5b. The width of the frames. They are all 1180, with the Master's room for the set at 988; a set that is wider has its variants laid out
-    // again in a grid (done when the Master is made). Only when not even one column fits the Master grows, and every frame made in this run
-    // grows with it, to the same width, so the column stays straight.
-    let master_plan = if will_make(Sec::Master) { Some(reflow::plan_for(lang, target.holder, target.set.is_some())?) } else { None };
+    // 5b. The width of the frames. They are all 1180, with the Master's room for the set at 988; a set that is wider is given auto layout with
+    // wrap (the host lays its variants out in lines, the set is 988 wide). Only when not even one variant fits in a line, or the host does not
+    // keep the layout, the Master grows and every frame made in this run grows with it, to the same width, so the column stays straight.
+    let master_plan = if will_make(Sec::Master) { Some(reflow::organize(lang, target.holder, target.set.is_some())?) } else { None };
     if let Some(p) = &master_plan {
-        ctx.frame_w.set(p.frame_width());
-        ctx.useful.set(p.frame_width() - 2.0 * FRAME_PAD);
-        if p.wide() {
+        ctx.frame_w.set(p.frame_w);
+        ctx.useful.set(p.frame_w - 2.0 * FRAME_PAD);
+        if p.failed.is_some() {
+            warnings.push(Warn::ReflowFailed);
+        }
+        if p.wide {
             warnings.push(Warn::WideMaster);
         }
     }
@@ -1249,7 +1254,7 @@ pub fn generate(input: Input) -> Result<Value> {
                 Sec::Cover => build_cover(&ctx, frame)?,
                 Sec::Changelog => build_changelog(&ctx, frame)?,
                 Sec::Master => {
-                    let moved = build_master(&ctx, frame, master_plan.as_ref().unwrap_or(&reflow::Plan::Keep))?;
+                    let moved = build_master(&ctx, frame, master_plan.as_ref().ok_or_else(|| "the Master was made without a plan".to_string())?)?;
                     if let Some(e) = old(sec) {
                         host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
                     }
@@ -1479,8 +1484,8 @@ mod tests {
 
     #[test]
     fn the_section_follows_the_widest_frame() {
-        // A Master that had to grow (a variant too wide for one column) makes every frame of the Section as wide: 1048 + 192.
-        let w = reflow::Plan::Wide { grid: None, width: 1048.0 }.frame_width();
+        // A Master that had to grow (a variant too wide for one line) makes every frame of the Section as wide: 1048 + 192.
+        let w = reflow::Plan::Wide { width: 1048.0, organize: None }.frame_width();
         assert_eq!(w, 1240.0);
         let frames = [frame(Sec::Cover, 64.0, w, 615.0), frame(Sec::Master, 743.0, w, 900.0), frame(Sec::Properties, 1707.0, w, 500.0)];
         assert_eq!(section_size(&frames), (64.0 + 1240.0 + 64.0, 1707.0 + 500.0 + 64.0));

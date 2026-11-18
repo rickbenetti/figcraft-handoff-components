@@ -311,5 +311,7 @@
   "TokNotReadOne": "{n} variant was not read: its colors may be missing.",
   "ErrSupportComponent": "This is a support component of the documentation (the approval pill). Select the component you want to document.",
   "SupportTitle": "Handoff · Support",
-  "PanelWarnWide": "Wide component: every frame was made wider."
+  "PanelWarnWide": "Wide component: every frame was made wider.",
+  "PanelWarnReflow": "The set could not be arranged in lines: the Master was made as wide as it.",
+  "MasterOrganized": "The original set was arranged with auto layout and wrap."
 }

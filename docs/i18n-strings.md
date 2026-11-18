@@ -255,6 +255,8 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ErrSupportComponent | This is a support component of the documentation (the approval pill). Select the component you want to document. | Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar. |
 | SupportTitle | Handoff · Support | Handoff · Apoio |
 | PanelWarnWide | Wide component: every frame was made wider. | Componente largo: todos os quadros foram alargados. |
+| PanelWarnReflow | The set could not be arranged in lines: the Master was made as wide as it. | Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele. |
+| MasterOrganized | The original set was arranged with auto layout and wrap. | O conjunto original foi organizado com auto layout em quebra de linha. |
 | PanelUpdate | Update | Atualizar |
 | PanelTitleUpdate | UPDATE | ATUALIZAR |
 | UpdAll | All sections | Todas as seções |

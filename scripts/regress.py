@@ -271,9 +271,10 @@ def support_case(tmp):
 
 
 def master_case(tmp):
-    """"master": a set wider than the 988 the Master has has its variants laid out again in a grid (the Card of the demo: 3 variants side by side,
-    1528 wide, go into 2 columns); a second run changes nothing (the set is where it was left); the frames stay 1180 wide. A component wider
-    than 988 that cannot be laid out (a single 1100-wide component) makes the Master and every frame of the Section as wide, with the warning."""
+    """"master": a set wider than the 988 the Master has is given auto layout, horizontal, with wrap (the Card of the demo: 3 variants side by
+    side, 1528 wide, are laid out in lines by the host inside a set 988 wide that hugs its height); a second run changes nothing (the set is
+    already 988 wide); the frames stay 1180 wide. A component wider than 988 that cannot be laid out (a single 1100-wide component) makes the
+    Master and every frame of the Section as wide, with the warning."""
     step = lambda cmd, params: {"command": cmd, "params": params}
 
     def go(steps, i, o):
@@ -284,20 +285,23 @@ def master_case(tmp):
     def plugin(layer, params=None):
         return [step("plugin.import", {"path": DIST}), step("select.set", {"ids": [layer]}), step("plugin.run", {"id": PID, "command": "generate", "params": {"direct": True, **(params or {})}})]
 
-    def boxes(f, ids):
-        return [x["result"]["absoluteBounds"] for x in go([step("node.get", {"id": i, "fields": ["absoluteBounds"]}) for i in ids], f, os.path.join(tmp, "ms_t.figcraft"))]
+    def read(f, ids):
+        return [x["result"] for x in go([step("node.get", {"id": i, "fields": ["absoluteBounds", "layout", "sizing"]}) for i in ids], f, os.path.join(tmp, "ms_t.figcraft"))]
 
     card = find_by_name(DEMO, "Card", tmp, 920)
     a, b = os.path.join(tmp, "ms1.figcraft"), os.path.join(tmp, "ms2.figcraft")
     o1 = go(plugin(card), DEMO, a)[2]["result"]["output"]
     kids = go([step("node.get", {"id": card, "fields": ["children"]})], a, os.path.join(tmp, "ms_t.figcraft"))[0]["result"]["children"]
     ids = [card] + [k["id"] for k in kids]
-    after1 = boxes(a, ids)
+    after1 = read(a, ids)
     o2 = go(plugin(card, {"update": "all"}), a, b)[2]["result"]["output"]
-    after2 = boxes(b, ids)
+    after2 = read(b, ids)
     widths = sorted({f["w"] for f in o1["frames"]})
-    out = {"master / card": {"plan": o1["master"]["plan"], "moved": o1["master"]["moved"], "columns": o1["master"]["grid"]["columns"], "frame_widths": widths, 
-                             "set_width_fits": after1[0]["width"] <= 988, "second_run_plan": o2["master"]["plan"], "second_run_moved": o2["master"]["moved"], "second_run_set_unchanged": after1 == after2}}
+    st = after1[0]
+    inside = all(k["absoluteBounds"]["x"] >= st["absoluteBounds"]["x"] and k["absoluteBounds"]["x"] + k["absoluteBounds"]["width"] <= st["absoluteBounds"]["x"] + st["absoluteBounds"]["width"] for k in after1[1:])
+    out = {"master / card": {"plan": o1["master"]["plan"], "organized": o1["master"]["organized"], "per_row": o1["master"]["per_row"], "frame_widths": widths,
+                             "set": {"mode": st["layout"]["mode"], "wrap": st["layout"]["wrap"], "sizing": st["sizing"], "w": st["absoluteBounds"]["width"], "padding": st["layout"]["padding"], "gap": st["layout"]["gap"], "cross_gap": st["layout"]["crossGap"]},
+                             "variants_inside_the_set": inside, "second_run_plan": o2["master"]["plan"], "second_run_organized": o2["master"]["organized"], "second_run_set_unchanged": after1 == after2}}
     w = os.path.join(tmp, "ms3.figcraft")
     fid = go([step("frame.create", {"x": 9000, "y": 0, "width": 1100, "height": 200, "name": "WideThing", "props": {"fill": "#FFD1DC"}})], DEMO, w)[0]["result"]["id"]
     go([step("component.create", {"ids": [fid]})], w, os.path.join(tmp, "ms4.figcraft"))
