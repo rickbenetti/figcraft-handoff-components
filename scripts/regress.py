@@ -270,6 +270,42 @@ def support_case(tmp):
     }}
 
 
+def master_case(tmp):
+    """"master": a set wider than the 988 the Master has has its variants laid out again in a grid (the Card of the demo: 3 variants side by side,
+    1528 wide, go into 2 columns); a second run changes nothing (the set is where it was left); the frames stay 1180 wide. A component wider
+    than 988 that cannot be laid out (a single 1100-wide component) makes the Master and every frame of the Section as wide, with the warning."""
+    step = lambda cmd, params: {"command": cmd, "params": params}
+
+    def go(steps, i, o):
+        json.dump(steps, open(os.path.join(tmp, "ms.json"), "w"))
+        p = cli(["run", "--in", i, "--out", o, os.path.join(tmp, "ms.json")])
+        return [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+
+    def plugin(layer, params=None):
+        return [step("plugin.import", {"path": DIST}), step("select.set", {"ids": [layer]}), step("plugin.run", {"id": PID, "command": "generate", "params": {"direct": True, **(params or {})}})]
+
+    def boxes(f, ids):
+        return [x["result"]["absoluteBounds"] for x in go([step("node.get", {"id": i, "fields": ["absoluteBounds"]}) for i in ids], f, os.path.join(tmp, "ms_t.figcraft"))]
+
+    card = find_by_name(DEMO, "Card", tmp, 920)
+    a, b = os.path.join(tmp, "ms1.figcraft"), os.path.join(tmp, "ms2.figcraft")
+    o1 = go(plugin(card), DEMO, a)[2]["result"]["output"]
+    kids = go([step("node.get", {"id": card, "fields": ["children"]})], a, os.path.join(tmp, "ms_t.figcraft"))[0]["result"]["children"]
+    ids = [card] + [k["id"] for k in kids]
+    after1 = boxes(a, ids)
+    o2 = go(plugin(card, {"update": "all"}), a, b)[2]["result"]["output"]
+    after2 = boxes(b, ids)
+    widths = sorted({f["w"] for f in o1["frames"]})
+    out = {"master / card": {"plan": o1["master"]["plan"], "moved": o1["master"]["moved"], "columns": o1["master"]["grid"]["columns"], "frame_widths": widths, 
+                             "set_width_fits": after1[0]["width"] <= 988, "second_run_plan": o2["master"]["plan"], "second_run_moved": o2["master"]["moved"], "second_run_set_unchanged": after1 == after2}}
+    w = os.path.join(tmp, "ms3.figcraft")
+    fid = go([step("frame.create", {"x": 9000, "y": 0, "width": 1100, "height": 200, "name": "WideThing", "props": {"fill": "#FFD1DC"}})], DEMO, w)[0]["result"]["id"]
+    go([step("component.create", {"ids": [fid]})], w, os.path.join(tmp, "ms4.figcraft"))
+    o3 = go(plugin(fid), os.path.join(tmp, "ms4.figcraft"), os.path.join(tmp, "ms5.figcraft"))[2]["result"]["output"]
+    out["master / wide"] = {"plan": o3["master"]["plan"], "frame_widths": sorted({f["w"] for f in o3["frames"]}), "warnings": o3["warnings"], "section_w": o3["section_size"]["w"]}
+    return out
+
+
 def main():
     args = sys.argv[1:]
     update = "--update" in args
@@ -300,6 +336,7 @@ def main():
         if not private and not (update and only and only not in "cover editada"):
             results.update(cover_case(tmp))
             results.update(support_case(tmp))
+            results.update(master_case(tmp))
     secs = time.time() - started
     if dump:
         json.dump(results, open(dump, "w"), indent=2, ensure_ascii=False)
@@ -324,7 +361,7 @@ def main():
         if "error" in got:
             diffs.append(f"{name}: ERROR {got['error']}")
             continue
-        if name.startswith(("cover editada", "apoio compartilhado")):
+        if name.startswith(("cover editada", "apoio compartilhado", "master /")):
             if got != want:
                 diffs.append(f"{name}: baseline {want!r}, now {got!r}")
             continue

@@ -310,5 +310,6 @@
   "TokNotRead": "Não foram lidas {n} variantes: podem faltar cores.",
   "TokNotReadOne": "Não foi lida {n} variante: podem faltar cores.",
   "ErrSupportComponent": "Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar.",
-  "SupportTitle": "Handoff · Apoio"
+  "SupportTitle": "Handoff · Apoio",
+  "PanelWarnWide": "Componente largo: todos os quadros foram alargados."
 }

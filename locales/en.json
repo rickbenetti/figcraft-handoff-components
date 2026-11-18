@@ -310,5 +310,6 @@
   "TokNotRead": "{n} variants were not read: their colors may be missing.",
   "TokNotReadOne": "{n} variant was not read: its colors may be missing.",
   "ErrSupportComponent": "This is a support component of the documentation (the approval pill). Select the component you want to document.",
-  "SupportTitle": "Handoff · Support"
+  "SupportTitle": "Handoff · Support",
+  "PanelWarnWide": "Wide component: every frame was made wider."
 }

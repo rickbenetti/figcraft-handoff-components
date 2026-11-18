@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub mod section;
+pub mod reflow;
 pub mod tables;
 pub mod tokens;
 

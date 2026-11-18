@@ -254,6 +254,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | ErrMainGone | The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?). | O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?). |
 | ErrSupportComponent | This is a support component of the documentation (the approval pill). Select the component you want to document. | Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar. |
 | SupportTitle | Handoff · Support | Handoff · Apoio |
+| PanelWarnWide | Wide component: every frame was made wider. | Componente largo: todos os quadros foram alargados. |
 | PanelUpdate | Update | Atualizar |
 | PanelTitleUpdate | UPDATE | ATUALIZAR |
 | UpdAll | All sections | Todas as seções |

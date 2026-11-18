@@ -92,12 +92,6 @@ pub fn section_origin(boxes: &[(f64, f64, f64, f64)], beside_y: Option<f64>) -> 
     (right.map_or(0.0, |r| r + SECTION_RIGHT_GAP), beside_y.unwrap_or(ORIGIN_Y))
 }
 
-/// The width of the Component Master frame for a component `w` wide: the stage has 48 around the component and the frame 48 around the
-/// stage, and the frame grows rather than cutting or shrinking the component; never narrower than the other frames.
-pub fn master_width(component_w: f64) -> f64 {
-    FRAME_W.max(component_w + 2.0 * STAGE_PAD + 2.0 * FRAME_PAD)
-}
-
 /// The mark of the Section on the page (the value is the id of the component), of a frame's section, and of the set of approval pills.
 pub const SECTION_MARK: &str = "handoff-report-section";
 pub const NAME_MARK: &str = "handoff-section";
@@ -326,17 +320,20 @@ pub enum Warn {
     Failed,
     /// No stage suits every variant (the automatic stage's lowest contrast is under 3:1).
     NoStage,
+    /// The component is wider than the room a Master has even in one column: every frame of the Section was made wider.
+    WideMaster,
     /// A loose documentation of version 0.10.0 was found and left as it was.
     LegacyDoc,
 }
 
 impl Warn {
-    pub const ALL: [Warn; 3] = [Warn::Failed, Warn::NoStage, Warn::LegacyDoc];
+    pub const ALL: [Warn; 4] = [Warn::Failed, Warn::NoStage, Warn::WideMaster, Warn::LegacyDoc];
 
     pub fn code(self) -> &'static str {
         match self {
             Warn::Failed => "table_failed",
             Warn::NoStage => "no_stage",
+            Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
         }
     }
@@ -345,6 +342,7 @@ impl Warn {
         t(lang, match self {
             Warn::Failed => Key::PanelWarnFailed,
             Warn::NoStage => Key::PanelWarnNoStage,
+            Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
         })
     }
@@ -624,11 +622,11 @@ fn build_support(c: &Ctx, x: f64, y: f64) -> Result<(u64, u64, f64, f64)> {
 // ---------------------------------------------------------------------------------------------
 
 /// A frame of the Section, at `y` inside it (`x` is the room around): 1920 wide, padding 48, auto layout, hug.
-fn new_frame(lang: Lang, section: u64, name: &str, comp_key: &str, sec: Sec) -> Result<u64> {
+fn new_frame(lang: Lang, section: u64, name: &str, comp_key: &str, sec: Sec, width: f64) -> Result<u64> {
     let created = host(
         lang,
         "frame.create",
-        &json!({"parent": section, "x": FRAME_X, "y": SECTION_PAD, "width": FRAME_W, "height": 200, "name": name, "select": false,
+        &json!({"parent": section, "x": FRAME_X, "y": SECTION_PAD, "width": width, "height": 200, "name": name, "select": false,
             "props": {"fill": pal::FRAME, "layout": "vertical", "gap": 32, "padding": FRAME_PAD, "crossAlign": "min", "sizingH": "fixed", "sizingV": "hug", "cornerRadius": TABLE_RADIUS, "clip": false,
                 "pluginData": {REPORT_KEY: comp_key, NAME_MARK: sec.key()}}}),
     )?;
@@ -711,7 +709,7 @@ pub(super) fn table(lang: Lang, frame: u64, name: &str, cols: &[f64], headers: &
     let created = host(
         lang,
         "frame.create",
-        &json!({"parent": frame, "width": USEFUL_W, "height": 40, "name": name, "select": false,
+        &json!({"parent": frame, "width": cols.iter().sum::<f64>(), "height": 40, "name": name, "select": false,
             "props": {"layout": "grid", "gridColumns": n, "gridRows": 2 + 2 * rows.len(), "columnTracks": cols, "rowTracks": tracks, "gap": 0, "rowGap": 0, "strokesIncluded": false,
                 "padding": 0, "sizingH": "fixed", "sizingV": "hug", "fill": pal::FRAME, "cornerRadius": TABLE_RADIUS, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside", "clip": true}}),
     )?;
@@ -821,6 +819,11 @@ pub(super) struct Ctx<'a> {
     pub(super) tables: std::cell::RefCell<Vec<(String, usize)>>,
     /// What the Tokens frame found (its counts), for the answer.
     pub(super) tokens: std::cell::RefCell<Option<Value>>,
+    /// The width of the frames made in this run (1180, or wider when the Master had to grow) and the room inside them.
+    pub(super) frame_w: std::cell::Cell<f64>,
+    pub(super) useful: std::cell::Cell<f64>,
+    /// What the Master did with the set (kept, laid out again, or made wide), for the answer.
+    pub(super) master: std::cell::RefCell<Option<Value>>,
     /// Where the Anatomy put its markers (centre, guide end, stage and component boxes), for the answer.
     pub(super) markers: std::cell::RefCell<Option<Value>>,
 }
@@ -998,30 +1001,32 @@ fn build_changelog(c: &Ctx, frame: u64) -> Result<()> {
     header(c, frame, t(lang, Key::SecChangelog))?;
     let headers: Vec<String> = [Key::ChangelogVersion, Key::ChangelogDate, Key::ChangelogChange].iter().map(|k| t(lang, *k).to_string()).collect();
     let rows = vec![vec![Cv::Guide(t(lang, Key::ChangelogGuideVersion).to_string()), Cv::Guide(t(lang, Key::ChangelogGuideDate).to_string()), Cv::Guide(t(lang, Key::ChangelogGuideChange).to_string())]];
-    table(lang, frame, "Changelog", &CHANGELOG_COLS, &headers, &rows)?;
+    table(lang, frame, "Changelog", &reflow::scale_columns(&CHANGELOG_COLS, c.useful.get()), &headers, &rows)?;
     Ok(())
 }
 
 /// The Component Master: the title, a line about it, the fixed warning, and the stage with the original component moved onto it.
 /// Returns the moved layer's id; the frame is made as wide as the component asks.
-fn build_master(c: &Ctx, frame: u64) -> Result<u64> {
+fn build_master(c: &Ctx, frame: u64, plan: &reflow::Plan) -> Result<u64> {
     let lang = c.lang;
+    let useful = c.useful.get();
     header(c, frame, t(lang, Key::MasterTitle))?;
-    text_with(lang, frame, t(lang, Key::MasterDescription), LINE_SIZE, pal::TEXT2, "Description", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
-    text_with(lang, frame, t(lang, Key::MasterNote), LINE_SIZE, pal::COND, "Warning", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
-    let mut st = FlowSpec::new("Stage", USEFUL_W, "vertical");
+    text_with(lang, frame, t(lang, Key::MasterDescription), LINE_SIZE, pal::TEXT2, "Description", json!({"width": useful, "textAutoResize": "height"}))?;
+    text_with(lang, frame, t(lang, Key::MasterNote), LINE_SIZE, pal::COND, "Warning", json!({"width": useful, "textAutoResize": "height"}))?;
+    let mut st = FlowSpec::new("Stage", useful, "vertical");
     st.padding = json!(STAGE_PAD);
     st.fill = Some(c.stage.fill());
     st.extra = json!({"sizingH": "fill", "sizingV": "hug", "cornerRadius": 12, "stroke": pal::LINE, "strokeWeight": 1, "strokeAlign": "inside"});
     let stage = flow_frame(lang, frame, st)?;
     let moved = c.target.holder;
     host(lang, "node.reparent", &json!({"ids": [moved], "parent": stage}))?;
-    // The frame grows to hold the component (it is never cut or shrunk), and so does the Section.
-    let node = host(lang, "node.get", &json!({"id": moved, "fields": ["absoluteBounds"]}))?;
-    let width = master_width(bounds(&node).map_or(0.0, |b| b.w));
-    if width > FRAME_W + 0.5 {
-        host(lang, "node.set", &json!({"ids": [frame], "props": {"width": width}}))?;
-    }
+    // A set that does not fit in the stage has its variants laid out again in a grid inside it (the user's own set: the variants' places and
+    // the set's size change, nothing else). One that fits is not touched.
+    let moved_variants = match plan.grid() {
+        Some(grid) => reflow::apply(lang, moved, grid)?,
+        None => 0,
+    };
+    *c.master.borrow_mut() = Some(json!({"plan": plan.name(), "frame_w": plan.frame_width(), "moved": moved_variants, "grid": plan.grid().map(|g| json!({"columns": g.columns, "rows": g.rows, "w": g.width, "h": g.height}))}));
     Ok(moved)
 }
 
@@ -1144,7 +1149,7 @@ pub fn generate(input: Input) -> Result<Value> {
         _ => None,
     };
     let calls0 = HOST_CALLS.load(Ordering::Relaxed);
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), frame_w: std::cell::Cell::new(FRAME_W), useful: std::cell::Cell::new(USEFUL_W), master: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
     // 2b. The set of approval pills: ONE for the whole document. It lives in the Support frame, outside every Section; a new Section
     // reuses the oldest one there is, and only when there is none (first generation, or a Support frame that was deleted) a Support frame
     // is made, to the right of everything, before the Section. A rerun never makes one.
@@ -1182,6 +1187,17 @@ pub fn generate(input: Input) -> Result<Value> {
     // Section has one; a Section that has none makes it only when no other Section of the component holds the original.
     let master_allowed = !beside && (old(Sec::Master).is_some() || !other_has_master(lang, &page, &comp_key, section_id)?);
     let will_make = |sec: Sec| frame_is_made(sec, old(sec).is_some(), created, update, master_allowed);
+    // 5b. The width of the frames. They are all 1180, with the Master's room for the set at 988; a set that is wider has its variants laid out
+    // again in a grid (done when the Master is made). Only when not even one column fits the Master grows, and every frame made in this run
+    // grows with it, to the same width, so the column stays straight.
+    let master_plan = if will_make(Sec::Master) { Some(reflow::plan_for(lang, target.holder, target.set.is_some())?) } else { None };
+    if let Some(p) = &master_plan {
+        ctx.frame_w.set(p.frame_width());
+        ctx.useful.set(p.frame_width() - 2.0 * FRAME_PAD);
+        if p.wide() {
+            warnings.push(Warn::WideMaster);
+        }
+    }
     // 6. The stage of the Master, over every variant (a sample of them in a big set), when the Master is made now.
     let stage_sampled: std::cell::Cell<Option<(usize, usize)>> = std::cell::Cell::new(None);
     if will_make(Sec::Master) {
@@ -1206,7 +1222,7 @@ pub fn generate(input: Input) -> Result<Value> {
             if sec != Sec::Master && let Some(e) = old(sec) {
                 host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
             }
-            let mut frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
+            let mut frame = new_frame(lang, section, &frame_name, &comp_key, sec, ctx.frame_w.get())?;
             // A table that cannot be made leaves its frame with the error in place of the content, and the run goes on.
             let drawn: Option<Result<()>> = match sec {
                 Sec::Properties => Some(tables::build_properties(&ctx, frame)),
@@ -1224,7 +1240,7 @@ pub fn generate(input: Input) -> Result<Value> {
             let drawn = if drawn.is_some() && input.str("fail_table") == Some(sec.key()) { Some(Err("forced failure (test hook)".to_string())) } else { drawn };
             if let Some(Err(reason)) = drawn {
                 host(lang, "edit.delete", &json!({"ids": [frame]}))?;
-                frame = new_frame(lang, section, &frame_name, &comp_key, sec)?;
+                frame = new_frame(lang, section, &frame_name, &comp_key, sec, ctx.frame_w.get())?;
                 header(&ctx, frame, t(lang, sec.title_key()))?;
                 text_with(lang, frame, &tf(lang, Key::TableFailed, &[("reason", &reason)]), LINE_SIZE, pal::BAD, "Error", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
                 failed.push(sec.key());
@@ -1233,7 +1249,7 @@ pub fn generate(input: Input) -> Result<Value> {
                 Sec::Cover => build_cover(&ctx, frame)?,
                 Sec::Changelog => build_changelog(&ctx, frame)?,
                 Sec::Master => {
-                    let moved = build_master(&ctx, frame)?;
+                    let moved = build_master(&ctx, frame, master_plan.as_ref().unwrap_or(&reflow::Plan::Keep))?;
                     if let Some(e) = old(sec) {
                         host(lang, "edit.delete", &json!({"ids": [e.id]}))?;
                     }
@@ -1325,7 +1341,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "failed": failed, "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "failed": failed, "master": ctx.master.borrow().clone(), "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
@@ -1461,13 +1477,12 @@ mod tests {
     }
 
     #[test]
-    fn a_master_wider_than_the_frames_grows_and_the_section_follows_it() {
-        // A component of up to 988 fits the 1180 frame (48 + 48 + 988 + 48 + 48 = 1180); one of 1400 makes the frame 1592.
-        assert_eq!(master_width(500.0), 1180.0);
-        assert_eq!(master_width(988.0), 1180.0);
-        assert_eq!(master_width(1400.0), 1400.0 + 192.0);
-        let frames = [frame(Sec::Cover, 256.0, FRAME_W, 615.0), frame(Sec::Master, 935.0, master_width(1400.0), 900.0), frame(Sec::Properties, 1899.0, FRAME_W, 500.0)];
-        assert_eq!(section_size(&frames), (256.0 + 1592.0 + 256.0, 1899.0 + 500.0 + 256.0));
+    fn the_section_follows_the_widest_frame() {
+        // A Master that had to grow (a variant too wide for one column) makes every frame of the Section as wide: 1048 + 192.
+        let w = reflow::Plan::Wide { grid: None, width: 1048.0 }.frame_width();
+        assert_eq!(w, 1240.0);
+        let frames = [frame(Sec::Cover, 256.0, w, 615.0), frame(Sec::Master, 935.0, w, 900.0), frame(Sec::Properties, 1899.0, w, 500.0)];
+        assert_eq!(section_size(&frames), (256.0 + 1240.0 + 256.0, 1899.0 + 500.0 + 256.0));
     }
 
     #[test]

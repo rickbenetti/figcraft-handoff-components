@@ -5,12 +5,12 @@
 
 #![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
-use super::section::{Ctx, Cv, FRAME_PAD, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
+use super::section::{Ctx, Cv, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
 
 /// A table of the frame, noted for the answer (its name and how many rows it has).
 pub(super) fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
     c.tables.borrow_mut().push((name.to_string(), rows.len()));
-    table(c.lang, parent, name, cols, headers, rows)
+    table(c.lang, parent, name, &reflow::scale_columns(cols, c.useful.get()), headers, rows)
 }
 use super::*;
 use crate::delta::{Diff, Kind, Label, Swatch};
@@ -488,11 +488,8 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let target = c.target;
     header(c, frame, t(lang, Key::SecAnatomy))?;
     let size = bounds(&target.node).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
-    // The stage is as wide as the table, and wider (with its frame) when the component and the room its markers need do not fit.
-    let stage_w = USEFUL_W.max(size.w + STAGE_ROOM);
-    if stage_w > USEFUL_W {
-        host(lang, "node.set", &json!({"ids": [frame], "props": {"width": stage_w + 2.0 * FRAME_PAD}}))?;
-    }
+    // The stage is as wide as the frame's room (the frames have a fixed width): a marker that has no room at the sides is left out, the stage grows in height.
+    let stage_w = c.useful.get();
     // The stage, far off the page (an instance can only be placed in a top-level frame); it moves into the frame when it is done.
     let h0 = (size.h + STAGE_ROOM).max(MIN_STAGE_H);
     let sb0 = Rect { x: -30_000.0, y: STAGING_Y, w: stage_w, h: h0 };
