@@ -55,17 +55,11 @@
         256.0,
         4036.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        4379.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      4992.0
+      4571.0
     ],
     "tables": [
       [
@@ -87,7 +81,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 85062542,
+    "fuel": 85177063,
     "calls": 1116
   },
   "copia-2 / id 3 (Toast variant)": {
@@ -146,17 +140,11 @@
         256.0,
         5120.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        5463.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      6076.0
+      5655.0
     ],
     "tables": [
       [
@@ -178,7 +166,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 120738152,
+    "fuel": 121113094,
     "calls": 1482
   },
   "carga-v2 / id 3 (Toast variant)": {
@@ -237,17 +225,11 @@
         256.0,
         5404.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        5747.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      6360.0
+      5939.0
     ],
     "tables": [
       [
@@ -273,7 +255,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 268141160,
+    "fuel": 268390230,
     "calls": 1569
   },
   "carga-v2 / id 194 (Card de carga)": {
@@ -332,17 +314,11 @@
         256.0,
         12372.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        12715.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      13328.0
+      12907.0
     ],
     "tables": [
       [
@@ -364,7 +340,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 782474691,
+    "fuel": 782080295,
     "calls": 4869
   },
   "ds-base-demo / Button": {
@@ -423,17 +399,11 @@
         256.0,
         7641.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        7984.0,
-        357.0
       ]
     ],
     "section": [
       1755.0,
-      8597.0
+      8176.0
     ],
     "tables": [
       [
@@ -473,8 +443,8 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 371361957,
-    "calls": 4494
+    "fuel": 371787727,
+    "calls": 4497
   },
   "ds-base-demo / Card": {
     "markers": {
@@ -532,17 +502,11 @@
         256.0,
         8568.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        8911.0,
-        357.0
       ]
     ],
     "section": [
       2232.0,
-      9524.0
+      9103.0
     ],
     "tables": [
       [
@@ -572,8 +536,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 409138881,
-    "calls": 4350
+    "fuel": 410400125,
+    "calls": 4353
   },
   "ds-base-demo / Accordion": {
     "markers": {
@@ -631,17 +595,11 @@
         256.0,
         5139.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        5482.0,
-        357.0
       ]
     ],
     "section": [
       2008.0,
-      6095.0
+      5674.0
     ],
     "tables": [
       [
@@ -671,8 +629,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 160817673,
-    "calls": 1899
+    "fuel": 161505485,
+    "calls": 1902
   },
   "ds-base-demo / Code": {
     "markers": {
@@ -730,17 +688,11 @@
         256.0,
         4090.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        4433.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      5046.0
+      4625.0
     ],
     "tables": [
       [
@@ -762,8 +714,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 92232220,
-    "calls": 1098
+    "fuel": 93000481,
+    "calls": 1101
   },
   "ds-base-demo / Icon": {
     "markers": {
@@ -821,17 +773,11 @@
         256.0,
         5318.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        5661.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      6274.0
+      5853.0
     ],
     "tables": [
       [
@@ -865,8 +811,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 191278901,
-    "calls": 2496
+    "fuel": 191595161,
+    "calls": 2499
   },
   "pt-BR / copia-2 / id 32": {
     "markers": {
@@ -924,17 +870,11 @@
         256.0,
         4054.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        4397.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      5010.0
+      4589.0
     ],
     "tables": [
       [
@@ -956,7 +896,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 85656459,
+    "fuel": 85945817,
     "calls": 1125
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
@@ -1015,17 +955,11 @@
         256.0,
         5422.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        5765.0,
-        357.0
       ]
     ],
     "section": [
       1692.0,
-      6378.0
+      5957.0
     ],
     "tables": [
       [
@@ -1051,7 +985,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 269448272,
+    "fuel": 269394918,
     "calls": 1578
   },
   "pt-BR / ds-base-demo / Button": {
@@ -1110,17 +1044,11 @@
         256.0,
         7695.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        8038.0,
-        357.0
       ]
     ],
     "section": [
       1755.0,
-      8651.0
+      8230.0
     ],
     "tables": [
       [
@@ -1160,8 +1088,8 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 372589750,
-    "calls": 4503
+    "fuel": 372626564,
+    "calls": 4506
   },
   "pt-BR / ds-base-demo / Card": {
     "markers": {
@@ -1219,17 +1147,11 @@
         256.0,
         8712.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        9055.0,
-        357.0
       ]
     ],
     "section": [
       2232.0,
-      9668.0
+      9247.0
     ],
     "tables": [
       [
@@ -1259,8 +1181,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 411362402,
-    "calls": 4359
+    "fuel": 410727381,
+    "calls": 4362
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
@@ -1318,17 +1240,11 @@
         256.0,
         5175.0,
         279.0
-      ],
-      [
-        "kit",
-        256.0,
-        5518.0,
-        357.0
       ]
     ],
     "section": [
       2008.0,
-      6131.0
+      5710.0
     ],
     "tables": [
       [
@@ -1358,8 +1274,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 162468654,
-    "calls": 1908
+    "fuel": 163017883,
+    "calls": 1911
   },
   "cover editada / pills before": {
     "nodes": 74,
@@ -1422,5 +1338,21 @@
     "new_section_name_has_dot": true,
     "old_name_kept": true,
     "pills_of_the_old_set": 6
+  },
+  "apoio compartilhado": {
+    "one_set": true,
+    "second_cover_pills_of_the_same_set": true,
+    "card_support_made": false,
+    "frames_of_the_card_section": [
+      "cover",
+      "master",
+      "properties",
+      "anatomy",
+      "variants",
+      "layouts",
+      "tokens",
+      "changelog"
+    ],
+    "support_right_of_everything_before_the_sections": true
   }
 }

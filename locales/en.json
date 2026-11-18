@@ -258,7 +258,7 @@
   "PanelNewSection": "New Section",
   "PanelWarnNoStage": "No stage suits every variant: change it in Stage.",
   "SecKit": "Support components",
-  "KitNote": "Do not delete: the approval pills on the Cover are instances of the component that lives here.",
+  "KitNote": "Do not delete: the approval pills on the Covers are instances of the component that lives here.",
   "KitSetName": ".Handoff · Approval",
   "StatePending": "Pending",
   "StateApproved": "Approved",
@@ -309,5 +309,6 @@
   "TokBroken": "Aliases with no value: {n}. A loop, a chain of more than 8 hops or a missing target.",
   "TokNotRead": "{n} variants were not read: their colors may be missing.",
   "TokNotReadOne": "{n} variant was not read: its colors may be missing.",
-  "ErrSupportComponent": "This is a support component of the documentation (the approval pill). Select the component you want to document."
+  "ErrSupportComponent": "This is a support component of the documentation (the approval pill). Select the component you want to document.",
+  "SupportTitle": "Handoff · Support"
 }

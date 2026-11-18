@@ -258,7 +258,7 @@
   "PanelNewSection": "Nova Section",
   "PanelWarnNoStage": "Nenhum palco serve a todas as variantes: troque em Palco.",
   "SecKit": "Componentes de apoio",
-  "KitNote": "Não apague: as pílulas de aprovação da Cover são instâncias do componente que mora aqui.",
+  "KitNote": "Não apague: as pílulas das Capas são instâncias do componente que vive aqui.",
   "KitSetName": ".Handoff · Aprovação",
   "StatePending": "Pendente",
   "StateApproved": "Aprovado",
@@ -309,5 +309,6 @@
   "TokBroken": "Aliases sem valor: {n}. Um ciclo, uma cadeia de mais de 8 saltos ou um alvo que não existe.",
   "TokNotRead": "Não foram lidas {n} variantes: podem faltar cores.",
   "TokNotReadOne": "Não foi lida {n} variante: podem faltar cores.",
-  "ErrSupportComponent": "Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar."
+  "ErrSupportComponent": "Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar.",
+  "SupportTitle": "Handoff · Apoio"
 }

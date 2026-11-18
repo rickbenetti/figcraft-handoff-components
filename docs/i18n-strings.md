@@ -253,6 +253,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnLegacy | A 0.10.0 documentation was found and left as it was. | Documentação da 0.10.0 encontrada e mantida como estava. |
 | ErrMainGone | The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?). | O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?). |
 | ErrSupportComponent | This is a support component of the documentation (the approval pill). Select the component you want to document. | Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar. |
+| SupportTitle | Handoff · Support | Handoff · Apoio |
 | PanelUpdate | Update | Atualizar |
 | PanelTitleUpdate | UPDATE | ATUALIZAR |
 | UpdAll | All sections | Todas as seções |
@@ -266,7 +267,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelNewSection | New Section | Nova Section |
 | PanelWarnNoStage | No stage suits every variant: change it in Stage. | Nenhum palco serve a todas as variantes: troque em Palco. |
 | SecKit | Support components | Componentes de apoio |
-| KitNote | Do not delete: the approval pills on the Cover are instances of the component that lives here. | Não apague: as pílulas de aprovação da Cover são instâncias do componente que mora aqui. |
+| KitNote | Do not delete: the approval pills on the Covers are instances of the component that lives here. | Não apague: as pílulas das Capas são instâncias do componente que vive aqui. |
 | KitSetName | .Handoff · Approval | .Handoff · Aprovação |
 | StatePending | Pending | Pendente |
 | StateApproved | Approved | Aprovado |

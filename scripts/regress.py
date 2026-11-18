@@ -234,6 +234,42 @@ def cover_case(tmp):
     return out
 
 
+def support_case(tmp):
+    """"apoio compartilhado": the Button and then the Card of the demo are documented in the same file. There is ONE set of approval pills
+    (in the Support frame, outside every Section), the Card's Section has eight frames and no Support frame, the second Cover has six pills of
+    the same set, the Support frame stands to the right of everything and the Sections to the right of it."""
+    step = lambda cmd, params: {"command": cmd, "params": params}
+
+    def go(steps, i, o):
+        json.dump(steps, open(os.path.join(tmp, "sp.json"), "w"))
+        p = cli(["run", "--in", i, "--out", o, os.path.join(tmp, "sp.json")])
+        return [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+
+    def plugin(layer):
+        return [step("plugin.import", {"path": DIST}), step("select.set", {"ids": [layer]}), step("plugin.run", {"id": PID, "command": "generate", "params": {"direct": True}})]
+
+    ids = {}
+    for n, name in enumerate(["Button", "Card"]):
+        ids[name] = find_by_name(DEMO, name, tmp, 910 + n)
+    a, b = os.path.join(tmp, "sp1.figcraft"), os.path.join(tmp, "sp2.figcraft")
+    r1 = go(plugin(ids["Button"]), DEMO, a)
+    o1 = r1[2]["result"]["output"]
+    r2 = go(plugin(ids["Card"]), a, b)
+    o2 = r2[2]["result"]["output"]
+    sets = go([step("node.find", {"name": "Handoff", "type": "component_set", "limit": 50})], b, os.path.join(tmp, "sp3.figcraft"))[0]["result"]["ids"]
+    cover = next(f["id"] for f in o2["frames"] if f["key"] == "cover")
+    inst = go([step("node.find", {"root": cover, "type": "instance", "limit": 20})], b, os.path.join(tmp, "sp3.figcraft"))[0]["result"]["ids"]
+    props = go([step("component.properties", {"id": i}) for i in inst], b, os.path.join(tmp, "sp3.figcraft"))
+    made = o1["support"]["made"]
+    return {"apoio compartilhado": {
+        "one_set": len(sets) == 1,
+        "second_cover_pills_of_the_same_set": len(inst) == 6 and all((p.get("result") or {}).get("set") == o1["support"]["set"] for p in props),
+        "card_support_made": o2["support"]["made"] is not None,
+        "frames_of_the_card_section": [f["key"] for f in o2["frames"]],
+        "support_right_of_everything_before_the_sections": bool(made) and o1["x"] > made["x"] + made["w"] and o2["x"] > o1["x"] + o1["section_size"]["w"],
+    }}
+
+
 def main():
     args = sys.argv[1:]
     update = "--update" in args
@@ -263,6 +299,7 @@ def main():
             results[name] = run_case(src, layer, tmp, n, lang)
         if not private and not (update and only and only not in "cover editada"):
             results.update(cover_case(tmp))
+            results.update(support_case(tmp))
     secs = time.time() - started
     if dump:
         json.dump(results, open(dump, "w"), indent=2, ensure_ascii=False)
@@ -287,7 +324,7 @@ def main():
         if "error" in got:
             diffs.append(f"{name}: ERROR {got['error']}")
             continue
-        if name.startswith("cover editada"):
+        if name.startswith(("cover editada", "apoio compartilhado")):
             if got != want:
                 diffs.append(f"{name}: baseline {want!r}, now {got!r}")
             continue

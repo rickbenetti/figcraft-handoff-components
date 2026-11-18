@@ -28,6 +28,9 @@ pub const FRAME_GAP: f64 = 64.0;
 /// The room between the right edge of everything on the page and a new Section.
 pub const SECTION_RIGHT_GAP: f64 = 512.0;
 
+/// The y of the first Section (and of the Support frame) on the page.
+pub const ORIGIN_Y: f64 = 256.0;
+
 /// The x, inside the Section, of every frame.
 pub const FRAME_X: f64 = SECTION_PAD;
 
@@ -86,7 +89,7 @@ pub fn shift_below(frames: &mut [Placed], sec: Sec, old_y: f64, old_h: f64, new_
 /// the y of the Section it goes beside ("New Section"). `boxes` are the page's top-level boxes as (x, y, w, h).
 pub fn section_origin(boxes: &[(f64, f64, f64, f64)], beside_y: Option<f64>) -> (f64, f64) {
     let right = boxes.iter().map(|(x, _, w, _)| x + w).fold(None, |r: Option<f64>, v| Some(r.map_or(v, |r| r.max(v))));
-    (right.map_or(0.0, |r| r + SECTION_RIGHT_GAP), beside_y.unwrap_or(SECTION_PAD))
+    (right.map_or(0.0, |r| r + SECTION_RIGHT_GAP), beside_y.unwrap_or(ORIGIN_Y))
 }
 
 /// The width of the Component Master frame for a component `w` wide: the stage has 48 around the component and the frame 48 around the
@@ -99,6 +102,8 @@ pub fn master_width(component_w: f64) -> f64 {
 pub const SECTION_MARK: &str = "handoff-report-section";
 pub const NAME_MARK: &str = "handoff-section";
 pub const APPROVAL_SET_MARK: &str = "handoff-approval-set";
+/// The mark of the Support frame: the top-level frame of the page that holds the set of approval pills for every Section of the document.
+pub const SUPPORT_MARK: &str = "handoff-support";
 /// The stage inside the Component Master frame.
 const STAGE_PAD: f64 = 48.0;
 /// The lowest contrast the automatic stage should reach for every variant (WCAG graphics: 3:1).
@@ -147,11 +152,13 @@ pub enum Sec {
     Layouts,
     Tokens,
     Changelog,
+    /// The Support frame of a Section made before 0.11's shared Support frame: such a Section keeps it (found by its mark, never made again).
     Kit,
 }
 
 impl Sec {
-    pub const ALL: [Sec; 9] = [Sec::Cover, Sec::Master, Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens, Sec::Changelog, Sec::Kit];
+    /// The eight frames of a Section's column, in order. (The Support frame is not one of them: there is one for the whole document.)
+    pub const ALL: [Sec; 8] = [Sec::Cover, Sec::Master, Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens, Sec::Changelog];
 
     /// The value of the frame's `handoff-section` data.
     pub fn key(self) -> &'static str {
@@ -182,13 +189,14 @@ impl Sec {
         }
     }
 
-    /// The place of the frame in the row (0 to 8).
+    /// The place of the frame in the column (0 to 7; the old Support frame comes after the others).
     pub fn index(self) -> usize {
-        Sec::ALL.iter().position(|s| *s == self).unwrap_or(0)
+        Sec::ALL.iter().position(|s| *s == self).unwrap_or(Sec::ALL.len())
     }
 
+    /// The frame a `handoff-section` mark names, the old Support frame included.
     pub fn from_key(key: &str) -> Option<Sec> {
-        Sec::ALL.into_iter().find(|s| s.key() == key)
+        Sec::ALL.into_iter().chain([Sec::Kit]).find(|s| s.key() == key)
     }
 
     /// Made once, never replaced by a rerun, made again only when it was deleted by hand. (The Component Master is not one of
@@ -551,6 +559,64 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
 fn read_approval_set(lang: Lang, kit: u64) -> Result<Option<u64>> {
     let node = host(lang, "node.get", &json!({"id": kit, "fields": ["children", "pluginData"]}))?;
     Ok(node.get("children").and_then(Value::as_array).into_iter().flatten().find(|c| mark_of(c, APPROVAL_SET_MARK).is_some()).and_then(|c| c.get("id").and_then(Value::as_u64)))
+}
+
+/// The sets of approval pills of the whole document, and which one the Covers use. The plugin cannot change the page, but it can read
+/// any page's top-level layers by id: the Support frames (`SUPPORT_MARK`) and, for the Sections made before the shared Support frame, the
+/// Support frame inside each Section. When there are several the OLDEST is used (the lowest id: ids grow as layers are made), so the
+/// choice is the same on every run. Returns that set and how many were found.
+fn find_support(lang: Lang, page: &PageInfo) -> Result<(Option<u64>, usize)> {
+    let pages = host(lang, "page.list", &json!({}))?;
+    let mut sets: Vec<u64> = Vec::new();
+    for p in pages.as_array().map(Vec::as_slice).unwrap_or_default().iter().take(MAX_PAGES) {
+        let (Some(id), n) = (p.get("id").and_then(Value::as_u64), p.get("children").and_then(Value::as_u64).unwrap_or(1)) else { continue };
+        if n == 0 {
+            continue;
+        }
+        let children: Vec<Value> = if id == page.id { page.children.clone() } else { host(lang, "node.get", &json!({"id": id, "fields": ["children", "name", "type", "pluginData"]}))?.get("children").and_then(Value::as_array).cloned().unwrap_or_default() };
+        for c in children.iter().take(MAX_TOP_LEVEL) {
+            let Some(cid) = c.get("id").and_then(Value::as_u64) else { continue };
+            if mark_of(c, APPROVAL_SET_MARK).is_some() {
+                // The set itself, standing on the page (taken out of its frame by hand).
+                sets.push(cid);
+            } else if mark_of(c, SUPPORT_MARK).is_some() {
+                sets.extend(read_approval_set(lang, cid)?);
+            } else if mark_of(c, SECTION_MARK).is_some() {
+                let (_, frames) = read_frames(lang, cid)?;
+                if let Some(kit) = frames.iter().find(|f| f.sec == Sec::Kit) {
+                    sets.extend(read_approval_set(lang, kit.id)?);
+                }
+            }
+        }
+    }
+    sets.sort_unstable();
+    sets.dedup();
+    Ok((sets.first().copied(), sets.len()))
+}
+
+/// The most pages looked at for the set of approval pills.
+const MAX_PAGES: usize = 500;
+
+/// The Support frame: a top-level frame of the page (title, the note that says not to delete it, and the set of approval pills), as wide
+/// as its content, at (`x`, `y`). Returns its id, the set's id and the frame's size.
+fn build_support(c: &Ctx, x: f64, y: f64) -> Result<(u64, u64, f64, f64)> {
+    let lang = c.lang;
+    let made = host(
+        lang,
+        "frame.create",
+        &json!({"x": x, "y": y, "width": 400, "height": 200, "name": t(lang, Key::SupportTitle), "select": false,
+            "props": {"fill": pal::FRAME, "layout": "vertical", "gap": 32, "padding": FRAME_PAD, "crossAlign": "min", "sizingH": "hug", "sizingV": "hug", "cornerRadius": TABLE_RADIUS, "clip": false,
+                "pluginData": {SUPPORT_MARK: "1"}}}),
+    )?;
+    let frame = id_of(lang, &made, "frame.create")?;
+    text_with(lang, frame, t(lang, Key::SupportTitle), theme::TITLE_SIZE, pal::TEXT, "Title", bold())?;
+    let note = text_with(lang, frame, t(lang, Key::KitNote), LINE_SIZE, pal::COND, "Warning", json!({"width": 400, "textAutoResize": "height"}))?;
+    let set = build_approval_set(c, frame)?;
+    // The note is as wide as the set (the frame hugs both).
+    let (set_w, _) = size_of(lang, set)?;
+    host(lang, "node.set", &json!({"ids": [note], "props": {"width": set_w}}))?;
+    let (w, h) = size_of(lang, frame)?;
+    Ok((frame, set, w, h))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1007,14 +1073,6 @@ fn build_approval_set(c: &Ctx, frame: u64) -> Result<u64> {
     Ok(set)
 }
 
-/// The support components: a note that says not to delete it, and the set of approval pills.
-fn build_kit(c: &Ctx, frame: u64) -> Result<u64> {
-    let lang = c.lang;
-    header(c, frame, t(lang, Key::SecKit))?;
-    text_with(lang, frame, t(lang, Key::KitNote), LINE_SIZE, pal::COND, "Warning", json!({"width": USEFUL_W, "textAutoResize": "height"}))?;
-    build_approval_set(c, frame)
-}
-
 // ---------------------------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------------------------
@@ -1086,6 +1144,21 @@ pub fn generate(input: Input) -> Result<Value> {
         _ => None,
     };
     let calls0 = HOST_CALLS.load(Ordering::Relaxed);
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
+    // 2b. The set of approval pills: ONE for the whole document. It lives in the Support frame, outside every Section; a new Section
+    // reuses the oldest one there is, and only when there is none (first generation, or a Support frame that was deleted) a Support frame
+    // is made, to the right of everything, before the Section. A rerun never makes one.
+    let (support_set, support_count) = find_support(lang, &page)?;
+    let mut boxes = boxes;
+    let mut support_made: Option<Value> = None;
+    ctx.pills = support_set;
+    if support_set.is_none() && section_id.is_none() {
+        let (x, y) = section_origin(&boxes, None);
+        let (frame, set, w, h) = build_support(&ctx, x, y)?;
+        boxes.push((x, y, w, h));
+        ctx.pills = Some(set);
+        support_made = Some(json!({"frame": frame, "set": set, "x": x, "y": y, "w": w, "h": h}));
+    }
     // 3. The Section: the one that is there, or a new one right of everything.
     let (section, sx, sy, existing, created) = match section_id {
         Some(id) => {
@@ -1109,24 +1182,6 @@ pub fn generate(input: Input) -> Result<Value> {
     // Section has one; a Section that has none makes it only when no other Section of the component holds the original.
     let master_allowed = !beside && (old(Sec::Master).is_some() || !other_has_master(lang, &page, &comp_key, section_id)?);
     let will_make = |sec: Sec| frame_is_made(sec, old(sec).is_some(), created, update, master_allowed);
-    // 5. The support frame first: the Cover's instances need its set. It is made at the top and moved into place with the others.
-    // A support frame made by the A2 build has no set of pills: the set is made inside it, and the frame is not deleted.
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
-    let kit_frame: Option<(u64, &str)>;
-    let mut set_added = false;
-    if let Some(e) = old(Sec::Kit) {
-        ctx.pills = read_approval_set(lang, e.id)?;
-        if ctx.pills.is_none() {
-            ctx.pills = Some(build_approval_set(&ctx, e.id)?);
-            set_added = true;
-        }
-        kit_frame = Some((e.id, "kept"));
-    } else {
-        let kit_name = tf(lang, Key::SectionFrameName, &[("title", t(lang, Sec::Kit.title_key())), ("name", &name)]);
-        let frame = new_frame(lang, section, &kit_name, &comp_key, Sec::Kit)?;
-        ctx.pills = Some(build_kit(&ctx, frame)?);
-        kit_frame = Some((frame, "created"));
-    }
     // 6. The stage of the Master, over every variant (a sample of them in a big set), when the Master is made now.
     let stage_sampled: std::cell::Cell<Option<(usize, usize)>> = std::cell::Cell::new(None);
     if will_make(Sec::Master) {
@@ -1144,13 +1199,7 @@ pub fn generate(input: Input) -> Result<Value> {
     let mut actions: Vec<(Sec, &str)> = Vec::new();
     let mut fresh: Vec<Sec> = Vec::new();
     for sec in Sec::ALL {
-        let (id, action): (u64, &str) = if sec == Sec::Kit {
-            let (id, action) = kit_frame.unwrap_or((0, "kept"));
-            if action == "created" {
-                fresh.push(sec);
-            }
-            (id, action)
-        } else if will_make(sec) {
+        let (id, action): (u64, &str) = if will_make(sec) {
             let frame_name = if sec == Sec::Master { tf(lang, Key::MasterFrameName, &[("name", &name)]) } else { tf(lang, Key::SectionFrameName, &[("title", t(lang, sec.title_key())), ("name", &name)]) };
             let replaced = old(sec).is_some();
             // The old Master is deleted only AFTER the original component is in the new one (deleting a frame deletes what is in it).
@@ -1276,7 +1325,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "failed": failed, "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "area_retries": ctx.area_retries.get(), "pill_set_added": set_added, "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "failed": failed, "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
@@ -1291,17 +1340,20 @@ mod tests {
     #[test]
     fn the_sections_come_in_the_order_of_the_frames_with_their_own_keys() {
         let keys: Vec<&str> = Sec::ALL.iter().map(|s| s.key()).collect();
-        assert_eq!(keys, ["cover", "master", "properties", "anatomy", "variants", "layouts", "tokens", "changelog", "kit"]);
+        assert_eq!(keys, ["cover", "master", "properties", "anatomy", "variants", "layouts", "tokens", "changelog"]);
         for s in Sec::ALL {
             assert_eq!(Sec::from_key(s.key()), Some(s));
         }
+        // A Section made before the shared Support frame has one inside it: it is still recognised (by its mark), though no run makes it.
+        assert_eq!(Sec::from_key("kit"), Some(Sec::Kit));
+        assert!(!Sec::ALL.contains(&Sec::Kit));
         assert_eq!(Sec::from_key("nope"), None);
     }
 
     #[test]
-    fn three_frames_are_made_once_and_the_other_five_are_the_ones_a_rerun_replaces() {
+    fn two_frames_are_made_once_and_the_others_are_the_ones_a_rerun_replaces() {
         let permanent: Vec<Sec> = Sec::ALL.into_iter().filter(|s| s.permanent()).collect();
-        assert_eq!(permanent, [Sec::Cover, Sec::Changelog, Sec::Kit], "the Master is not among them: it is made again on every run");
+        assert_eq!(permanent, [Sec::Cover, Sec::Changelog], "the Master is not among them: it is made again on every run");
         assert_eq!(Update::All.sections(), [Sec::Properties, Sec::Anatomy, Sec::Variants, Sec::Layouts, Sec::Tokens]);
         assert!(Update::ALL.iter().all(|u| u.sections().iter().all(|s| !s.permanent())), "no choice of Update replaces a permanent frame");
     }
@@ -1339,16 +1391,16 @@ mod tests {
     #[test]
     fn the_frames_are_in_one_column_at_x_256_with_64_between_them_the_first_at_y_256() {
         assert_eq!((FRAME_W, FRAME_PAD, USEFUL_W, FRAME_GAP, SECTION_PAD), (1180.0, 48.0, 1084.0, 64.0, 256.0));
-        let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0, 357.0];
+        let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0];
         let ys = column_ys(&heights);
         assert_eq!(ys[0], 256.0);
         assert!(ys.windows(2).zip(&heights).all(|(w, h)| w[1] - w[0] - h == FRAME_GAP));
         for (i, s) in Sec::ALL.iter().enumerate() {
             assert_eq!(s.index(), i);
         }
-        // The Section: 256 + the widest frame + 256 wide; 256 + the sum of the heights + 8 x 64 + 256 tall.
+        // The Section: 256 + the widest frame + 256 wide; 256 + the sum of the heights + 7 x 64 + 256 tall (eight frames).
         let frames: Vec<Placed> = Sec::ALL.iter().zip(&heights).zip(&ys).map(|((s, h), y)| frame(*s, *y, FRAME_W, *h)).collect();
-        assert_eq!(section_size(&frames), (256.0 + 1180.0 + 256.0, 256.0 + heights.iter().sum::<f64>() + 8.0 * 64.0 + 256.0));
+        assert_eq!(section_size(&frames), (256.0 + 1180.0 + 256.0, 256.0 + heights.iter().sum::<f64>() + 7.0 * 64.0 + 256.0));
         assert_eq!(section_size(&[]), (512.0, 512.0));
     }
 
@@ -1387,7 +1439,7 @@ mod tests {
 
     #[test]
     fn a_rerun_that_changes_the_height_of_a_middle_frame_moves_the_ones_under_it_down_by_the_difference() {
-        let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0, 357.0];
+        let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0];
         let ys = column_ys(&heights);
         let mut frames: Vec<Placed> = Sec::ALL.iter().zip(&heights).zip(&ys).map(|((s, h), y)| frame(*s, *y, FRAME_W, *h)).collect();
         let before: Vec<f64> = frames.iter().map(|f| f.y).collect();
