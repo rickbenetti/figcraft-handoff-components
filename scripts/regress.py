@@ -102,7 +102,9 @@ def marker_check(a):
     gap = min([((p["centre"][0] - q["centre"][0]) ** 2 + (p["centre"][1] - q["centre"][1]) ** 2) ** 0.5 for i, p in enumerate(ms) for q in ms[i + 1:]] or [999])
     root = next((m for m in ms if m["way"] == "Root"), None)
     straight = root is None or abs(root["centre"][0] - root["end"][0]) < 0.01 or abs(root["centre"][1] - root["end"][1]) < 0.01
-    return {"count": len(ms), "edge_ok": edge >= 47.99, "gap_ok": gap >= 43.99, "root_straight": straight, "dropped": len(a.get("dropped", []))}
+    # The guides stop inside their layers (the tip is at most 6 px past the anchor); how many markers stand in the diagonal (a last resort).
+    tips = all(((m["tip"][0] - m["end"][0]) ** 2 + (m["tip"][1] - m["end"][1]) ** 2) ** 0.5 <= 6.6 for m in ms if "tip" in m)
+    return {"count": len(ms), "edge_ok": edge >= 47.99, "gap_ok": gap >= 43.99, "root_straight": straight, "dropped": len(a.get("dropped", [])), "tips_in": tips, "diagonal": sum(1 for m in ms if "Diagonal" in m["way"])}
 
 
 def run_case(src, layer, tmp, n, lang=None):
