@@ -1,6 +1,6 @@
 //! The 0.11 document: one Section for the component, with a frame (in ONE ROW, left to right) for each part of the handoff (Cover, Component Master,
 //! Properties, Anatomy, States and Variants, Layouts, Tokens, Changelog and the support components), 1920 px wide, 64 px
-//! apart, with 256 px of room around them inside the Section.
+//! apart, with 64 px of room around them inside the Section.
 //!
 //! The first generation makes everything. A rerun replaces only the frames "Update" names (the five that are drawn from the
 //! component); Cover, Changelog and the support components are made once, never replaced, and made again only when they were
@@ -21,12 +21,12 @@ pub const FRAME_W: f64 = 1180.0;
 pub const FRAME_PAD: f64 = 48.0;
 pub const USEFUL_W: f64 = FRAME_W - 2.0 * FRAME_PAD;
 /// The room around the frames inside the Section, and the gap between them.
-pub const SECTION_PAD: f64 = 256.0;
+pub const SECTION_PAD: f64 = 64.0;
 pub const FRAME_GAP: f64 = 64.0;
-/// The frames are in ONE COLUMN, top to bottom, all at x = 256 inside the Section, the first at y = 256 and each one 64 below the one above
-/// (nine frames: 256 + the heights + 8 × 64 + 256).
+/// The frames are in ONE COLUMN, top to bottom, all at x = 64 inside the Section, the first at y = 64 and each one 64 below the one above
+/// (eight frames: 64 + the heights + 7 × 64 + 64).
 /// The room between the right edge of everything on the page and a new Section.
-pub const SECTION_RIGHT_GAP: f64 = 512.0;
+pub const SECTION_RIGHT_GAP: f64 = 256.0;
 
 /// The y of the first Section (and of the Support frame) on the page.
 pub const ORIGIN_Y: f64 = 256.0;
@@ -51,7 +51,7 @@ impl Placed {
     }
 }
 
-/// The y of each frame of a new column, from the heights of the frames in order: the first at 256, each 64 under the one above.
+/// The y of each frame of a new column, from the heights of the frames in order: the first at 64, each 64 under the one above.
 pub fn column_ys(heights: &[f64]) -> Vec<f64> {
     let mut y = SECTION_PAD;
     heights
@@ -64,8 +64,8 @@ pub fn column_ys(heights: &[f64]) -> Vec<f64> {
         .collect()
 }
 
-/// The Section's size: 256 + the widest frame + 256 wide, and 256 + the lowest bottom + 256 tall (for a column that was never touched
-/// by hand that is 256 + the sum of the heights + 64 between each + 256).
+/// The Section's size: 64 + the widest frame + 64 wide, and 64 + the lowest bottom + 64 tall (for a column that was never touched
+/// by hand that is 64 + the sum of the heights + 7 × 64 + 64).
 pub fn section_size(frames: &[Placed]) -> (f64, f64) {
     let widest = frames.iter().map(|f| f.w).fold(0.0, f64::max);
     let lowest = frames.iter().map(Placed::bottom).fold(SECTION_PAD, f64::max);
@@ -85,7 +85,7 @@ pub fn shift_below(frames: &mut [Placed], sec: Sec, old_y: f64, old_h: f64, new_
     }
 }
 
-/// Where a Section goes: to the right of everything on the page (its largest right edge + 512; 0 on an empty page), at y = 256, or at
+/// Where a Section goes: to the right of everything on the page (its largest right edge + 256; 0 on an empty page), at y = 256, or at
 /// the y of the Section it goes beside ("New Section"). `boxes` are the page's top-level boxes as (x, y, w, h).
 pub fn section_origin(boxes: &[(f64, f64, f64, f64)], beside_y: Option<f64>) -> (f64, f64) {
     let right = boxes.iter().map(|(x, _, w, _)| x + w).fold(None, |r: Option<f64>, v| Some(r.map_or(v, |r| r.max(v))));
@@ -1141,7 +1141,7 @@ pub fn generate(input: Input) -> Result<Value> {
     if first_run && has_legacy_frame(&page, &comp_key) {
         warnings.push(Warn::LegacyDoc);
     }
-    // A Section goes to the right of everything on the page (+ 512), at y = 256; "New Section" at the y of the reference Section (the
+    // A Section goes to the right of everything on the page (+ 256), at y = 256; "New Section" at the y of the reference Section (the
     // first of the component), so the new column stands beside the old one.
     let boxes: Vec<(f64, f64, f64, f64)> = page.children.iter().filter_map(bounds).map(|b| (b.x, b.y, b.w, b.h)).collect();
     let beside_y = match found {
@@ -1405,19 +1405,19 @@ mod tests {
     }
 
     #[test]
-    fn the_frames_are_in_one_column_at_x_256_with_64_between_them_the_first_at_y_256() {
-        assert_eq!((FRAME_W, FRAME_PAD, USEFUL_W, FRAME_GAP, SECTION_PAD), (1180.0, 48.0, 1084.0, 64.0, 256.0));
+    fn the_frames_are_in_one_column_with_64_around_and_between_them() {
+        assert_eq!((FRAME_W, FRAME_PAD, USEFUL_W, FRAME_GAP, SECTION_PAD, SECTION_RIGHT_GAP, ORIGIN_Y), (1180.0, 48.0, 1084.0, 64.0, 64.0, 256.0, 256.0));
         let heights = [615.0, 1359.0, 537.0, 723.0, 1505.0, 451.0, 1441.0, 279.0];
         let ys = column_ys(&heights);
-        assert_eq!(ys[0], 256.0);
+        assert_eq!(ys[0], SECTION_PAD);
         assert!(ys.windows(2).zip(&heights).all(|(w, h)| w[1] - w[0] - h == FRAME_GAP));
         for (i, s) in Sec::ALL.iter().enumerate() {
             assert_eq!(s.index(), i);
         }
-        // The Section: 256 + the widest frame + 256 wide; 256 + the sum of the heights + 7 x 64 + 256 tall (eight frames).
+        // The Section: 64 + the widest frame + 64 wide; 64 + the sum of the heights + 7 x 64 + 64 tall (eight frames).
         let frames: Vec<Placed> = Sec::ALL.iter().zip(&heights).zip(&ys).map(|((s, h), y)| frame(*s, *y, FRAME_W, *h)).collect();
-        assert_eq!(section_size(&frames), (256.0 + 1180.0 + 256.0, 256.0 + heights.iter().sum::<f64>() + 7.0 * 64.0 + 256.0));
-        assert_eq!(section_size(&[]), (512.0, 512.0));
+        assert_eq!(section_size(&frames), (64.0 + 1180.0 + 64.0, 64.0 + heights.iter().sum::<f64>() + 7.0 * 64.0 + 64.0));
+        assert_eq!(section_size(&[]), (128.0, 128.0));
     }
 
     fn page(boxes: &[(f64, f64, f64, f64)]) -> Vec<(f64, f64, f64, f64)> {
@@ -1425,32 +1425,33 @@ mod tests {
     }
 
     #[test]
-    fn the_first_section_goes_right_of_everything_at_y_256() {
-        // An empty page: x = 0. A page with one Section 1692 wide at x = 0: its right edge + 512.
+    fn the_first_section_goes_right_of_everything_at_y_256_with_256_between() {
+        // An empty page: x = 0. A page with one Section 1308 wide at x = 0: its right edge + 256.
         assert_eq!(section_origin(&[], None), (0.0, 256.0));
-        let first = (0.0, 256.0, 1692.0, 6000.0);
-        assert_eq!(section_origin(&page(&[first]), None), (1692.0 + 512.0, 256.0));
+        let first = (0.0, 256.0, 1308.0, 6000.0);
+        assert_eq!(section_origin(&page(&[first]), None), (1308.0 + 256.0, 256.0));
         // The Section of another component goes to the right of both.
-        let second = (2204.0, 256.0, 1692.0, 4000.0);
-        assert_eq!(section_origin(&page(&[first, second]), None), (2204.0 + 1692.0 + 512.0, 256.0));
+        let second = (1564.0, 256.0, 1308.0, 4000.0);
+        assert_eq!(section_origin(&page(&[first, second]), None), (1564.0 + 1308.0 + 256.0, 256.0));
     }
 
     #[test]
     fn a_new_section_of_the_same_component_goes_beside_the_old_one_at_its_y() {
-        let old = (0.0, 256.0, 1692.0, 6000.0);
-        let other = (2204.0, 256.0, 2400.0, 4000.0); // a wide Section of another component
+        let old = (0.0, 256.0, 1308.0, 6000.0);
+        let other = (1564.0, 256.0, 2000.0, 4000.0); // a wide Section of another component
         // At the y of the reference, to the right of everything (the other component's Section included).
-        assert_eq!(section_origin(&page(&[old, other]), Some(256.0)), (2204.0 + 2400.0 + 512.0, 256.0));
+        assert_eq!(section_origin(&page(&[old, other]), Some(256.0)), (1564.0 + 2000.0 + 256.0, 256.0));
         // The reference is not at 256 (the person moved it): the new column is level with it.
-        assert_eq!(section_origin(&page(&[(0.0, 900.0, 1692.0, 6000.0)]), Some(900.0)), (1692.0 + 512.0, 900.0));
+        assert_eq!(section_origin(&page(&[(0.0, 900.0, 1308.0, 6000.0)]), Some(900.0)), (1308.0 + 256.0, 900.0));
     }
 
     #[test]
-    fn a_frame_of_version_0_10_0_on_the_page_counts_as_something_to_clear() {
+    fn the_support_frame_and_a_frame_of_version_0_10_0_are_something_to_clear_too() {
         let legacy = (0.0, 0.0, 3000.0, 1200.0); // "Documentation: X"
-        assert_eq!(section_origin(&page(&[legacy]), None), (3000.0 + 512.0, 256.0));
-        let section = (3512.0, 256.0, 1692.0, 5000.0);
-        assert_eq!(section_origin(&page(&[legacy, section]), None), (3512.0 + 1692.0 + 512.0, 256.0));
+        assert_eq!(section_origin(&page(&[legacy]), None), (3000.0 + 256.0, 256.0));
+        // The first generation in a document with no set: the Support frame (1368 wide) goes right of everything, the Section right of it.
+        let support = (3256.0, 256.0, 1368.0, 331.0);
+        assert_eq!(section_origin(&page(&[legacy, support]), None), (3256.0 + 1368.0 + 256.0, 256.0));
     }
 
     #[test]
@@ -1471,9 +1472,9 @@ mod tests {
         shift_below(&mut frames, Sec::Anatomy, anatomy.y, 723.0, 723.0);
         assert_eq!(frames, snapshot);
         // A frame the person moved UP over the changed one (its top above the old bottom) is left alone.
-        let mut moved = vec![frame(Sec::Properties, 300.0, FRAME_W, 200.0), frame(Sec::Anatomy, 256.0, FRAME_W, 723.0), frame(Sec::Variants, 1043.0, FRAME_W, 100.0)];
-        shift_below(&mut moved, Sec::Anatomy, 256.0, 723.0, 800.0);
-        assert_eq!((moved[0].y, moved[2].y), (300.0, 1120.0));
+        let mut moved = vec![frame(Sec::Properties, 300.0, FRAME_W, 200.0), frame(Sec::Anatomy, 64.0, FRAME_W, 723.0), frame(Sec::Variants, 851.0, FRAME_W, 100.0)];
+        shift_below(&mut moved, Sec::Anatomy, 64.0, 723.0, 800.0);
+        assert_eq!((moved[0].y, moved[2].y), (300.0, 928.0));
     }
 
     #[test]
@@ -1481,8 +1482,8 @@ mod tests {
         // A Master that had to grow (a variant too wide for one column) makes every frame of the Section as wide: 1048 + 192.
         let w = reflow::Plan::Wide { grid: None, width: 1048.0 }.frame_width();
         assert_eq!(w, 1240.0);
-        let frames = [frame(Sec::Cover, 256.0, w, 615.0), frame(Sec::Master, 935.0, w, 900.0), frame(Sec::Properties, 1899.0, w, 500.0)];
-        assert_eq!(section_size(&frames), (256.0 + 1240.0 + 256.0, 1899.0 + 500.0 + 256.0));
+        let frames = [frame(Sec::Cover, 64.0, w, 615.0), frame(Sec::Master, 743.0, w, 900.0), frame(Sec::Properties, 1707.0, w, 500.0)];
+        assert_eq!(section_size(&frames), (64.0 + 1240.0 + 64.0, 1707.0 + 500.0 + 64.0));
     }
 
     #[test]
