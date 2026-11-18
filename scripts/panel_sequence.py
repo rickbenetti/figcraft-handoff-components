@@ -127,7 +127,7 @@ def main():
         r = run(copia, [select(32), generate(), event("lang", "Português (Brasil)"), event("generate"), ui(), find(EN)], tmp)
         click, after, sections = r[3], r[4], r[5]
         out = output(click)
-        check(not out["refused"] and len(out["frames"]) == 9, "Português typed, then one click: made, with 9 frames", str(len(out.get("frames", []))))
+        check(not out["refused"] and len(out["frames"]) == 8, "Português typed, then one click: made, with 8 frames", str(len(out.get("frames", []))))
         check(out["selected"] is not None and out["selected"] == out["selected"], "the selection is the component that lives in the Component Master", str(out["selected"]))
         v = out["view"]
         check("error" not in v and v["zoom"] is not None and 0 < v["zoom"] <= 1.0, "the screen went to the Section (zoom at most 100%)", json.dumps({k: v.get(k) for k in ("zoom", "cx", "cy", "vw", "vh")}))
@@ -156,11 +156,11 @@ def main():
         r = run(copia, [select(32), generate(), event("generate"), select(32), generate(), event("update", "Tokens only"), event("generate")], tmp)
         first, second = {f["key"]: f for f in output(r[2])["frames"]}, {f["key"]: f for f in output(r[6])["frames"]}
         acts = {k: v["action"] for k, v in second.items()}
-        check([k for k, a in acts.items() if a == "replaced"] == ["master", "tokens"] and all(first[k]["id"] == second[k]["id"] for k in ("cover", "changelog", "kit")) and first["master"]["id"] != second["master"]["id"], "Tokens only: Tokens and the Master (remade on every run) are replaced; Cover, Changelog and the support frame keep their ids", str(acts))
+        check([k for k, a in acts.items() if a == "replaced"] == ["master", "tokens"] and all(first[k]["id"] == second[k]["id"] for k in ("cover", "changelog")) and first["master"]["id"] != second["master"]["id"], "Tokens only: Tokens and the Master (remade on every run) are replaced; Cover and Changelog keep their ids", str(acts))
         r = run(copia, [select(32), generate(), event("generate"), select(32), generate(), event("new_section"), find(EN), {"command": "node.find", "params": {"type": "section", "limit": 5}}], tmp)
         out = output(r[5])
         keys = [f["key"] for f in out["frames"]]
-        check(out["new_section"] and "master" not in keys and "kit" in keys and r[7]["result"]["total"] == 2, "New Section: a second Section with its own support frame and no Master", str(keys))
+        check(out["new_section"] and "master" not in keys and "kit" not in keys and r[7]["result"]["total"] == 2, "New Section: a second Section with eight frames (the Support frame is shared, not made again) and no Master", str(keys))
 
         # 6. A loose 0.10.0 documentation: a frame on the page with the old mark and no Section.
         legacy = {"command": "frame.create", "params": {"x": 5000, "y": 0, "width": 1280, "height": 400, "name": "Documentation — x", "select": False, "props": {"pluginData": {"handoff-report": "32"}}}}
