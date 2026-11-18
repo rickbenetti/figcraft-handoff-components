@@ -518,8 +518,12 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let (shown, _hidden) = limit_groups(&grouped, MAX_AUDIT_LINES);
     let mut blocks_list = blocks(&shown, |l| !is_spacing(l.property), true);
     let unnumbered = number_blocks(&mut blocks_list, &drawn);
-    // The stage grows when the effects need room, and the instance stays in the middle.
-    let h1 = h0.max(stage_height_for_effects(size.h, reach));
+    let depths: Vec<usize> = walked.iter().map(|(_, d)| *d).collect();
+    let numbered: Vec<(usize, usize)> = blocks_list.iter().filter_map(|b| b.badge.map(|n| b.nodes.iter().filter(|i| drawn.get(**i).copied().unwrap_or(false)).map(move |i| (n, *i)))).flatten().collect();
+    // The stage grows when the effects need room, or the markers (which stand at different distances) need more above and below than the
+    // stage has, and the instance stays in the middle.
+    let room = markers_room(sb0, ib0, &Tree::new(&nodes, depths.clone()), &numbered);
+    let h1 = h0.max(stage_height_for_effects(size.h, reach)).max(size.h + 2.0 * room);
     let (sb, ib, dy) = if (h1 - h0).abs() > 0.5 {
         let dy = (h1 - h0) / 2.0;
         host(lang, "node.set", &json!({"ids": [stage], "props": {"height": h1}}))?;
@@ -539,8 +543,7 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let choice: StageChoice = pick_stage_for(c.mode, std::slice::from_ref(&judge(&nodes)), set_backdrop(lang, target)?);
     host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": choice.fill(), "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside", "width": stage_w}}))?;
     let red = red_style(choice.stage != contrast::Stage::Light);
-    let tree = Tree::new(&nodes, walked.iter().map(|(_, d)| *d).collect());
-    let numbered: Vec<(usize, usize)> = blocks_list.iter().filter_map(|b| b.badge.map(|n| b.nodes.iter().filter(|i| drawn.get(**i).copied().unwrap_or(false)).map(move |i| (n, *i)))).flatten().collect();
+    let tree = Tree::new(&nodes, depths);
     let badges = draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
     *c.markers.borrow_mut() = Some(json!({"markers": badges.info, "rounds": badges.rounds, "dropped": badges.dropped, "stage": [sb.x, sb.y, sb.w, sb.h], "component": [ib.x, ib.y, ib.w, ib.h]}));
     host(lang, "node.reparent", &json!({"ids": [stage], "parent": frame}))?;
