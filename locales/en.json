@@ -290,6 +290,8 @@
   "MatrixLeftOutOne": "{n} row was left out",
   "PropsNone": "This component has no properties.",
   "LayoutsNone": "No layer has padding or a gap.",
+  "LayoutsOmittedOne": "{n} layer without spacing was left out.",
+  "LayoutsOmitted": "{n} layers without spacing were left out.",
   "VariantsNone": "This component has no variants.",
   "TableFailed": "This section could not be made: {reason}",
   "PanelWarnFailed": "A section could not be made: see its frame.",

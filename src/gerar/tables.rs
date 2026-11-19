@@ -150,35 +150,67 @@ pub fn merge_spacing(list: Vec<Spacing>) -> Vec<(Spacing, usize)> {
     out
 }
 
-/// The table rows of the spacing of the layers: five rows (Top, Right, Bottom, Left, Gap) for each layer.
-pub fn layout_rows(lang: Lang, layers: &[(Spacing, usize)]) -> Vec<Vec<Cv>> {
+/// The header of an option's column: its name, and the mark of the default one after it ("Small · Default"); when the option is itself
+/// named like the mark (case and accents aside) the name says it once.
+pub fn option_header(lang: Lang, name: &str, is_default: bool) -> String {
+    let mark = t(lang, Key::LegendDefault);
+    if !is_default || fold_accents(name) == fold_accents(mark) {
+        return name.to_string();
+    }
+    format!("{name} · {mark}")
+}
+
+/// Lower case with the common Portuguese accents taken off, to compare two words.
+fn fold_accents(s: &str) -> String {
+    s.trim().chars().flat_map(char::to_lowercase).map(|ch| match ch { 'á' | 'à' | 'â' | 'ã' => 'a', 'é' | 'ê' => 'e', 'í' => 'i', 'ó' | 'ô' | 'õ' => 'o', 'ú' | 'ü' => 'u', 'ç' => 'c', _ => ch }).collect()
+}
+
+/// The rows of each layer's spacing (Top, Right, Bottom, Left, Gap), one list per layer: a side whose value is 0 and that has no token says
+/// nothing and is left out; a layer left with no row is left out too (it is not in the list).
+fn layer_rows(lang: Lang, layers: &[(Spacing, usize)]) -> Vec<Vec<Vec<Cv>>> {
     let sides = [Key::SideTop, Key::SideRight, Key::SideBottom, Key::SideLeft, Key::PropGap];
     layers
         .iter()
-        .flat_map(|(s, n)| {
+        .map(|(s, n)| {
             let name = if *n > 1 { format!("{} (x{n})", s.name) } else { s.name.clone() };
-            sides.iter().zip(&s.sides).map(move |(side, (token, value))| {
-                vec![Cv::Bold(name.clone()), Cv::Muted(t(lang, *side).to_string()), token.clone().map_or_else(|| Cv::Guide("—".to_string()), Cv::Text), Cv::Text(value.clone())]
-            })
+            sides
+                .iter()
+                .zip(&s.sides)
+                .filter(|(_, (token, value))| token.is_some() || value != "0px")
+                .map(|(side, (token, value))| vec![Cv::Bold(name.clone()), Cv::Muted(t(lang, *side).to_string()), token.clone().map_or_else(|| Cv::Guide("—".to_string()), Cv::Text), Cv::Text(value.clone())])
+                .collect::<Vec<_>>()
         })
+        .filter(|rows| !rows.is_empty())
         .collect()
 }
 
-/// The rows of the layers that fit in [`LAYOUT_NODE_CAP`] nodes (a layer's five rows go together), and how many rows were left out.
+/// The table rows of the spacing of the layers (see [`layer_rows`]).
+#[cfg(test)]
+pub fn layout_rows(lang: Lang, layers: &[(Spacing, usize)]) -> Vec<Vec<Cv>> {
+    layer_rows(lang, layers).into_iter().flatten().collect()
+}
+
+/// How many layers (counting the ones merged into another) have no row at all.
+pub fn layers_without_rows(lang: Lang, layers: &[(Spacing, usize)]) -> usize {
+    layers.iter().filter(|l| layer_rows(lang, std::slice::from_ref(l)).is_empty()).map(|(_, n)| *n).sum()
+}
+
+/// The rows of the layers that fit in [`LAYOUT_NODE_CAP`] nodes (a layer's rows go together), and how many rows were left out.
 pub fn capped_layout_rows(lang: Lang, layers: &[(Spacing, usize)]) -> (Vec<Vec<Cv>>, usize) {
-    let all = layout_rows(lang, layers);
+    let groups = layer_rows(lang, layers);
+    let total: usize = groups.iter().map(Vec::len).sum();
     let mut used = table_nodes(4, &[]);
-    let mut taken = 0;
-    for group in all.chunks(5) {
+    let mut taken: Vec<Vec<Cv>> = Vec::new();
+    for group in groups {
         let cost: usize = group.iter().map(|r| 1 + r.iter().map(Cv::nodes).sum::<usize>()).sum();
         if used + cost > LAYOUT_NODE_CAP {
             break;
         }
         used += cost;
-        taken += group.len();
+        taken.extend(group);
     }
-    let left = all.len() - taken;
-    (all.into_iter().take(taken).collect(), left)
+    let left = total - taken.len();
+    (taken, left)
 }
 
 /// The Layouts frame: a table of the padding and gap of each layer of the default variant, with their tokens.
@@ -191,6 +223,8 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
     let styles = Styles::default();
     let drawn = rendered(&walked);
     let mut list: Vec<Spacing> = Vec::new();
+    // The layers with auto layout and no spacing at all (no padding, no gap, no token): they have no row, and the note counts them.
+    let mut no_spacing = 0usize;
     for (i, (n, _)) in walked.iter().enumerate() {
         if !drawn.get(i).copied().unwrap_or(false) {
             continue;
@@ -207,6 +241,8 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
                 s.name = c.target.title.clone();
             }
             list.push(s);
+        } else {
+            no_spacing += 1;
         }
     }
     let merged = merge_spacing(list);
@@ -214,9 +250,13 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
         muted_note(lang, frame, t(lang, Key::LayoutsNone))?;
         return Ok(());
     }
+    let omitted = no_spacing + layers_without_rows(lang, &merged);
     let (rows, left_out) = capped_layout_rows(lang, &merged);
     let headers = heads(lang, &[Key::TblLayer, Key::TblSide, Key::TblToken, Key::TblValue]);
     put_table(c, frame, "Layouts", &LAYOUT_COLS, &headers, &rows)?;
+    if omitted > 0 {
+        muted_note(lang, frame, &tf(lang, plural(omitted, Key::LayoutsOmittedOne, Key::LayoutsOmitted), &[("n", &omitted.to_string())]))?;
+    }
     if left_out > 0 {
         muted_note(lang, frame, &tf(lang, plural(left_out, Key::MatrixLeftOutOne, Key::MatrixLeftOut), &[("n", &left_out.to_string())]))?;
     }
@@ -436,7 +476,7 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
             for (si, slice) in g.present.chunks(MATRIX_SLICE).enumerate() {
                 let first = si * MATRIX_SLICE;
                 let mut headers = heads(lang, &[Key::TblElement, Key::TblProperty]);
-                headers.extend(slice.iter().map(|(name, is_default, _)| if *is_default { format!("{name} · {}", t(lang, Key::LegendDefault)) } else { name.clone() }));
+                headers.extend(slice.iter().map(|(name, is_default, _)| option_header(lang, name, *is_default)));
                 let body: Vec<Vec<Cv>> = g.rows[..taken]
                     .iter()
                     .map(|r| {
@@ -712,6 +752,42 @@ mod tests {
         assert_eq!(rows[1][3], Cv::Text("16px".into()));
         assert_eq!(rows[4][1], Cv::Muted("Gap".into()));
         assert_eq!(rows[4][2], Cv::Guide("—".into()), "no token: a dash");
+    }
+
+    #[test]
+    fn the_default_option_named_like_the_mark_is_said_once_in_both_languages() {
+        assert_eq!(option_header(Lang::Pt, "Pequeno", true), "Pequeno · Padrão");
+        assert_eq!(option_header(Lang::Pt, "Padrão", true), "Padrão");
+        assert_eq!(option_header(Lang::Pt, "padrao", true), "padrao");
+        assert_eq!(option_header(Lang::Pt, "Padrão", false), "Padrão");
+        assert_eq!(option_header(Lang::En, "Small", true), "Small · Default");
+        assert_eq!(option_header(Lang::En, "Default", true), "Default");
+        assert_eq!(option_header(Lang::En, "DEFAULT", true), "DEFAULT");
+        assert_eq!(option_header(Lang::En, "Small", false), "Small");
+    }
+
+    #[test]
+    fn a_side_with_no_value_and_no_token_has_no_row_and_a_side_with_a_token_stays_at_zero() {
+        // Only the gap has a value: one row. The top has a token: it stays though it is 0.
+        let only_gap = spacing_of(&node("List", [0.0; 4], 12.0), None, None, None).unwrap_or_else(unreachable_spacing);
+        let rows = layout_rows(Lang::En, &[(only_gap, 1)]);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0][1], Cv::Muted("Gap".into()));
+        let with_token = spacing_of(&node("Box", [0.0; 4], 0.0), Some("space/0".into()), None, None).unwrap_or_else(unreachable_spacing);
+        let rows = layout_rows(Lang::En, &[(with_token, 1)]);
+        assert_eq!(rows.len(), 2, "top and bottom carry the vertical token");
+        assert_eq!(rows[0][3], Cv::Text("0px".into()));
+    }
+
+    #[test]
+    fn a_layer_left_with_no_row_is_not_in_the_table_and_is_counted() {
+        let empty = Spacing { name: "Flat".into(), sides: std::array::from_fn(|_| (None, "0px".to_string())) };
+        let full = spacing_of(&node("Button", [8.0, 16.0, 8.0, 16.0], 4.0), None, None, None).unwrap_or_else(unreachable_spacing);
+        let layers = vec![(empty, 3), (full, 1)];
+        assert_eq!(layout_rows(Lang::En, &layers).len(), 5);
+        assert_eq!(layers_without_rows(Lang::En, &layers), 3);
+        let (rows, left) = capped_layout_rows(Lang::En, &layers);
+        assert_eq!((rows.len(), left), (5, 0));
     }
 
     fn unreachable_spacing() -> Spacing {
