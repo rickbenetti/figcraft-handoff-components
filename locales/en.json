@@ -313,5 +313,6 @@
   "SupportTitle": "Handoff · Support",
   "PanelWarnWide": "Wide component: every frame was made wider.",
   "PanelWarnReflow": "The set could not be arranged in lines: the Master was made as wide as it.",
+  "PanelWarnApproval": "The approval pills have no Area property: the Cover was made without the areas.",
   "MasterOrganized": "The original set was arranged with auto layout and wrap."
 }

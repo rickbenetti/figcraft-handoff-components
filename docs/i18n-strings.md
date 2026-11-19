@@ -256,6 +256,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | SupportTitle | Handoff · Support | Handoff · Apoio |
 | PanelWarnWide | Wide component: every frame was made wider. | Componente largo: todos os quadros foram alargados. |
 | PanelWarnReflow | The set could not be arranged in lines: the Master was made as wide as it. | Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele. |
+| PanelWarnApproval | The approval pills have no Area property: the Cover was made without the areas. | As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas. |
 | MasterOrganized | The original set was arranged with auto layout and wrap. | O conjunto original foi organizado com auto layout em quebra de linha. |
 | PanelUpdate | Update | Atualizar |
 | PanelTitleUpdate | UPDATE | ATUALIZAR |

@@ -313,5 +313,6 @@
   "SupportTitle": "Handoff · Apoio",
   "PanelWarnWide": "Componente largo: todos os quadros foram alargados.",
   "PanelWarnReflow": "Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele.",
+  "PanelWarnApproval": "As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas.",
   "MasterOrganized": "O conjunto original foi organizado com auto layout em quebra de linha."
 }

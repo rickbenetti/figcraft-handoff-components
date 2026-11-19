@@ -326,10 +326,12 @@ pub enum Warn {
     WideMaster,
     /// A loose documentation of version 0.10.0 was found and left as it was.
     LegacyDoc,
+    /// The set of approval pills of the file has no text property for the area: the Cover's pills were made with no area written.
+    ApprovalProperty,
 }
 
 impl Warn {
-    pub const ALL: [Warn; 5] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc];
+    pub const ALL: [Warn; 6] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty];
 
     pub fn code(self) -> &'static str {
         match self {
@@ -338,6 +340,7 @@ impl Warn {
             Warn::ReflowFailed => "reflow_failed",
             Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
+            Warn::ApprovalProperty => "approval_property_missing",
         }
     }
 
@@ -348,6 +351,7 @@ impl Warn {
             Warn::ReflowFailed => Key::PanelWarnReflow,
             Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
+            Warn::ApprovalProperty => Key::PanelWarnApproval,
         })
     }
 }
@@ -561,6 +565,30 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
 fn read_approval_set(lang: Lang, kit: u64) -> Result<Option<u64>> {
     let node = host(lang, "node.get", &json!({"id": kit, "fields": ["children", "pluginData"]}))?;
     Ok(node.get("children").and_then(Value::as_array).into_iter().flatten().find(|c| mark_of(c, APPROVAL_SET_MARK).is_some()).and_then(|c| c.get("id").and_then(Value::as_u64)))
+}
+
+/// A property name with the case and the accents taken off, so "Area" and "Área" are the same name.
+fn fold_name(name: &str) -> String {
+    name.trim().chars().map(|ch| match ch { 'á' | 'à' | 'â' | 'ã' | 'Á' | 'À' | 'Â' | 'Ã' => 'a', _ => ch.to_ascii_lowercase() }).collect()
+}
+
+/// The text property of a set of pills (the reply of `component.properties`) that holds the area: the one named like the area in ANY
+/// language of the plugin, accents and case aside. The set belongs to the file, not to the language of this run: it may have been made
+/// in another one, so its own name is the only one that can be written. None when the set has no such property.
+pub(super) fn area_property(properties: &[Value]) -> Option<String> {
+    let known: Vec<String> = [Lang::En, Lang::Pt].iter().map(|l| fold_name(t(*l, Key::ApprPropArea))).collect();
+    properties
+        .iter()
+        .filter(|p| p.get("type").and_then(Value::as_str) == Some("text"))
+        .filter_map(|p| p.get("name").and_then(Value::as_str))
+        .find(|n| known.contains(&fold_name(n)))
+        .map(str::to_string)
+}
+
+/// The name that the set of pills `set` of the file gives its area property.
+fn read_area_property(lang: Lang, set: u64) -> Result<Option<String>> {
+    let props = host(lang, "component.properties", &json!({"id": set}))?;
+    Ok(area_property(props.get("properties").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default()))
 }
 
 /// The sets of approval pills of the whole document, and which one the Covers use. The plugin cannot change the page, but it can read
@@ -807,6 +835,8 @@ pub(super) struct Ctx<'a> {
     pub(super) mode: StageMode,
     /// The set of approval pills (its default variant is Estado=pendente).
     pub(super) pills: Option<u64>,
+    /// The name the set of pills (the one in the file, whatever language made it) gives its text property for the area; None when it has none.
+    pub(super) pill_area: Option<String>,
     pub(super) stage: StageChoice,
     /// How many areas of the Cover's pills did not read back as written and were written again.
     pub(super) area_retries: std::cell::Cell<u32>,
@@ -977,11 +1007,12 @@ fn build_cover(c: &Ctx, frame: u64) -> Result<()> {
         g.extra = json!({"gridColumns": 3, "gridRows": 2, "columnTracks": [350, 350, 350], "rowTracks": ["auto", "auto"], "rowGap": 16, "sizingH": "fixed"});
         g.gap = 16.0;
         let grid = flow_frame(lang, frame, g)?;
-        let area = t(lang, Key::ApprPropArea);
         for role in [Key::RoleDesigner, Key::RoleEngineering, Key::RoleQa, Key::RoleWriters, Key::RolePo, Key::RolePm] {
             let made = host(lang, "instance.create", &json!({"component": set, "parent": grid}))?;
             let inst = id_of(lang, &made, "instance.create")?;
-            write_area(c, inst, area, t(lang, role))?;
+            if let Some(area) = c.pill_area.as_deref() {
+                write_area(c, inst, area, t(lang, role))?;
+            }
         }
     }
     // 5. The legend of the four states: drawn, not components.
@@ -1151,7 +1182,7 @@ pub fn generate(input: Input) -> Result<Value> {
         _ => None,
     };
     let calls0 = HOST_CALLS.load(Ordering::Relaxed);
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), frame_w: std::cell::Cell::new(FRAME_W), useful: std::cell::Cell::new(USEFUL_W), master: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, pill_area: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), frame_w: std::cell::Cell::new(FRAME_W), useful: std::cell::Cell::new(USEFUL_W), master: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
     // 2b. The set of approval pills: ONE for the whole document. It lives in the Support frame, outside every Section; a new Section
     // reuses the oldest one there is, and only when there is none (first generation, or a Support frame that was deleted) a Support frame
     // is made, to the right of everything, before the Section. A rerun never makes one.
@@ -1165,6 +1196,13 @@ pub fn generate(input: Input) -> Result<Value> {
         boxes.push((x, y, w, h));
         ctx.pills = Some(set);
         support_made = Some(json!({"frame": frame, "set": set, "x": x, "y": y, "w": w, "h": h}));
+    }
+    // The pills are written by the names the set of the FILE gives its properties (it may have been made in another language).
+    if let Some(set) = ctx.pills {
+        ctx.pill_area = read_area_property(lang, set)?;
+        if ctx.pill_area.is_none() {
+            warnings.push(Warn::ApprovalProperty);
+        }
     }
     // 3. The Section: the one that is there, or a new one right of everything.
     let (section, sx, sy, existing, created) = match section_id {
@@ -1356,6 +1394,37 @@ mod tests {
 
     fn hex(s: &str) -> Rgba {
         contrast::parse_hex(s, 1.0).unwrap_or(contrast::LIGHT_STAGE)
+    }
+
+    fn text_prop(name: &str) -> Value {
+        json!({"name": name, "type": "text", "default": name})
+    }
+
+    #[test]
+    fn the_pill_is_written_by_the_name_the_set_of_the_file_has_not_by_the_language_of_the_run() {
+        let variant = json!({"name": "Estado", "type": "variant", "options": ["pendente"], "default": "pendente"});
+        // A set made in English, read in a run in Portuguese (and the other way round): the name that is there is the one to write.
+        for lang in Lang::ALL {
+            let _ = lang;
+            assert_eq!(area_property(&[variant.clone(), text_prop("Area"), text_prop("Name · date")]), Some("Area".to_string()));
+            assert_eq!(area_property(&[variant.clone(), text_prop("Área"), text_prop("Nome · data")]), Some("Área".to_string()));
+        }
+        // The order of the properties does not matter.
+        assert_eq!(area_property(&[text_prop("Name · date"), variant.clone(), text_prop("Area")]), Some("Area".to_string()));
+    }
+
+    #[test]
+    fn a_set_with_no_area_property_gives_none_and_the_run_warns_instead_of_failing() {
+        let variant = json!({"name": "Estado", "type": "variant"});
+        assert_eq!(area_property(&[variant.clone(), text_prop("Name · date")]), None);
+        // A property named Area that is not text (a variant axis, say) is not the area.
+        assert_eq!(area_property(&[json!({"name": "Area", "type": "variant"})]), None);
+        assert_eq!(area_property(&[]), None);
+        assert_eq!(Warn::ApprovalProperty.code(), "approval_property_missing");
+        for lang in Lang::ALL {
+            let text = Warn::ApprovalProperty.text(lang);
+            assert!(!text.is_empty() && text.chars().count() <= 120, "{text}");
+        }
     }
 
     #[test]
