@@ -561,6 +561,28 @@ fn read_frames(lang: Lang, section: u64) -> Result<(Rect, Vec<Existing>)> {
     Ok((sb, out))
 }
 
+/// The size of a frame as the layers inside it say it: the width read from the frame, the height the frame has or, when a layer reaches
+/// lower than the frame's bottom padding allows (the host had not laid the frame out again), the bottom of the lowest layer plus the
+/// padding, written back. One read (and a write only when the frame was short): the frames under it, and the Section, are placed from
+/// this height, never from an estimate.
+fn settled_size(lang: Lang, frame: u64) -> Result<(f64, f64)> {
+    let node = host(lang, "node.get", &json!({"id": frame, "fields": ["absoluteBounds", "children"]}))?;
+    let (w, h) = bounds(&node).map_or((0.0, 0.0), |b| (b.w, b.h));
+    let content = node
+        .get("children")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|c| Some(c.get("y")?.as_f64()? + c.get("height")?.as_f64()?))
+        .fold(0.0, f64::max);
+    let needed = content + FRAME_PAD;
+    if needed > h + 0.5 {
+        host(lang, "node.set", &json!({"ids": [frame], "props": {"height": needed, "sizingV": "fixed"}}))?;
+        return Ok((w, needed));
+    }
+    Ok((w, h))
+}
+
 /// The set of approval pills in the support frame: the child that carries the `handoff-approval-set` mark.
 fn read_approval_set(lang: Lang, kit: u64) -> Result<Option<u64>> {
     let node = host(lang, "node.get", &json!({"id": kit, "fields": ["children", "pluginData"]}))?;
@@ -1300,7 +1322,7 @@ pub fn generate(input: Input) -> Result<Value> {
                 }
                 _ => {}
             }
-            let (w, h) = size_of(lang, frame)?;
+            let (w, h) = settled_size(lang, frame)?;
             match old(sec) {
                 // The new frame takes the old one's place; what is under the old one moves by the difference in height.
                 Some(e) => {
@@ -1321,7 +1343,7 @@ pub fn generate(input: Input) -> Result<Value> {
             continue;
         };
         if fresh.contains(&sec) && !placed.iter().any(|p| p.sec == sec) {
-            let (w, h) = size_of(lang, id)?;
+            let (w, h) = settled_size(lang, id)?;
             placed.push(Placed { sec, id, x: FRAME_X, y: SECTION_PAD, w, h });
         }
         actions.push((sec, action));
