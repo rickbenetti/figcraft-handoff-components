@@ -1424,5 +1424,45 @@
       "wide_master"
     ],
     "section_w": 1420.0
+  },
+  "2º componente / ds-base-demo": {
+    "runs": [
+      {
+        "lang": "en",
+        "new_section": false,
+        "failed": [],
+        "warnings": [],
+        "sets_found": 0,
+        "area_retries": 0
+      },
+      {
+        "lang": "pt-BR",
+        "new_section": false,
+        "failed": [],
+        "warnings": [
+          "no_stage"
+        ],
+        "sets_found": 1,
+        "area_retries": 0
+      },
+      {
+        "lang": "pt-BR",
+        "new_section": false,
+        "failed": [],
+        "warnings": [],
+        "sets_found": 1,
+        "area_retries": 0
+      },
+      {
+        "lang": "pt-BR",
+        "new_section": true,
+        "failed": [],
+        "warnings": [],
+        "sets_found": 1,
+        "area_retries": 0
+      }
+    ],
+    "approval_sets_in_the_file": 1,
+    "failures": 0
   }
 }

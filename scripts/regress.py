@@ -56,10 +56,14 @@ PRIVATE_CASES = {
 }
 
 # More private cases may be listed in tests/private/cases.json (that folder is ignored by git, so what it names never enters the
-# repository): {"case name": ["file inside tests/private/", id of the component or set]}.
+# repository): {"case name": ["file inside tests/private/", id of the component or set]}. The key "_second_component" is the case of components
+# documented one after the other in one private file: {"name": "case name", "file": "file inside tests/private/", "picks": [[id, "language"], ...]}.
 _EXTRA = os.path.join(PRIVATE, "cases.json")
+_SECOND = None
 if os.path.exists(_EXTRA):
-    for _name, (_file, _id) in json.load(open(_EXTRA)).items():
+    _extra = json.load(open(_EXTRA))
+    _SECOND = _extra.pop("_second_component", None)
+    for _name, (_file, _id) in _extra.items():
         PRIVATE_CASES[_name] = (os.path.join(PRIVATE, _file), _id)
 
 
@@ -312,6 +316,42 @@ def master_case(tmp):
     return out
 
 
+def second_component_case(tmp, label, src, picks):
+    """"2º componente no mesmo arquivo": components are documented one after the other in the SAME copy of a file, the first in English and
+    the next ones in Brazilian Portuguese (the person changed the plugin's language between runs), then a "New Section" of the second one.
+    The set of approval pills made by the first run has English property names ("Area"); the others must find it by its mark and write
+    by ITS names. Nothing may fail, no run may error, and at the end there is exactly ONE set of approval pills in the file.
+    `picks`: [(name or id, language)], the last one is run again with `new_section`."""
+    step = lambda cmd, params: {"command": cmd, "params": params}
+
+    def go(steps, i, o):
+        json.dump(steps, open(os.path.join(tmp, "sc.json"), "w"))
+        p = cli(["run", "--in", i, "--out", o, os.path.join(tmp, "sc.json")])
+        return [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")], (p.stdout + p.stderr)
+
+    runs = [(layer, lang, {}) for layer, lang in picks] + [(picks[1][0], picks[1][1], {"new_section": True})]
+    cur, runs_out = src, []
+    for n, (layer, lang, extra) in enumerate(runs):
+        if isinstance(layer, str):
+            layer = find_by_name(cur, layer, tmp, 940 + n)
+            if layer is None:
+                return {label: {"error": f"component {picks[min(n, len(picks) - 1)][0]!r} not found"}}
+        nxt = os.path.join(tmp, f"sc{n}.figcraft")
+        steps = [step("plugin.import", {"path": DIST}), step("select.set", {"ids": [layer]}), step("plugin.run", {"id": PID, "command": "generate", "params": {"direct": True, "lang": lang, **extra}})]
+        r, raw = go(steps, cur, nxt)
+        if len(r) < 3 or not r[2].get("ok"):
+            return {label: {"error": f"run {n + 1} failed: {raw.strip()[-250:]}"}}
+        o = r[2]["result"]["output"]
+        runs_out.append({"lang": lang, "new_section": o["new_section"], "failed": o["failed"], "warnings": o["warnings"], "sets_found": o["support"]["sets_found"], "area_retries": o["area_retries"]})
+        cur = nxt
+    # node.find looks at the current page only: every page with layers is visited.
+    r, _ = go([step("page.list", {})], cur, os.path.join(tmp, "sc_t.figcraft"))
+    pages = [pg["id"] for pg in r[0]["result"] if pg.get("children")]
+    r, _ = go([x for pg in pages for x in (step("page.select", {"id": pg}), step("node.find", {"name": "Handoff", "type": "component_set", "limit": 50}))], cur, os.path.join(tmp, "sc_t.figcraft"))
+    sets = [i for x in r if x.get("command") == "node.find" and x.get("ok") for i in x["result"]["ids"]]
+    return {label: {"runs": runs_out, "approval_sets_in_the_file": len(sets), "failures": sum(len(x["failed"]) for x in runs_out)}}
+
+
 def main():
     args = sys.argv[1:]
     update = "--update" in args
@@ -343,6 +383,13 @@ def main():
             results.update(cover_case(tmp))
             results.update(support_case(tmp))
             results.update(master_case(tmp))
+        # Components one after the other in the same file, with the language changed between runs.
+        if not update or not only or only in "2º componente":
+            if private:
+                if _SECOND and os.path.exists(os.path.join(PRIVATE, _SECOND["file"])):
+                    results.update(second_component_case(tmp, _SECOND["name"], os.path.join(PRIVATE, _SECOND["file"]), [(i, lang) for i, lang in _SECOND["picks"]]))
+            else:
+                results.update(second_component_case(tmp, "2º componente / ds-base-demo", DEMO, [("Card", "en"), ("Button", "pt-BR"), ("Accordion", "pt-BR")]))
     secs = time.time() - started
     if dump:
         json.dump(results, open(dump, "w"), indent=2, ensure_ascii=False)
@@ -367,7 +414,7 @@ def main():
         if "error" in got:
             diffs.append(f"{name}: ERROR {got['error']}")
             continue
-        if name.startswith(("cover editada", "apoio compartilhado", "master /")):
+        if name.startswith(("cover editada", "apoio compartilhado", "master /", "2º componente")):
             if got != want:
                 diffs.append(f"{name}: baseline {want!r}, now {got!r}")
             continue
