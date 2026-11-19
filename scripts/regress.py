@@ -111,6 +111,42 @@ def marker_check(a):
     return {"count": len(ms), "edge_ok": edge >= 47.99, "gap_ok": gap >= 43.99, "root_straight": straight, "dropped": len(a.get("dropped", [])), "tips_in": tips, "diagonal": sum(1 for m in ms if "Diagonal" in m["way"])}
 
 
+FRAME_PAD, FRAME_GAP, SECTION_PAD = 48, 64, 64
+
+
+def frame_invariants(out_file, o, tmp, n):
+    """The frames of a Section are laid out from heights READ from the file: (a) the bottom of the content is at most the frame's bottom
+    minus its padding (48), (b) the space between consecutive frames is exactly 64, (c) no frame overlaps another, (d) the Section is
+    64 + the frames + the 64 between them + 64 tall. Returns the list of violations (empty when all hold)."""
+    frames = o["frames"]
+    script = os.path.join(tmp, f"inv{n}.json")
+    json.dump([{"command": "node.get", "params": {"id": f["id"], "fields": ["children", "y", "height"]}} for f in frames], open(script, "w"))
+    p = cli(["run", "--in", out_file, "--out", out_file + ".inv", script])
+    res = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+    bad = []
+    if len(res) != len(frames):
+        return ["could not read the frames back"]
+    rows = []
+    for f, r in zip(frames, res):
+        v = r.get("result") or {}
+        content = max([c["y"] + c["height"] for c in v.get("children") or []] or [0])
+        rows.append((f["key"], v.get("y"), v.get("height"), content))
+    for k, y, h, content in rows:
+        if content > h - FRAME_PAD + 0.5:
+            bad.append(f"{k}: content bottom {content} is past {h - FRAME_PAD} (frame {h} - {FRAME_PAD}): {content - (h - FRAME_PAD):+.0f} px")
+    ordered = sorted(rows, key=lambda r: r[1])
+    for a, b in zip(ordered, ordered[1:]):
+        gap = b[1] - (a[1] + a[2])
+        if gap < -0.5:
+            bad.append(f"{a[0]} overlaps {b[0]} by {-gap:.0f} px")
+        elif abs(gap - FRAME_GAP) > 0.5:
+            bad.append(f"space between {a[0]} and {b[0]} is {gap:.0f}, not {FRAME_GAP}")
+    expect = SECTION_PAD + sum(r[2] for r in rows) + FRAME_GAP * (len(rows) - 1) + SECTION_PAD
+    if abs(o["section_size"]["h"] - expect) > 0.5:
+        bad.append(f"Section height {o['section_size']['h']}, formula {expect}")
+    return bad
+
+
 def run_case(src, layer, tmp, n, lang=None):
     if isinstance(layer, str):
         found = find_by_name(src, layer, tmp, n)
@@ -134,6 +170,7 @@ def run_case(src, layer, tmp, n, lang=None):
         return {"error": (run.get("error") or p.stderr or "no output")[:300]}
     o = run["result"]["output"]
     return {
+        "invariants": frame_invariants(out, o, tmp, n),
         "markers": marker_check(o.get("anatomy")),
         "frames": [[f["key"], f["x"], f["y"], f["h"]] for f in o["frames"]],
         "section": [o["section_size"]["w"], o["section_size"]["h"]],
@@ -399,7 +436,7 @@ def main():
         if any("error" in r for r in results.values()):
             sys.exit("not writing the baseline: " + "; ".join(f"{k}: {v['error']}" for k, v in results.items() if "error" in v))
         merged = json.load(open(baseline)) if only and os.path.exists(baseline) else {}
-        merged.update({k: {f: v for f, v in r.items() if f != "export"} for k, r in results.items()})
+        merged.update({k: {f: v for f, v in r.items() if f not in ("export", "invariants")} for k, r in results.items()})
         json.dump(merged, open(baseline, "w"), indent=2, ensure_ascii=False)
         open(baseline, "a").write("\n")
         print(f"baseline written: {baseline} ({len(results)} cases rewritten, {len(merged)} in the file, {secs:.1f} s)")
@@ -418,6 +455,8 @@ def main():
             if got != want:
                 diffs.append(f"{name}: baseline {want!r}, now {got!r}")
             continue
+        for v in got.get("invariants") or []:
+            diffs.append(f"{name}: INVARIANT: {v}")
         if "frames" not in want:
             diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")
             continue
