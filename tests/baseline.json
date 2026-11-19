@@ -3,11 +3,12 @@
     "markers": {
       "count": 2,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 60.7,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -83,18 +84,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 89569093,
+    "fuel": 89770968,
     "calls": 1119
   },
   "copia-2 / id 3 (Toast variant)": {
     "markers": {
       "count": 7,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 40.6,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -119,36 +121,36 @@
         "anatomy",
         64.0,
         2108.0,
-        1002.0
+        870.0
       ],
       [
         "variants",
         64.0,
-        3174.0,
+        3042.0,
         211.0
       ],
       [
         "layouts",
         64.0,
-        3449.0,
+        3317.0,
         634.0
       ],
       [
         "tokens",
         64.0,
-        4147.0,
+        4015.0,
         727.0
       ],
       [
         "changelog",
         64.0,
-        4938.0,
+        4806.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5281.0
+      5149.0
     ],
     "tables": [
       [
@@ -170,18 +172,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 119543171,
-    "calls": 1386
+    "fuel": 119939455,
+    "calls": 1380
   },
   "carga-v2 / id 3 (Toast variant)": {
     "markers": {
       "count": 7,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 40.6,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -206,36 +209,36 @@
         "anatomy",
         64.0,
         2108.0,
-        1078.0
+        946.0
       ],
       [
         "variants",
         64.0,
-        3250.0,
+        3118.0,
         211.0
       ],
       [
         "layouts",
         64.0,
-        3525.0,
+        3393.0,
         634.0
       ],
       [
         "tokens",
         64.0,
-        4223.0,
+        4091.0,
         935.0
       ],
       [
         "changelog",
         64.0,
-        5222.0,
+        5090.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5565.0
+      5433.0
     ],
     "tables": [
       [
@@ -261,18 +264,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 267446753,
-    "calls": 1473
+    "fuel": 269155161,
+    "calls": 1467
   },
   "carga-v2 / id 194 (Card de carga)": {
     "markers": {
       "count": 12,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 16.0,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -348,18 +352,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 792046287,
+    "fuel": 807873295,
     "calls": 4881
   },
   "ds-base-demo / Button": {
     "markers": {
       "count": 5,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 16.3,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -453,18 +458,19 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 403663451,
+    "fuel": 404849310,
     "calls": 4515
   },
   "ds-base-demo / Card": {
     "markers": {
       "count": 16,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 16.0,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -548,18 +554,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 381665652,
+    "fuel": 392701559,
     "calls": 3831
   },
   "ds-base-demo / Accordion": {
     "markers": {
       "count": 6,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 20.5,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -584,36 +591,36 @@
         "anatomy",
         64.0,
         1963.0,
-        908.0
+        848.0
       ],
       [
         "variants",
         64.0,
-        2935.0,
+        2875.0,
         428.0
       ],
       [
         "layouts",
         64.0,
-        3427.0,
+        3367.0,
         587.0
       ],
       [
         "tokens",
         64.0,
-        4078.0,
+        4018.0,
         948.0
       ],
       [
         "changelog",
         64.0,
-        5090.0,
+        5030.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5433.0
+      5373.0
     ],
     "tables": [
       [
@@ -643,18 +650,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 162838654,
-    "calls": 1839
+    "fuel": 163475144,
+    "calls": 1833
   },
   "ds-base-demo / Code": {
     "markers": {
       "count": 4,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 72.8,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -679,36 +687,36 @@
         "anatomy",
         64.0,
         1663.0,
-        646.0
+        706.0
       ],
       [
         "variants",
         64.0,
-        2373.0,
+        2433.0,
         211.0
       ],
       [
         "layouts",
         64.0,
-        2648.0,
+        2708.0,
         451.0
       ],
       [
         "tokens",
         64.0,
-        3163.0,
+        3223.0,
         671.0
       ],
       [
         "changelog",
         64.0,
-        3898.0,
+        3958.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      4241.0
+      4301.0
     ],
     "tables": [
       [
@@ -730,18 +738,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 97939838,
-    "calls": 1104
+    "fuel": 98375607,
+    "calls": 1110
   },
   "ds-base-demo / Icon": {
     "markers": {
       "count": 2,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 64.0,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -829,18 +838,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 196139958,
+    "fuel": 196240650,
     "calls": 2502
   },
   "pt-BR / copia-2 / id 32": {
     "markers": {
       "count": 2,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 60.7,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -916,18 +926,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 90390656,
+    "fuel": 90380566,
     "calls": 1128
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
     "markers": {
       "count": 7,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 40.6,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -952,36 +963,36 @@
         "anatomy",
         64.0,
         2108.0,
-        1078.0
+        946.0
       ],
       [
         "variants",
         64.0,
-        3250.0,
+        3118.0,
         211.0
       ],
       [
         "layouts",
         64.0,
-        3525.0,
+        3393.0,
         652.0
       ],
       [
         "tokens",
         64.0,
-        4241.0,
+        4109.0,
         935.0
       ],
       [
         "changelog",
         64.0,
-        5240.0,
+        5108.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5583.0
+      5451.0
     ],
     "tables": [
       [
@@ -1007,18 +1018,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 268590731,
-    "calls": 1482
+    "fuel": 270098535,
+    "calls": 1476
   },
   "pt-BR / ds-base-demo / Button": {
     "markers": {
       "count": 5,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 16.3,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -1112,18 +1124,19 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 404636570,
+    "fuel": 406612713,
     "calls": 4524
   },
   "pt-BR / ds-base-demo / Card": {
     "markers": {
       "count": 16,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 16.0,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -1207,18 +1220,19 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 383385475,
+    "fuel": 394968106,
     "calls": 3840
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
       "count": 6,
       "edge_ok": true,
-      "gap_ok": true,
+      "min_gap": 20.5,
       "root_straight": true,
       "dropped": 0,
-      "tips_in": true,
-      "diagonal": 0
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
     "frames": [
       [
@@ -1243,36 +1257,36 @@
         "anatomy",
         64.0,
         1963.0,
-        908.0
+        848.0
       ],
       [
         "variants",
         64.0,
-        2935.0,
+        2875.0,
         428.0
       ],
       [
         "layouts",
         64.0,
-        3427.0,
+        3367.0,
         587.0
       ],
       [
         "tokens",
         64.0,
-        4078.0,
+        4018.0,
         948.0
       ],
       [
         "changelog",
         64.0,
-        5090.0,
+        5030.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5433.0
+      5373.0
     ],
     "tables": [
       [
@@ -1302,8 +1316,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 164558791,
-    "calls": 1848
+    "fuel": 164846624,
+    "calls": 1842
   },
   "cover editada / pills before": {
     "nodes": 74,

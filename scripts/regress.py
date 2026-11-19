@@ -95,20 +95,87 @@ def find_by_name(src, name, tmp, n):
     return None
 
 
+def _seg_rect(p, q, r, shrink=0.5):
+    """Whether the segment p-q passes through the rectangle r = [x, y, w, h] (shrunk a hair, so touching is fine)."""
+    x0, y0, x1, y1 = r[0] + shrink, r[1] + shrink, r[0] + r[2] - shrink, r[1] + r[3] - shrink
+    if x1 <= x0 or y1 <= y0:
+        return False
+    t0, t1 = 0.0, 1.0
+    for a, d, lo, hi in ((p[0], q[0] - p[0], x0, x1), (p[1], q[1] - p[1], y0, y1)):
+        if abs(d) < 1e-9:
+            if a < lo or a > hi:
+                return False
+        else:
+            ta, tb = (lo - a) / d, (hi - a) / d
+            if ta > tb:
+                ta, tb = tb, ta
+            t0, t1 = max(t0, ta), min(t1, tb)
+            if t0 > t1:
+                return False
+    return True
+
+
+def _cross(a, b, c, d):
+    def side(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    d1, d2, d3, d4 = side(c, d, a), side(c, d, b), side(a, b, c), side(a, b, d)
+    e = 1e-6
+    return ((d1 > e and d2 < -e) or (d1 < -e and d2 > e)) and ((d3 > e and d4 < -e) or (d3 < -e and d4 > e))
+
+
+def marker_rows(a):
+    """One row per marker, read from what the plugin answered: side and distance from the component, the guide's angle, where its tip ends
+    (in / edge / out of its layer), whether the tip is inside a text, which other texts the guide runs over and which guides it crosses."""
+    ms = a["markers"]
+    cx, cy, cw, ch = a["component"]
+    texts = a.get("texts") or []
+    rows = []
+    for m in ms:
+        c, tip = m["centre"], m["tip"]
+        dx, dy = tip[0] - c[0], tip[1] - c[1]
+        d = max((dx * dx + dy * dy) ** 0.5, 0.001)
+        start = (c[0] + dx / d * 18, c[1] + dy / d * 18)
+        ang = abs(__import__("math").degrees(__import__("math").atan2(-dy, dx))) % 180
+        straight = min(ang, abs(ang - 90), abs(ang - 180)) < 0.5
+        lx, ly, lw, lh = m.get("layer", [0, 0, 0, 0])
+        inside = lx + 0.5 < tip[0] < lx + lw - 0.5 and ly + 0.5 < tip[1] < ly + lh - 0.5
+        edge = not inside and lx - 0.5 <= tip[0] <= lx + lw + 0.5 and ly - 0.5 <= tip[1] <= ly + lh + 0.5
+        if c[1] < cy:
+            side, dist = "Top", cy - c[1]
+        elif c[1] > cy + ch:
+            side, dist = "Bottom", c[1] - (cy + ch)
+        elif c[0] < cx:
+            side, dist = "Left", cx - c[0]
+        else:
+            side, dist = "Right", c[0] - (cx + cw)
+        under = lambda t: max(0, min(lx + lw, t[0] + t[2]) - max(lx, t[0])) * max(0, min(ly + lh, t[1] + t[3]) - max(ly, t[1])) >= 0.5 * lw * lh and lw * lh > 0
+        own = lambda t: abs(t[0] - lx) < 0.6 and abs(t[1] - ly) < 0.6 and abs(t[2] - lw) < 0.6 and abs(t[3] - lh) < 0.6
+        tip_text = any(not own(t) and not under(t) and t[0] + 0.5 < tip[0] < t[0] + t[2] - 0.5 and t[1] + 0.5 < tip[1] < t[1] + t[3] - 0.5 for t in texts) or (any(own(t) for t in texts) and inside)
+        over = sum(1 for t in texts if not own(t) and not under(t) and _seg_rect(start, tip, t))
+        rows.append({"n": m["n"], "way": m["way"], "side": side, "dist": round(dist, 1), "angle": round(ang, 1), "straight": straight,
+                     "tip": "in" if inside else ("edge" if edge else "out"), "tip_in_text": tip_text, "over_text": over, "start": start, "end": tip, "centre": c, "layer": [lx, ly, lw, lh]})
+    for i, r in enumerate(rows):
+        r["crosses"] = [q["n"] for j, q in enumerate(rows) if j != i and _cross(r["start"], r["end"], q["start"], q["end"])]
+    return rows
+
+
 def marker_check(a):
-    """What the Anatomy's markers must be (item 3 of Prompt 50), as numbers: how many, the nearest a centre is to the stage's edge (never
-    under 48), the nearest two centres are (never under 36 + 8), and whether the component's own marker (the first one) is straight."""
+    """What the Anatomy's markers must be, as numbers: how many, the nearest a centre is to the stage's edge (never under 48), `min_gap`
+    (the least gap between two circles, at least 12), the guides that are not horizontal or vertical (`oblique`, 0), the tips inside a text
+    (`tip_in_text`, 0), the guides that cross another guide or run over another text (`cross`, 0), and whether the component's own marker
+    (the first one) is straight."""
     if not a or not a.get("markers"):
         return None
     sx, sy, sw, sh = a["stage"]
     ms = a["markers"]
+    rows = marker_rows(a)
     edge = min(min(m["centre"][0] - sx, sx + sw - m["centre"][0], m["centre"][1] - sy, sy + sh - m["centre"][1]) for m in ms)
-    gap = min([((p["centre"][0] - q["centre"][0]) ** 2 + (p["centre"][1] - q["centre"][1]) ** 2) ** 0.5 for i, p in enumerate(ms) for q in ms[i + 1:]] or [999])
+    gap = min([((p["centre"][0] - q["centre"][0]) ** 2 + (p["centre"][1] - q["centre"][1]) ** 2) ** 0.5 for i, p in enumerate(ms) for q in ms[i + 1:]] or [999]) - 36
     root = next((m for m in ms if m["way"] == "Root"), None)
     straight = root is None or abs(root["centre"][0] - root["end"][0]) < 0.01 or abs(root["centre"][1] - root["end"][1]) < 0.01
-    # The guides stop inside their layers (the tip is at most 6 px past the anchor); how many markers stand in the diagonal (a last resort).
-    tips = all(((m["tip"][0] - m["end"][0]) ** 2 + (m["tip"][1] - m["end"][1]) ** 2) ** 0.5 <= 6.6 for m in ms if "tip" in m)
-    return {"count": len(ms), "edge_ok": edge >= 47.99, "gap_ok": gap >= 43.99, "root_straight": straight, "dropped": len(a.get("dropped", [])), "tips_in": tips, "diagonal": sum(1 for m in ms if "Diagonal" in m["way"])}
+    return {"count": len(ms), "edge_ok": edge >= 47.99, "min_gap": round(min(gap, 99), 1), "root_straight": straight, "dropped": len(a.get("dropped", [])),
+            "oblique": sum(1 for r in rows if not r["straight"]), "tip_in_text": sum(1 for r in rows if r["tip_in_text"]),
+            "cross": sum(len(r["crosses"]) for r in rows) // 2 + sum(r["over_text"] for r in rows)}
 
 
 FRAME_PAD, FRAME_GAP, SECTION_PAD = 48, 64, 64
@@ -457,6 +524,9 @@ def main():
             continue
         for v in got.get("invariants") or []:
             diffs.append(f"{name}: INVARIANT: {v}")
+        mk = got.get("markers") or {}
+        if mk and (mk["oblique"] or mk["tip_in_text"] or mk["cross"] or mk["min_gap"] < 12):
+            diffs.append(f"{name}: INVARIANT: markers: oblique {mk['oblique']}, tip_in_text {mk['tip_in_text']}, cross {mk['cross']}, min_gap {mk['min_gap']} (>= 12)")
         if "frames" not in want:
             diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")
             continue
