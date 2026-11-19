@@ -585,7 +585,7 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     let red = red_style(choice.stage != contrast::Stage::Light);
     let tree = Tree::new(&nodes, depths);
     let badges = draw_badges(lang, stage, sb, ib, &tree, &numbered, &red)?;
-    *c.markers.borrow_mut() = Some(json!({"markers": badges.info, "rounds": badges.rounds, "dropped": badges.dropped, "stage": [sb.x, sb.y, sb.w, sb.h], "component": [ib.x, ib.y, ib.w, ib.h]}));
+    *c.markers.borrow_mut() = Some(json!({"markers": badges.info, "rounds": badges.rounds, "dropped": badges.dropped, "stage": [sb.x, sb.y, sb.w, sb.h], "component": [ib.x, ib.y, ib.w, ib.h], "texts": tree.text_rects()}));
     host(lang, "node.reparent", &json!({"ids": [stage], "parent": frame}))?;
     // The table of the numbers.
     let mut table_rows: Vec<Vec<Cv>> = Vec::new();
