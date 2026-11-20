@@ -97,7 +97,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 86487012,
+    "fuel": 86599406,
     "calls": 1053
   },
   "copia-2 / id 3 (Toast variant)": {
@@ -157,30 +157,30 @@
         "variants",
         64.0,
         3042.0,
-        211.0
+        725.0
       ],
       [
         "layouts",
         64.0,
-        3317.0,
+        3831.0,
         998.0
       ],
       [
         "tokens",
         64.0,
-        4379.0,
-        727.0
+        4893.0,
+        770.0
       ],
       [
         "changelog",
         64.0,
-        5170.0,
+        5727.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5513.0
+      6070.0
     ],
     "tables": [
       [
@@ -193,15 +193,15 @@
       ],
       [
         "Resolved colors",
-        7
+        8
       ]
     ],
     "warnings": [
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 120682369,
-    "calls": 1320
+    "fuel": 159834013,
+    "calls": 1653
   },
   "carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -260,30 +260,30 @@
         "variants",
         64.0,
         3118.0,
-        211.0
+        877.0
       ],
       [
         "layouts",
         64.0,
-        3393.0,
+        4059.0,
         1150.0
       ],
       [
         "tokens",
         64.0,
-        4607.0,
-        935.0
+        5273.0,
+        978.0
       ],
       [
         "changelog",
         64.0,
-        5606.0,
+        6315.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5949.0
+      6658.0
     ],
     "tables": [
       [
@@ -300,15 +300,15 @@
       ],
       [
         "Resolved colors",
-        7
+        8
       ]
     ],
     "warnings": [
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 270197881,
-    "calls": 1407
+    "fuel": 310439955,
+    "calls": 1740
   },
   "carga-v2 / id 194 (Card de carga)": {
     "markers": {
@@ -410,7 +410,7 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 820640603,
+    "fuel": 820784566,
     "calls": 4347
   },
   "ds-base-demo / Button": {
@@ -517,7 +517,7 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 358670620,
+    "fuel": 358774215,
     "calls": 3696
   },
   "ds-base-demo / Card": {
@@ -624,7 +624,7 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 396687911,
+    "fuel": 396771793,
     "calls": 3576
   },
   "ds-base-demo / Accordion": {
@@ -729,7 +729,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 153960950,
+    "fuel": 154067108,
     "calls": 1659
   },
   "ds-base-demo / Code": {
@@ -832,7 +832,7 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 97890230,
+    "fuel": 97999158,
     "calls": 1050
   },
   "ds-base-demo / Icon": {
@@ -921,7 +921,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 128419173,
+    "fuel": 128531698,
     "calls": 1551
   },
   "pt-BR / copia-2 / id 32": {
@@ -1022,7 +1022,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 87123973,
+    "fuel": 87232776,
     "calls": 1062
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
@@ -1082,30 +1082,30 @@
         "variants",
         64.0,
         3118.0,
-        211.0
+        877.0
       ],
       [
         "layouts",
         64.0,
-        3393.0,
+        4059.0,
         1150.0
       ],
       [
         "tokens",
         64.0,
-        4607.0,
-        935.0
+        5273.0,
+        978.0
       ],
       [
         "changelog",
         64.0,
-        5606.0,
+        6315.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5949.0
+      6658.0
     ],
     "tables": [
       [
@@ -1122,15 +1122,15 @@
       ],
       [
         "Cores resolvidas",
-        7
+        8
       ]
     ],
     "warnings": [
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 271431285,
-    "calls": 1416
+    "fuel": 311217795,
+    "calls": 1749
   },
   "pt-BR / ds-base-demo / Button": {
     "markers": {
@@ -1236,7 +1236,7 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 360687289,
+    "fuel": 360772682,
     "calls": 3705
   },
   "pt-BR / ds-base-demo / Card": {
@@ -1343,7 +1343,7 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 397656303,
+    "fuel": 397765843,
     "calls": 3585
   },
   "pt-BR / ds-base-demo / Accordion": {
@@ -1448,7 +1448,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 155537070,
+    "fuel": 155641404,
     "calls": 1668
   },
   "cover editada / pills before": {
@@ -1571,6 +1571,90 @@
     ],
     "section_w": 1420.0
   },
+  "correções / variante": {
+    "component_is_holder": true,
+    "gallery": true,
+    "master_plan": "keep",
+    "variants": 4,
+    "migrated_from": null
+  },
+  "correções / migração": {
+    "created": false,
+    "rerun": true,
+    "same_section": true,
+    "migrated_from": 3,
+    "section_mark_is_the_set": true,
+    "frame_mark_is_the_set": true
+  },
+  "correções / quadro apagado": {
+    "named": {
+      "keys": [
+        "cover",
+        "master",
+        "properties",
+        "anatomy",
+        "variants",
+        "layouts",
+        "tokens",
+        "changelog"
+      ],
+      "actions": {
+        "properties": "created",
+        "anatomy": "kept"
+      },
+      "invariants": [],
+      "warnings": [
+        "no_stage"
+      ],
+      "missing": []
+    },
+    "not_named": {
+      "keys": [
+        "cover",
+        "master",
+        "anatomy",
+        "variants",
+        "layouts",
+        "tokens",
+        "changelog"
+      ],
+      "warnings": [
+        "no_stage",
+        "frame_missing"
+      ],
+      "missing": [
+        "properties"
+      ]
+    }
+  },
+  "correções / apoio": {
+    "support_made": true,
+    "pills": 6,
+    "warnings": [
+      "no_stage"
+    ],
+    "frame_violations": []
+  },
+  "correções / nova section / escuro": {
+    "stage": "dark",
+    "auto": false,
+    "same_as_the_first": true,
+    "warnings": []
+  },
+  "correções / nova section / claro": {
+    "stage": "light",
+    "auto": false,
+    "same_as_the_first": true,
+    "warnings": []
+  },
+  "correções / nova section / automático": {
+    "stage": "dark",
+    "auto": true,
+    "same_as_the_first": true,
+    "warnings": [
+      "no_stage"
+    ]
+  },
   "2º componente / ds-base-demo": {
     "runs": [
       {
@@ -1605,7 +1689,9 @@
         "lang": "pt-BR",
         "new_section": true,
         "failed": [],
-        "warnings": [],
+        "warnings": [
+          "no_stage"
+        ],
         "sets_found": 1,
         "area_retries": 0
       }

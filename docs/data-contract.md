@@ -2,7 +2,7 @@
 
 What Handoff Components stores in the file, what it accepts as parameters, what it draws, and what the generate command returns.
 Every row names the file and function it comes from. Source files are in `src/`; `scripts/regress.py` is the check that holds the
-numbers of sections 12 and 13. This document describes the code of the branch `feat/0.11-section-base` (HEAD `0beed07`). The manifest
+numbers of sections 12 and 13. This document describes the code of the branch `feat/0.11-section-base`. The manifest
 and `Cargo.toml` still say `0.10.0` (the version is not raised until the release; the manifest's permissions did not change: every host
 command the code calls is in `figcraft-plugin.json`, and every command in it is called).
 
@@ -26,7 +26,7 @@ The CHANGELOG can rest on this list. Everything else in the document is the new 
 | 10 | The automatic stage chose between light and dark | Three candidates: light, mid-grey and dark (Anatomy, Layouts, Master, gallery tiles) | 5.2 |
 | 11 | The generate JSON had `stage`, `legend`, `rects`, `labels`, `table`, `axes`, … | A different object (section 12): `section`, `frames`, `master`, `anatomy`, `gallery`, `spacing`, `tokens`, `tables`, `support`, `warnings`, … | 12 |
 | 12 | `meta` (version, status) in the header; `version` and `status` parameters | **No header; the parameters are accepted and ignored** (the Cover has guides the person types over) | 11 |
-| 13 | Warnings were free text in `notes` and `warning` | A list of **codes** in `warnings` (eight, section 10) | 10 |
+| 13 | Warnings were free text in `notes` and `warning` | A list of **codes** in `warnings` (ten, section 10) | 10 |
 | 14 | The panel returned `selection` and `meta` | The panel returns `refused`, `message`, `frame`, `view`, `selected`, `new_section`, `update`, `frames`, `warnings`, `stage` | 12.9 |
 | 15 | Tokens in the legend of the anatomy | A **Tokens** frame with two tables (by layer; resolved colours in Dark and Light) | 6.2 |
 | 16 | `handoff-meta` is not read | Same (never read, never deleted) | 16 |
@@ -34,7 +34,7 @@ The CHANGELOG can rest on this list. Everything else in the document is the new 
 ## 1. Plugin data the plugin writes
 
 `pluginData` values are strings. A **key** (`comp_key`) is the id of the component set when a set is documented (or when a variant of a set
-is selected: see section 3.6, "the selected variant"), else the id of the component, as text (`gerar.rs` `resolve`, `Picked.key`).
+is selected: section 3.6), else the id of the component, as text (`gerar.rs` `resolve`, `Picked.key`).
 
 | Key | On | Value | Written by | Read by |
 |---|---|---|---|---|
@@ -135,8 +135,10 @@ when the lowest child bottom + 48 is more than 0.5 px below the frame's bottom (
    deletes what is in it).
 2. A **permanent** frame (Cover, Changelog) that is **not there**: made (also after a hand deletion). One that is there: **never touched** by any
    `update`, by Generate, or by a language switch.
-3. Any other frame that is **not there**: made only when the Section is new (`created`). A Properties, Anatomy, … frame deleted by hand is **not**
-   made again by a rerun, even when Update names it (`frame_is_made`, `(false, _) => created`; section 17).
+3. Any other frame that is **not there**: made when the Section is new (`created`) **or when Update names it**: a Properties, Anatomy, … frame deleted by hand
+   is made again in its place of the column (the frames under it move so that the one right under starts 64 px below it, a hole the deleted frame left is closed,
+   and the Section's height follows the formula of 3.2). When Update does **not** name it, it stays gone and the run raises **`frame_missing`** (`missing_mask`;
+   `missing` in the answer lists the kinds). The Master and the permanent frames are never "missing".
 4. A frame that **is** there: replaced only when `update` names it (`Update::sections`); otherwise `kept`.
 
 | `update` (panel label en) | Frames it replaces |
@@ -178,11 +180,12 @@ A new Section gets one export setting: SVG, `1x`, no suffix (`export.add`, `sect
 dictionary's message (`ErrNotComponent`); an empty selection is `ErrNoSelection`; a component that carries `handoff-approval-set` is refused
 (`ErrSupportComponent`); an instance whose original was deleted with its Section is `ErrMainGone`.
 
-**The selected variant.** When the selection is **one variant of a set** (a component whose name has `=`), `holder` is the set but the key is
-the **variant's** id and `Picked.set` is empty: the Section documents that one variant, its States and Variants frame says "This component has no
-variants." (`VariantsNone`), `gallery` is `null`, the Master moves **the whole set** and, being told it is not a set, does not arrange it
-(`reflow::organize(…, is_set = false)`: a set wider than 988 makes the Master wider instead of wrapping). Found in the Toast fixture
-(`copia-2`, id 3: `master.plan = keep`, `variants = 0`, `gallery = null`). Reported in section 17; not changed.
+**The selected variant.** When the selection is **one variant of a set** (a component whose name has `=` and that a component set holds), or an instance of one,
+`resolve` goes **up to the set** and behaves exactly as if the set had been selected: the key is the set's id, the gallery, the Master and the tables are the set's
+(`Picked.legacy_key` keeps the variant's id). **Migration:** when no Section is marked with the set's id but one is marked with the variant's id (made by a build
+before this correction), that Section is reused as a rerun and its marks (`handoff-report-section` on the Section, `handoff-report` on every frame) are
+rewritten with the set's id, so a second Section is not made; `migrated_from` in the answer is the variant's id (else `null`). A component that is in no set is
+documented alone, as before.
 
 When several layers are selected only the first is used (`generate` reads `selection.first()`).
 
@@ -201,8 +204,9 @@ When several layers are selected only the first is used (`generate` reads `selec
 * **When it is made.** Only when a Section is being **made** (the first generation, or "New Section") **and no set exists anywhere in the file**
   (`find_support` looks at every page, at most 500 pages, and at each page's top-level layers: a Support frame, a set standing alone with the mark,
   or the `kit` frame inside a Section). It goes at the page's Section origin (`section_origin`: right of everything, `y = 256`) **before** the
-  Section, so the Section stands 256 to its right. A **rerun never makes one**: when the Support frame was deleted and the Cover has to be made
-  again, the Cover has no pills and nothing warns about it (section 17, from the code).
+  Section, so the Section stands 256 to its right. A **rerun makes one only when the Cover is made again** (it was deleted by hand) and no set exists: the Support frame is then made the way the
+  first generation makes it, to the right of everything, and the Cover has its pills. If that fails the Cover is made without pills and the run raises **`support_missing`**. A rerun
+  that does not make the Cover never makes a Support frame.
 * **Which set.** When there are several, the **oldest** (lowest id) is used, so the choice is the same on every run. `support.sets_found` says
   how many there were.
 * **Names are the creator's.** The set belongs to the file, not to the language of the run: the Cover's pills are written with the property name the
@@ -234,8 +238,9 @@ The fill is one of three (`theme.rs`): light `#E5E5E5`, mid-grey `#777777`, dark
   at most **1,200 layers** are read (`MAX_STAGE_NODES`). `stage.sampled` is `[used, total]` when sampled, else `null`.
 * When the lowest contrast of the automatic stage is **under 3:1** (`MIN_STAGE_CONTRAST`) the run raises **`no_stage`**.
 
-**The stage is chosen only when the Master is made.** In a "New Section" the Master is not made, so `stage` is the default (`name: "light"`, `auto: false`, `lowest: null`,
-`sampled: null`) whatever the Stage setting says, and the tiles of the States and Variants gallery are drawn on it (section 17).
+**The stage is chosen when the Master or the States and Variants frame is made.** A "New Section" makes no Master but makes the gallery, so it chooses the stage the
+same way: `light` or `dark` as the page says, or, in Auto, the best of the three (`stage.sampled`, `stage.lowest` and `no_stage` are then filled as for a Master). If neither frame is
+made (an `update` of other frames) the stage is the default (`name: "light"`, `auto: false`) and nothing uses it.
 The Stage control of the panel offers Auto, Light and Dark only; mid-grey is reached only by Auto. The same rule (over one variant) picks the
 stage of the Anatomy and of the Layouts drawings (this section). `docs/stage-auto.md` describes the rule.
 
@@ -408,6 +413,8 @@ The panel shows the **first** one only (`Message::Warned`) and, for the two coun
 | `wide_master` | the plan is `wide`, `unsupported` or `failed` | every frame made in this run is wider | Wide component: every frame was made wider. |
 | `legacy_doc` | first generation and a 0.10.0 frame (`handoff-report`, on the page, no Section) of this component is there | nowhere (it is left as it was) | A 0.10.0 documentation was found and left as it was. |
 | `approval_property_missing` | the file's set of pills has no text property named like the area | the Cover's pills have no area written | The approval pills have no Area property: the Cover was made without the areas. |
+| `support_missing` | the Cover was made again, no set of pills existed and the Support frame could not be made | the Cover has no pills | The support frame could not be made: the Cover was made without approval pills. |
+| `frame_missing` | a frame (not Cover, Changelog or Master) is gone and `update` does not name it; `missing` lists the kinds | nowhere (the frame stays gone) | Not made, because it is missing and Update does not name it: {names}. (several: "they are missing … name them") |
 | `markers_dropped` | `anatomy.dropped` is not empty | the Note column of the Anatomy table, per number: "No marker: it did not fit in the drawing." | {n} marker(s) did not fit in the drawing; see the Note column. |
 | `spacing_dropped` | `spacing.outside_dropped` is not zero | one note under the legend of Layouts for each value | {n} spacing band(s) did not fit in the Layouts drawing; see the note in that frame. |
 
@@ -460,6 +467,8 @@ Types: "id" is a FigCraft layer id (number). The example is a real run (the demo
 | `frames` | array | One entry per frame of the column, in order: `{key, id, x, y, w, h, action}` (`action`: `created`, `replaced`, `kept`; `x`, `y` inside the Section). |
 | `master_moved` | id or null | The component or set moved into the new Master; null when no Master was made. |
 | `holder` | id | The layer that holds the component: the set for a set or a variant, else the component. |
+| `migrated_from` | id or null | The id of the variant a reused Section was marked with (3.6); null otherwise. |
+| `missing` | array of string | Kinds of frames that are gone and that `update` does not name (the `frame_missing` warning). |
 | `component` | id | The **key** of the documentation (the set's id for a set, the variant's or component's id otherwise); **not** the default variant (it was in 0.10.0). |
 | `pill_set` | id or null | The set of approval pills used by the Cover. |
 | `support` | object | `{sets_found: n, made: {frame, set, x, y, w, h} or null, set: id or null}` (section 4). |
@@ -842,19 +851,14 @@ The 0.10.0 answer's other fields are listed in the 0.10.0 version of this file (
 
 ## 17. Known inconsistencies and what is not confirmed
 
-Found while writing this document. **None is changed by it**; each is a fact of the code at `0beed07`.
+Facts of the code that this document does not change. (Four found in the first version of this file, the selected variant, the frame deleted by hand, the rerun with no Support frame and the stage of a "New Section", were corrected afterwards and are described above as they are now.)
 
-1. **A selected variant** documents only that variant (key = its id) but moves the whole set into the Master and does not arrange it; States and Variants says "no variants" (3.6). Run on the Toast fixture; the wide-set consequence is read from the code, not run.
-2. **A frame deleted by hand** (not Cover or Changelog) is not made again by a rerun, even when Update names it (3.4). From `frame_is_made` and its test.
-3. **A rerun when the Support frame was deleted** and the Cover must be made again: the Cover is made with no pills and nothing warns (4). From the code, not run.
-4. **"New Section" ignores the Stage setting for the gallery tiles**: the stage is chosen only when the Master is made, so the tiles use the default light stage and `no_stage` cannot come from the Master (5.2). Run: the `stage` of a "New Section" answer is `light`, `auto: false`.
-5. **`on_rerun`, `version` and `status`** are accepted by a direct run (and `on_rerun` is stored) and have no effect (2, 11). `direct.rs`'s module doc still says `version` and `status` go to the header.
-6. **The panel shows only the first warning** when there are several (10).
-7. **Names**: the Master frame is named "Component Master" but its title inside is "Base component" (`SecMaster` and `MasterTitle` in `locales/en.json`; in pt-BR both are "Componente base").
-8. **Stale text in the source and in the docs folder**: the module doc of `src/gerar/section.rs` still says the frames are "in ONE ROW", "1920 px wide" and that "the other five frames carry their title and a line"; the code is one column, 1180 wide, all frames drawn. `gerar.rs` keeps the 0.10.0 constants (`FRAME_PAD` 64, `MIN_FRAME_W` 1280, `SECTION_GAP` 56)
-   next to `section.rs`'s (48, …). `docs/stage-auto.md` describes the Anatomy's stage as a choice between light and dark with fixed marker colours of the Anatomy and Spacing; the code picks among three stages (`pick_stage3`) and the spacing colours are green and violet. This file does not say any of this and is not changed.
-9. **Two `plugin.run` calls in one CLI script** do not see the Section the first one made: the second run made a second Section (`created: true`, `rerun: false`). `scripts/regress.py` runs each generation in its own invocation (the script is "one all-or-nothing undo step"); the cause is not confirmed.
-10. **`component` in the answer is the key**, not the default variant of a set (it was the default variant in 0.10.0).
+1. **`on_rerun`, `version` and `status`** are accepted by a direct run (and `on_rerun` is stored) and have no effect (2, 11). `direct.rs`'s module doc still says `version` and `status` go to the header.
+2. **The panel shows only the first warning** when there are several (10).
+3. **Names**: the Master frame is named "Component Master" but its title inside is "Base component" (`SecMaster` and `MasterTitle` in `locales/en.json`; in pt-BR both are "Componente base").
+4. **Constants of the old drawing**: `gerar.rs` keeps the 0.10.0 constants (`FRAME_PAD` 64, `MIN_FRAME_W` 1280, `SECTION_GAP` 56) next to `section.rs`'s (48, …); they are used only by the 0.10.0 `generate`, which nothing calls.
+5. **Two `plugin.run` calls in one CLI script** do not see the Section the first one made: the second run made a second Section (`created: true`, `rerun: false`). `scripts/regress.py` runs each generation in its own invocation (the script is "one all-or-nothing undo step"); the cause is not confirmed.
+6. **`component` in the answer is the key**, not the default variant of a set (it was the default variant in 0.10.0).
 
 **Not confirmed with a source or a run** (each is said where it appears): the host's own fuel limit and the difference between `calls` and `host_calls` (14); the text widths and the final heights in the app (14); the exact unit of `rounds` (what a "round" is beyond "an attempt of the placer") (12.3); that the panel's message fits in three lines in the
-app (`panel.rs` tests check it on the host); the behaviour of a wide set selected as a variant (1) and of a rerun with no Support frame (3), which are read from the code only.
+app (`panel.rs` tests check it on the host); the failure path of `support_missing` (it needs a host that refuses the Support frame; it is not run).

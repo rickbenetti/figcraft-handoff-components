@@ -458,6 +458,70 @@ def master_case(tmp):
     return out
 
 
+def fixes_case(tmp):
+    """"correções": (a) a variant selected documents the SET (same key, gallery, Master organized), and a Section an earlier build made for the
+    variant (marked with the variant's id) is reused and re-marked with the set's id; (b) a frame deleted by hand is made again when Update
+    names it (in its place, 64 between frames) and, when Update does not name it, stays gone with the warning `frame_missing`; (c) a Cover
+    made again with no support frame makes it first and has its six pills; (d) a "New Section" uses the stage the page asks for."""
+    step = lambda cmd, params: {"command": cmd, "params": params}
+
+    def go(steps, i, o):
+        json.dump(steps, open(os.path.join(tmp, "fx.json"), "w"))
+        p = cli(["run", "--in", i, "--out", o, os.path.join(tmp, "fx.json")])
+        return [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+
+    def plugin(layer, params=None):
+        return [step("plugin.import", {"path": DIST}), step("select.set", {"ids": [layer]}), step("plugin.run", {"id": PID, "command": "generate", "params": {"direct": True, **(params or {})}})]
+
+    def run(layer, i, o, params=None):
+        r = go(plugin(layer, params), i, o)
+        return r[2]["result"]["output"] if len(r) > 2 and r[2].get("ok") else {"error": json.dumps(r[-1:])[:200]}
+
+    out = {}
+    toast = f"{FIX}/fixture-copia-2.figcraft"
+    v, s = os.path.join(tmp, "fx_v.figcraft"), os.path.join(tmp, "fx_s.figcraft")
+    ov = run(3, toast, v)
+    out["correções / variante"] = {"error": ov["error"]} if "error" in ov else {"component_is_holder": ov["component"] == ov["holder"], "gallery": ov["gallery"] is not None, "master_plan": ov["master"]["plan"], "variants": ov["master"]["variants"], "migrated_from": ov["migrated_from"]}
+    # The same Section marked the old way (the variant's id) is found again by a run on the variant, and marked with the set's id.
+    if "error" not in ov:
+        marks = [step("node.set", {"ids": [ov["section"]], "props": {"pluginData": {"handoff-report-section": "3"}}})] + [step("node.set", {"ids": [f["id"]], "props": {"pluginData": {"handoff-report": "3"}}}) for f in ov["frames"]]
+        go(marks, v, s)
+        o2 = run(3, s, os.path.join(tmp, "fx_s2.figcraft"))
+        back = go([step("node.get", {"id": ov["section"], "fields": ["pluginData"]}), step("node.get", {"id": ov["frames"][0]["id"], "fields": ["pluginData"]})], os.path.join(tmp, "fx_s2.figcraft"), os.path.join(tmp, "fx_t.figcraft"))
+        out["correções / migração"] = {"error": o2["error"]} if "error" in o2 else {"created": o2["created"], "rerun": o2["rerun"], "same_section": o2["section"] == ov["section"], "migrated_from": o2["migrated_from"],
+                                                                                    "section_mark_is_the_set": back[0]["result"]["pluginData"].get("handoff-report-section") == str(ov["component"]), "frame_mark_is_the_set": back[1]["result"]["pluginData"].get("handoff-report") == str(ov["component"])}
+    # A frame deleted by hand.
+    btn = find_by_name(DEMO, "Button", tmp, 950)
+    a = os.path.join(tmp, "fx_a.figcraft")
+    o1 = run(btn, DEMO, a)
+    props = next(f for f in o1["frames"] if f["key"] == "properties")
+    go([step("edit.delete", {"ids": [props["id"]]})], a, os.path.join(tmp, "fx_b.figcraft"))
+    named = run(btn, os.path.join(tmp, "fx_b.figcraft"), os.path.join(tmp, "fx_c.figcraft"), {"update": "properties"})
+    other = run(btn, os.path.join(tmp, "fx_b.figcraft"), os.path.join(tmp, "fx_d.figcraft"), {"update": "tokens"})
+    if "error" in named or "error" in other:
+        out["correções / quadro apagado"] = {"error": (named.get("error") or other.get("error"))}
+    else:
+        out["correções / quadro apagado"] = {"named": {"keys": [f["key"] for f in named["frames"]], "actions": {f["key"]: f["action"] for f in named["frames"] if f["key"] in ("properties", "anatomy")}, "invariants": frame_invariants(os.path.join(tmp, "fx_c.figcraft"), named, tmp, 951), "warnings": named["warnings"], "missing": named["missing"]},
+                                              "not_named": {"keys": [f["key"] for f in other["frames"]], "warnings": other["warnings"], "missing": other["missing"]}}
+    # The support frame deleted, and the Cover too: the Cover is made again with its pills.
+    if "error" not in o1:
+        cover = next(f for f in o1["frames"] if f["key"] == "cover")
+        go([step("edit.delete", {"ids": [o1["support"]["made"]["frame"], cover["id"]]})], a, os.path.join(tmp, "fx_e.figcraft"))
+        oc = run(btn, os.path.join(tmp, "fx_e.figcraft"), os.path.join(tmp, "fx_f.figcraft"))
+        if "error" in oc:
+            out["correções / apoio"] = {"error": oc["error"]}
+        else:
+            newcover = next(f for f in oc["frames"] if f["key"] == "cover")
+            pills = go([step("node.find", {"root": newcover["id"], "type": "instance", "limit": 20})], os.path.join(tmp, "fx_f.figcraft"), os.path.join(tmp, "fx_t.figcraft"))[0]["result"]["ids"]
+            out["correções / apoio"] = {"support_made": oc["support"]["made"] is not None, "pills": len(pills), "warnings": oc["warnings"], "frame_violations": frame_invariants(os.path.join(tmp, "fx_f.figcraft"), oc, tmp, 953)}
+    # A "New Section" on the stage the page asks for.
+    for label, stage in (("escuro", "dark"), ("claro", "light"), ("automático", "auto")):
+        first = run(btn, DEMO, os.path.join(tmp, f"fx_n{stage}.figcraft"), {"stage": stage})
+        second = run(btn, os.path.join(tmp, f"fx_n{stage}.figcraft"), os.path.join(tmp, f"fx_m{stage}.figcraft"), {"new_section": True})
+        out[f"correções / nova section / {label}"] = {"error": second["error"]} if "error" in second else {"stage": second["stage"]["name"], "auto": second["stage"]["auto"], "same_as_the_first": second["stage"]["name"] == first["stage"]["name"], "warnings": second["warnings"]}
+    return out
+
+
 def second_component_case(tmp, label, src, picks):
     """"2º componente no mesmo arquivo": components are documented one after the other in the SAME copy of a file, the first in English and
     the next ones in Brazilian Portuguese (the person changed the plugin's language between runs), then a "New Section" of the second one.
@@ -525,6 +589,7 @@ def main():
             results.update(cover_case(tmp))
             results.update(support_case(tmp))
             results.update(master_case(tmp))
+            results.update(fixes_case(tmp))
         # Components one after the other in the same file, with the language changed between runs.
         if not update or not only or only in "2º componente":
             if private:
@@ -556,7 +621,7 @@ def main():
         if "error" in got:
             diffs.append(f"{name}: ERROR {got['error']}")
             continue
-        if name.startswith(("cover editada", "apoio compartilhado", "master /", "2º componente")):
+        if name.startswith(("cover editada", "apoio compartilhado", "master /", "2º componente", "correções")):
             if got != want:
                 diffs.append(f"{name}: baseline {want!r}, now {got!r}")
             continue
