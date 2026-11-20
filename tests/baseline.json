@@ -17,14 +17,15 @@
       "groups": 2,
       "inside": 0,
       "outside": 0,
-      "spines": 2,
-      "dropped": 1,
+      "spines": 4,
+      "dropped": 0,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 99
+      "spine_cross": 0,
+      "min_gap": 12.5
     },
     "frames": [
       [
@@ -61,24 +62,24 @@
         "layouts",
         64.0,
         2529.0,
-        532.0
+        482.0
       ],
       [
         "tokens",
         64.0,
-        3125.0,
+        3075.0,
         736.0
       ],
       [
         "changelog",
         64.0,
-        3925.0,
+        3875.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      4268.0
+      4218.0
     ],
     "tables": [
       [
@@ -94,12 +95,10 @@
         3
       ]
     ],
-    "warnings": [
-      "spacing_dropped"
-    ],
+    "warnings": [],
     "failed": [],
-    "fuel": 84266431,
-    "calls": 1032
+    "fuel": 86487012,
+    "calls": 1053
   },
   "copia-2 / id 3 (Toast variant)": {
     "markers": {
@@ -119,14 +118,15 @@
       "groups": 3,
       "inside": 0,
       "outside": 1,
-      "spines": 2,
-      "dropped": 2,
+      "spines": 3,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 99
+      "spine_cross": 0,
+      "min_gap": 15.0
     },
     "frames": [
       [
@@ -163,24 +163,24 @@
         "layouts",
         64.0,
         3317.0,
-        1048.0
+        998.0
       ],
       [
         "tokens",
         64.0,
-        4429.0,
+        4379.0,
         727.0
       ],
       [
         "changelog",
         64.0,
-        5220.0,
+        5170.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5563.0
+      5513.0
     ],
     "tables": [
       [
@@ -200,8 +200,8 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 117430859,
-    "calls": 1308
+    "fuel": 120682369,
+    "calls": 1320
   },
   "carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -221,14 +221,15 @@
       "groups": 3,
       "inside": 0,
       "outside": 1,
-      "spines": 2,
+      "spines": 3,
       "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 99
+      "spine_cross": 0,
+      "min_gap": 15.0
     },
     "frames": [
       [
@@ -306,8 +307,8 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 266338294,
-    "calls": 1395
+    "fuel": 270197881,
+    "calls": 1407
   },
   "carga-v2 / id 194 (Card de carga)": {
     "markers": {
@@ -334,6 +335,7 @@
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
+      "spine_cross": 0,
       "min_gap": 12.0
     },
     "frames": [
@@ -408,7 +410,7 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 798823001,
+    "fuel": 820640603,
     "calls": 4347
   },
   "ds-base-demo / Button": {
@@ -429,14 +431,15 @@
       "groups": 3,
       "inside": 0,
       "outside": 1,
-      "spines": 2,
-      "dropped": 1,
+      "spines": 4,
+      "dropped": 0,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 60.8
+      "spine_cross": 0,
+      "min_gap": 14.0
     },
     "frames": [
       [
@@ -473,24 +476,24 @@
         "layouts",
         64.0,
         4669.0,
-        532.0
+        482.0
       ],
       [
         "tokens",
         64.0,
-        5265.0,
+        5215.0,
         1441.0
       ],
       [
         "changelog",
         64.0,
-        6770.0,
+        6720.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      7113.0
+      7063.0
     ],
     "tables": [
       [
@@ -511,12 +514,11 @@
       ]
     ],
     "warnings": [
-      "no_stage",
-      "spacing_dropped"
+      "no_stage"
     ],
     "failed": [],
-    "fuel": 356227797,
-    "calls": 3675
+    "fuel": 358670620,
+    "calls": 3696
   },
   "ds-base-demo / Card": {
     "markers": {
@@ -536,13 +538,14 @@
       "groups": 10,
       "inside": 0,
       "outside": 3,
-      "spines": 5,
+      "spines": 7,
       "dropped": 10,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
+      "spine_cross": 0,
       "min_gap": 36.0
     },
     "frames": [
@@ -621,8 +624,8 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 392055416,
-    "calls": 3561
+    "fuel": 396687911,
+    "calls": 3576
   },
   "ds-base-demo / Accordion": {
     "markers": {
@@ -642,14 +645,15 @@
       "groups": 2,
       "inside": 0,
       "outside": 0,
-      "spines": 2,
-      "dropped": 2,
+      "spines": 4,
+      "dropped": 0,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 39.0
+      "spine_cross": 0,
+      "min_gap": 20.0
     },
     "frames": [
       [
@@ -686,24 +690,24 @@
         "layouts",
         64.0,
         3629.0,
-        614.0
+        564.0
       ],
       [
         "tokens",
         64.0,
-        4307.0,
+        4257.0,
         948.0
       ],
       [
         "changelog",
         64.0,
-        5319.0,
+        5269.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5662.0
+      5612.0
     ],
     "tables": [
       [
@@ -723,12 +727,10 @@
         3
       ]
     ],
-    "warnings": [
-      "spacing_dropped"
-    ],
+    "warnings": [],
     "failed": [],
-    "fuel": 153397043,
-    "calls": 1638
+    "fuel": 153960950,
+    "calls": 1659
   },
   "ds-base-demo / Code": {
     "markers": {
@@ -755,6 +757,7 @@
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
+      "spine_cross": 0,
       "min_gap": 15.5
     },
     "frames": [
@@ -829,7 +832,7 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 96128368,
+    "fuel": 97890230,
     "calls": 1050
   },
   "ds-base-demo / Icon": {
@@ -939,14 +942,15 @@
       "groups": 2,
       "inside": 0,
       "outside": 0,
-      "spines": 2,
-      "dropped": 1,
+      "spines": 4,
+      "dropped": 0,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 99
+      "spine_cross": 0,
+      "min_gap": 12.5
     },
     "frames": [
       [
@@ -983,24 +987,24 @@
         "layouts",
         64.0,
         2529.0,
-        532.0
+        482.0
       ],
       [
         "tokens",
         64.0,
-        3125.0,
+        3075.0,
         736.0
       ],
       [
         "changelog",
         64.0,
-        3925.0,
+        3875.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      4268.0
+      4218.0
     ],
     "tables": [
       [
@@ -1016,12 +1020,10 @@
         3
       ]
     ],
-    "warnings": [
-      "spacing_dropped"
-    ],
+    "warnings": [],
     "failed": [],
-    "fuel": 84894775,
-    "calls": 1041
+    "fuel": 87123973,
+    "calls": 1062
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -1041,14 +1043,15 @@
       "groups": 3,
       "inside": 0,
       "outside": 1,
-      "spines": 2,
+      "spines": 3,
       "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 99
+      "spine_cross": 0,
+      "min_gap": 15.0
     },
     "frames": [
       [
@@ -1126,8 +1129,8 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 267255692,
-    "calls": 1404
+    "fuel": 271431285,
+    "calls": 1416
   },
   "pt-BR / ds-base-demo / Button": {
     "markers": {
@@ -1147,14 +1150,15 @@
       "groups": 3,
       "inside": 0,
       "outside": 1,
-      "spines": 2,
-      "dropped": 1,
+      "spines": 4,
+      "dropped": 0,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 60.8
+      "spine_cross": 0,
+      "min_gap": 14.0
     },
     "frames": [
       [
@@ -1191,24 +1195,24 @@
         "layouts",
         64.0,
         4703.0,
-        532.0
+        482.0
       ],
       [
         "tokens",
         64.0,
-        5299.0,
+        5249.0,
         1441.0
       ],
       [
         "changelog",
         64.0,
-        6804.0,
+        6754.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      7147.0
+      7097.0
     ],
     "tables": [
       [
@@ -1229,12 +1233,11 @@
       ]
     ],
     "warnings": [
-      "no_stage",
-      "spacing_dropped"
+      "no_stage"
     ],
     "failed": [],
-    "fuel": 358168315,
-    "calls": 3684
+    "fuel": 360687289,
+    "calls": 3705
   },
   "pt-BR / ds-base-demo / Card": {
     "markers": {
@@ -1254,13 +1257,14 @@
       "groups": 10,
       "inside": 0,
       "outside": 3,
-      "spines": 5,
+      "spines": 7,
       "dropped": 10,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
+      "spine_cross": 0,
       "min_gap": 36.0
     },
     "frames": [
@@ -1339,8 +1343,8 @@
       "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 394552224,
-    "calls": 3570
+    "fuel": 397656303,
+    "calls": 3585
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
@@ -1360,14 +1364,15 @@
       "groups": 2,
       "inside": 0,
       "outside": 0,
-      "spines": 2,
-      "dropped": 2,
+      "spines": 4,
+      "dropped": 0,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
       "stack_overlap": 0,
-      "min_gap": 39.0
+      "spine_cross": 0,
+      "min_gap": 20.0
     },
     "frames": [
       [
@@ -1404,24 +1409,24 @@
         "layouts",
         64.0,
         3629.0,
-        614.0
+        564.0
       ],
       [
         "tokens",
         64.0,
-        4307.0,
+        4257.0,
         948.0
       ],
       [
         "changelog",
         64.0,
-        5319.0,
+        5269.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5662.0
+      5612.0
     ],
     "tables": [
       [
@@ -1441,12 +1446,10 @@
         3
       ]
     ],
-    "warnings": [
-      "spacing_dropped"
-    ],
+    "warnings": [],
     "failed": [],
-    "fuel": 154755263,
-    "calls": 1647
+    "fuel": 155537070,
+    "calls": 1668
   },
   "cover editada / pills before": {
     "nodes": 74,
@@ -1585,8 +1588,7 @@
         "new_section": false,
         "failed": [],
         "warnings": [
-          "no_stage",
-          "spacing_dropped"
+          "no_stage"
         ],
         "sets_found": 1,
         "area_retries": 0
@@ -1595,9 +1597,7 @@
         "lang": "pt-BR",
         "new_section": false,
         "failed": [],
-        "warnings": [
-          "spacing_dropped"
-        ],
+        "warnings": [],
         "sets_found": 1,
         "area_retries": 0
       },
@@ -1605,9 +1605,7 @@
         "lang": "pt-BR",
         "new_section": true,
         "failed": [],
-        "warnings": [
-          "spacing_dropped"
-        ],
+        "warnings": [],
         "sets_found": 1,
         "area_retries": 0
       }

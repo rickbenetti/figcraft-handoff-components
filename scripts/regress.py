@@ -183,13 +183,13 @@ def spacing_check(a):
     (in a band), `outside` (one band, with a guide), `spines` (two or more bands, a spine) and `dropped` (bands with no number). Checked on
     every drawing: `badge_over_content` (a number whose patch or marker meets a text, a vector or an instance with nothing in it: 0),
     `guide_over_content` (a guide, spine or trace within 1.9 px of one: 0; the guide is 2 px thick), `cross` (guides that cross each other:
-    0), `oblique` (guides that are not horizontal or vertical: 0), `stack_overlap` (bands of two layers over each other in one drawing: 0)
+    0), `oblique` (guides that are not horizontal or vertical: 0), `stack_overlap` (bands of two layers over each other in one drawing: 0), `spine_cross` (a guide, spine or trace through a number: 0)
     and `min_gap` (the least gap between two markers outside, at least 12)."""
     if not a or "list" not in a:
         return None
     rects = lambda r: (r[0] + 0.5, r[1] + 0.5, r[2] - 1.0, r[3] - 1.0)
     over = lambda p, r: p[0] < r[0] + r[2] and r[0] < p[0] + p[2] and p[1] < r[1] + r[3] and r[1] < p[1] + p[3]
-    badge_over = guide_over = cross = oblique = stack = 0
+    badge_over = guide_over = cross = oblique = stack = spine_cross = 0
     gap = 999.0
     for d in a["list"]:
         content = d.get("content") or []
@@ -199,6 +199,8 @@ def spacing_check(a):
         guide_over += sum(1 for g in guides for c in content if _seg_rect((g[0], g[1]), (g[2], g[3]), c, -1.9) and not (c[0] - 0.5 <= g[2] <= c[0] + c[2] + 0.5 and c[1] - 0.5 <= g[3] <= c[1] + c[3] + 0.5))
         cross += sum(1 for i, g in enumerate(guides) for h in guides[i + 1:] if _cross((g[0], g[1]), (g[2], g[3]), (h[0], h[1]), (h[2], h[3])))
         oblique += sum(1 for g in guides if abs(g[0] - g[2]) > 0.01 and abs(g[1] - g[3]) > 0.01)
+        # A spine, stub, trace or guide that runs through a number (its own stub ends on its edge: that is not through).
+        spine_cross += sum(1 for g in guides for b in d["badges"] if not b["inside"] and _seg_rect((g[0], g[1]), (g[2], g[3]), b["rect"], 1.0))
         bands = d["list"]
         stack += sum(1 for i, p in enumerate(bands) for q in bands[i + 1:] if p["layer"] != q["layer"] and over(rects(p["rect"]), rects(q["rect"])))
         # Each marker is a capsule (a circle is one with a segment of length 0): the gap between two is the distance between their segments
@@ -210,7 +212,7 @@ def spacing_check(a):
                 gap = min(gap, (dx * dx + (p[2] - q[2]) ** 2) ** 0.5 - p[3] - q[3])
     return {"levels": a["levels"], "drawings": a["drawings"], "deeper": a["deeper"], "groups": a["groups"], "inside": a["inside"], "outside": a["outside"],
             "spines": a["spines"], "dropped": a.get("outside_dropped", 0), "badge_over_content": badge_over, "guide_over_content": guide_over, "cross": cross,
-            "oblique": oblique, "stack_overlap": stack, "min_gap": round(min(gap, 99), 1)}
+            "oblique": oblique, "stack_overlap": stack, "spine_cross": spine_cross, "min_gap": round(min(gap, 99), 1)}
 
 
 FRAME_PAD, FRAME_GAP, SECTION_PAD = 48, 64, 64
@@ -564,8 +566,8 @@ def main():
         if mk and (mk["oblique"] or mk["tip_in_text"] or mk["cross"] or mk["min_gap"] < 12):
             diffs.append(f"{name}: INVARIANT: markers: oblique {mk['oblique']}, tip_in_text {mk['tip_in_text']}, cross {mk['cross']}, min_gap {mk['min_gap']} (>= 12)")
         sp = got.get("spacing") or {}
-        if sp and (sp["badge_over_content"] or sp["guide_over_content"] or sp["cross"] or sp["oblique"] or sp["stack_overlap"] or sp["min_gap"] < 12):
-            diffs.append(f"{name}: INVARIANT: layouts: badge_over_content {sp['badge_over_content']}, guide_over_content {sp['guide_over_content']}, cross {sp['cross']}, oblique {sp['oblique']}, stack_overlap {sp['stack_overlap']}, min_gap {sp['min_gap']} (>= 12)")
+        if sp and (sp["badge_over_content"] or sp["guide_over_content"] or sp["cross"] or sp["oblique"] or sp["stack_overlap"] or sp["spine_cross"] or sp["min_gap"] < 12):
+            diffs.append(f"{name}: INVARIANT: layouts: badge_over_content {sp['badge_over_content']}, guide_over_content {sp['guide_over_content']}, cross {sp['cross']}, oblique {sp['oblique']}, stack_overlap {sp['stack_overlap']}, spine_cross {sp['spine_cross']}, min_gap {sp['min_gap']} (>= 12)")
         if "frames" not in want:
             diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")
             continue

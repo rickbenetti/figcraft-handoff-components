@@ -300,6 +300,10 @@ impl Board {
     fn free(&self, s: Seg, clear: f64, band: Option<Rect>) -> bool {
         !self.content.iter().any(|t| !band.is_some_and(|b| mostly_under(b, *t)) && crosses(s.0, s.1, t.grow(clear + 0.5)))
             && !self.segs.iter().any(|o| {
+                // Far apart (the boxes of the two, each grown by 3 px, do not meet): nothing can touch.
+                if s.0.0.max(s.1.0) + 3.0 < o.0.0.min(o.1.0) || o.0.0.max(o.1.0) + 3.0 < s.0.0.min(s.1.0) || s.0.1.max(s.1.1) + 3.0 < o.0.1.min(o.1.1) || o.0.1.max(o.1.1) + 3.0 < s.0.1.min(s.1.1) {
+                    return false;
+                }
                 segments_cross(s.0, s.1, o.0, o.1)
                     || point_to_segment(o.0, s.0, s.1) < 3.0
                     || point_to_segment(o.1, s.0, s.1) < 3.0
@@ -307,6 +311,13 @@ impl Board {
                     || point_to_segment(s.1, o.0, o.1) < 3.0
             })
             && !self.boxes.iter().any(|b| crosses(s.0, s.1, b.grow(CONTENT_CLEAR + 0.5)))
+    }
+
+    /// Takes a spine's lines and number off the board (to place it again with more bands).
+    fn remove(&mut self, s: &Spine) {
+        let mine: Vec<Seg> = [s.line, s.stub].into_iter().chain(s.traces.iter().map(|(_, t)| *t)).collect();
+        self.segs.retain(|o| !mine.contains(o));
+        self.boxes.retain(|b| *b != s.badge);
     }
 
     /// Whether a number's box `r` is free: off the content (4 px), 12 px from the other numbers and crossed by no guide.
@@ -320,6 +331,8 @@ impl Board {
 /// The bands of a group of two or more, and how wide its number's marker is beyond a circle.
 #[derive(Clone, Debug)]
 pub(super) struct SpineReq {
+    /// The side the spine must stand on (`Some(true)` is the left); None: whichever reaches the most bands.
+    pub side: Option<bool>,
     pub extra: f64,
     pub bands: Vec<Rect>,
 }
@@ -398,7 +411,7 @@ pub(super) fn place_spines(ib: Rect, stage: Rect, reqs: &[SpineReq], board: &mut
     reqs.iter()
         .map(|req| {
             let mut best: Option<Spine> = None;
-            'sides: for left in [true, false] {
+            'sides: for left in [true, false].into_iter().filter(|l| req.side.is_none_or(|s| s == *l)) {
                 for slot in 0..SPINE_SLOTS {
                     let Some(s) = try_spine(ib, stage, req, board, left, slot) else { continue };
                     let all = s.traces.len() == req.bands.len();
@@ -419,6 +432,140 @@ pub(super) fn place_spines(ib: Rect, stage: Rect, reqs: &[SpineReq], board: &mut
             best
         })
         .collect()
+}
+
+/// A group of two or more bands to give spines: the marker's extra width and the bands (the instance's `ib` tells the sides).
+#[derive(Clone, Debug)]
+pub(super) struct SpineGroup {
+    pub extra: f64,
+    pub bands: Vec<Rect>,
+}
+
+/// A spine placed for a group: which of the group's bands (by place in `SpineGroup::bands`) it has a trace to, in the spine's order.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct PlacedSpine {
+    pub spine: Spine,
+    pub ids: Vec<usize>,
+}
+
+/// The side (true: left) each band of a group is given: by the band's centre in the left or right half of the instance; a band that
+/// reaches across the middle (a gap between rows, a padding above or below) goes to the side that has more of the group's bands, and on a
+/// tie to the left.
+pub(super) fn sides_of(ib: Rect, bands: &[Rect]) -> Vec<bool> {
+    let mid = ib.x + ib.w / 2.0;
+    let across = |b: &Rect| b.x <= mid && b.right() >= mid;
+    let left = bands.iter().filter(|b| !across(b) && b.x + b.w / 2.0 < mid).count();
+    let right = bands.iter().filter(|b| !across(b) && b.x + b.w / 2.0 >= mid).count();
+    bands.iter().map(|b| if across(b) { left >= right } else { b.x + b.w / 2.0 < mid }).collect()
+}
+
+/// Places the spines of one group: one for each side that has bands, each with its own number; a band with no way to the spine of its own
+/// side tries the spine of the other, and then a spine of its own. Returns the spines and the bands (by place) with no trace at all.
+pub(super) fn place_group(ib: Rect, stage: Rect, g: &SpineGroup, board: &mut Board) -> (Vec<PlacedSpine>, Vec<usize>) {
+    let mut sides = sides_of(ib, &g.bands);
+    // A band that the content alone keeps from a side (whatever else is drawn) is given the other side; one that it keeps from both has
+    // no trace and is not tried again and again below.
+    let content_only = Board { content: board.content.clone(), ..Board::default() };
+    let reach = |b: &Rect, left: bool| {
+        let x = if left { ib.x - SPINE_OFF } else { ib.right() + SPINE_OFF };
+        let tip = if left { b.x + (b.w / 2.0).min(TRACE_INSET) } else { b.right() - (b.w / 2.0).min(TRACE_INSET) };
+        trace_ys(*b).iter().any(|y| content_only.free(((x, *y), (tip, *y)), CONTENT_CLEAR, Some(*b)))
+    };
+    let mut lost: Vec<usize> = Vec::new();
+    for i in 0..g.bands.len() {
+        if !reach(&g.bands[i], sides[i]) {
+            if reach(&g.bands[i], !sides[i]) {
+                sides[i] = !sides[i];
+            } else {
+                lost.push(i);
+            }
+        }
+    }
+    let place = |ids: &[usize], left: bool, board: &mut Board| -> Option<PlacedSpine> {
+        let req = SpineReq { side: Some(left), extra: g.extra, bands: ids.iter().map(|i| g.bands[*i]).collect() };
+        let s = place_spines(ib, stage, &[req], board).into_iter().next().flatten()?;
+        let ids = s.traces.iter().map(|(k, _)| ids[*k]).collect();
+        Some(PlacedSpine { spine: s, ids })
+    };
+    let mut placed: Vec<PlacedSpine> = Vec::new();
+    for left in [true, false] {
+        let own: Vec<usize> = (0..g.bands.len()).filter(|i| sides[*i] == left && !lost.contains(i)).collect();
+        if !own.is_empty() {
+            placed.extend(place(&own, left, board));
+        }
+    }
+    // The bands left with no trace go to the spine of the other side.
+    for left in [true, false] {
+        let stuck: Vec<usize> = (0..g.bands.len()).filter(|i| sides[*i] != left && !lost.contains(i) && !placed.iter().any(|p| p.ids.contains(i))).collect();
+        if stuck.is_empty() {
+            continue;
+        }
+        match placed.iter().position(|p| p.spine.left == left) {
+            Some(k) => {
+                let old = placed[k].clone();
+                board.remove(&old.spine);
+                let ids: Vec<usize> = old.ids.iter().chain(stuck.iter()).copied().collect();
+                match place(&ids, left, board) {
+                    Some(n) if n.ids.len() > old.ids.len() => placed[k] = n,
+                    _ => {
+                        board.segs.push(old.spine.line);
+                        board.segs.push(old.spine.stub);
+                        board.segs.extend(old.spine.traces.iter().map(|(_, t)| *t));
+                        board.boxes.push(old.spine.badge);
+                    }
+                }
+            }
+            None => placed.extend(place(&stuck, left, board)),
+        }
+    }
+    // A band the spines of both sides cannot reach (a spine across it would have to cross another) gets a spine of its own, on its side or
+    // the other: one trace and a number of the same value.
+    for i in 0..g.bands.len() {
+        if lost.contains(&i) || placed.iter().any(|p| p.ids.contains(&i)) {
+            continue;
+        }
+        let own = sides[i];
+        if let Some(p) = place(&[i], own, board).or_else(|| place(&[i], !own, board)) {
+            placed.push(p);
+        }
+    }
+    let none = (0..g.bands.len()).filter(|i| !placed.iter().any(|p| p.ids.contains(i))).collect();
+    (placed, none)
+}
+
+/// Places the spines of every group on `base` (the board with what is already drawn). A spine placed first may take the way of one placed
+/// later, so the groups that were left with bands with no trace go first in the next try (while that changes the order), up to three more; the try that leaves the
+/// fewest bands with no trace is the one used. The result is in the order of `groups`.
+pub(super) fn place_all_groups(ib: Rect, stage: Rect, groups: &[SpineGroup], base: &Board) -> Vec<(Vec<PlacedSpine>, Vec<usize>)> {
+    let run = |order: &[usize]| -> Vec<(Vec<PlacedSpine>, Vec<usize>)> {
+        let mut board = base.clone();
+        let mut out: Vec<(Vec<PlacedSpine>, Vec<usize>)> = vec![(Vec::new(), Vec::new()); groups.len()];
+        for k in order {
+            out[*k] = place_group(ib, stage, &groups[*k], &mut board);
+        }
+        out
+    };
+    let lost = |r: &[(Vec<PlacedSpine>, Vec<usize>)]| r.iter().map(|(_, n)| n.len()).sum::<usize>();
+    let mut order: Vec<usize> = (0..groups.len()).collect();
+    let mut best = run(&order);
+    for _ in 0..3 {
+        if lost(&best) == 0 {
+            break;
+        }
+        let first: Vec<usize> = order.iter().copied().filter(|k| !best[*k].1.is_empty()).collect();
+        let next: Vec<usize> = first.iter().copied().chain(order.iter().copied().filter(|k| best[*k].1.is_empty())).collect();
+        if next == order {
+            break;
+        }
+        order = next;
+        let tried = run(&order);
+        if lost(&tried) < lost(&best) {
+            best = tried;
+        } else {
+            break;
+        }
+    }
+    best
 }
 
 /// The colours of the drawing on a stage: the padding's, the gap's and what the number on each is written in.
@@ -715,8 +862,11 @@ fn draw_level(c: &Ctx, frame: u64, walked: &[(Value, usize)], drawn: &[bool], ro
         let w = MARKER_D + 2.0 * m.extra;
         board.boxes.push(Rect { x: m.centre.0 - w / 2.0, y: m.centre.1 - MARKER_D / 2.0, w, h: MARKER_D });
     }
-    let reqs: Vec<SpineReq> = spined.iter().map(|gi| SpineReq { extra: pill_extra(&groups[*gi].label()), bands: groups[*gi].members.iter().map(|(li, bi)| moved[*li].bands[*bi].rect).collect() }).collect();
-    let spines = place_spines(ib, sb, &reqs, &mut board);
+    let spine_groups: Vec<SpineGroup> = spined
+        .iter()
+        .map(|gi| SpineGroup { extra: pill_extra(&groups[*gi].label()), bands: groups[*gi].members.iter().map(|(li, bi)| moved[*li].bands[*bi].rect).collect() })
+        .collect();
+    let placed = place_all_groups(ib, sb, &spine_groups, &board);
     let origin = (sb.x, sb.y);
     // The bands first (the numbers go on top).
     for l in &moved {
@@ -779,22 +929,22 @@ fn draw_level(c: &Ctx, frame: u64, walked: &[(Value, usize)], drawn: &[bool], ro
     let mut spine_json: Vec<Value> = Vec::new();
     for (k, gi) in spined.iter().enumerate() {
         let g = &groups[*gi];
-        let Some(s) = &spines[k] else {
-            add_dropped(&mut dropped, g.value, g.members.len());
-            continue;
-        };
-        add_dropped(&mut dropped, g.value, g.members.len() - s.traces.len());
+        let (spines, none) = &placed[k];
+        add_dropped(&mut dropped, g.value, none.len());
         let (fill, ink) = if g.gap { (col.gap, col.on_gap) } else { (col.padding, col.on_padding) };
         let label = g.label();
         let name = tf(lang, Key::LayerLeader, &[("n", &label)]);
-        for seg in [Some(s.line), Some(s.stub)].into_iter().flatten().chain(s.traces.iter().map(|(_, t)| *t)) {
-            leader(lang, stage, origin, seg.0, seg.1, (fill, GUIDE_WEIGHT), &name)?;
-            guides.push(json!([seg.0.0, seg.0.1, seg.1.0, seg.1.1]));
+        for ps in spines {
+            let s = &ps.spine;
+            for seg in [s.line, s.stub].into_iter().chain(s.traces.iter().map(|(_, t)| *t)) {
+                leader(lang, stage, origin, seg.0, seg.1, (fill, GUIDE_WEIGHT), &name)?;
+                guides.push(json!([seg.0.0, seg.0.1, seg.1.0, seg.1.1]));
+            }
+            let centre = (s.badge.x + s.badge.w / 2.0, s.badge.y + s.badge.h / 2.0);
+            marker(centre, (s.badge.w - MARKER_D) / 2.0, &label, fill, ink)?;
+            badges.push(json!({"label": label, "inside": false, "rect": [s.badge.x, s.badge.y, s.badge.w, s.badge.h]}));
+            spine_json.push(json!({"label": label, "left": s.left, "bands": g.members.len(), "traces": s.traces.len(), "line": [s.line.0.0, s.line.0.1, s.line.1.0, s.line.1.1]}));
         }
-        let centre = (s.badge.x + s.badge.w / 2.0, s.badge.y + s.badge.h / 2.0);
-        marker(centre, (s.badge.w - MARKER_D) / 2.0, &label, fill, ink)?;
-        badges.push(json!({"label": label, "inside": false, "rect": [s.badge.x, s.badge.y, s.badge.w, s.badge.h]}));
-        spine_json.push(json!({"label": label, "left": s.left, "bands": g.members.len(), "traces": s.traces.len(), "line": [s.line.0.0, s.line.0.1, s.line.1.0, s.line.1.1]}));
     }
     if let Some(title) = &title {
         text(lang, frame, title, 0.0, 0.0, TITLE_SIZE, pal::TEXT, None, title)?;
@@ -1167,7 +1317,7 @@ mod tests {
     fn a_group_of_bands_gets_one_number_a_spine_and_a_trace_to_each_band() {
         let (ib, stage, texts, bands) = rows();
         let mut board = Board { content: texts.clone(), ..Board::default() };
-        let spines = place_spines(ib, stage, &[SpineReq { extra: 0.0, bands: bands.clone() }], &mut board);
+        let spines = place_spines(ib, stage, &[SpineReq { side: None, extra: 0.0, bands: bands.clone() }], &mut board);
         let s = spines[0].as_ref().unwrap();
         assert_eq!(s.traces.len(), 3, "a trace to each of the three bands");
         assert!(s.left, "the left side is the first tried");
@@ -1192,13 +1342,13 @@ mod tests {
         let middle = r(140.0, 150.0, 20.0, 20.0);
         let texts = vec![r(110.0, 148.0, 30.0, 24.0), r(160.0, 148.0, 30.0, 24.0)];
         let mut board = Board { content: texts.clone(), ..Board::default() };
-        let spines = place_spines(ib, stage, &[SpineReq { extra: 0.0, bands: vec![left_pad, middle] }], &mut board);
+        let spines = place_spines(ib, stage, &[SpineReq { side: None, extra: 0.0, bands: vec![left_pad, middle] }], &mut board);
         let s = spines[0].as_ref().unwrap();
         assert_eq!(s.traces.len(), 1, "only the padding is reached");
         assert_eq!(s.traces[0].0, 0);
         // Only the boxed-in band: no spine at all.
         let mut board = Board { content: texts, ..Board::default() };
-        let spines = place_spines(ib, stage, &[SpineReq { extra: 0.0, bands: vec![middle] }], &mut board);
+        let spines = place_spines(ib, stage, &[SpineReq { side: None, extra: 0.0, bands: vec![middle] }], &mut board);
         assert!(spines[0].is_none());
     }
 
@@ -1206,7 +1356,7 @@ mod tests {
     fn a_spine_keeps_clear_of_the_ones_before_it_and_crosses_no_guide() {
         let (ib, stage, texts, bands) = rows();
         let mut board = Board { content: texts, ..Board::default() };
-        let reqs = [SpineReq { extra: 0.0, bands: bands.clone() }, SpineReq { extra: 0.0, bands: vec![bands[0], bands[2]] }];
+        let reqs = [SpineReq { side: None, extra: 0.0, bands: bands.clone() }, SpineReq { side: None, extra: 0.0, bands: vec![bands[0], bands[2]] }];
         let spines = place_spines(ib, stage, &reqs, &mut board);
         let (a, b) = (spines[0].as_ref().unwrap(), spines[1].as_ref().unwrap());
         let all = |s: &Spine| std::iter::once(s.line).chain(std::iter::once(s.stub)).chain(s.traces.iter().map(|(_, t)| *t)).collect::<Vec<_>>();
@@ -1226,7 +1376,7 @@ mod tests {
         let image = r(100.0, 100.0, 200.0, 200.0);
         let band = r(110.0, 150.0, 180.0, 8.0);
         let mut board = Board { content: vec![image], ..Board::default() };
-        let spines = place_spines(ib, stage, &[SpineReq { extra: 0.0, bands: vec![band] }], &mut board);
+        let spines = place_spines(ib, stage, &[SpineReq { side: None, extra: 0.0, bands: vec![band] }], &mut board);
         assert!(spines[0].is_some());
     }
 
@@ -1288,5 +1438,89 @@ mod tests {
             assert!(tf(lang, Key::LayoutsLevel, &[("n", "2"), ("names", "Body")]).contains("2"));
             assert!(tf(lang, Key::LayoutsLevel, &[("n", "2"), ("names", "Body")]).ends_with("Body"));
         }
+    }
+
+    fn pad_group(bands: Vec<Rect>) -> SpineGroup {
+        SpineGroup { extra: 0.0, bands }
+    }
+
+    #[test]
+    fn a_group_with_bands_on_both_sides_gets_a_spine_and_a_number_on_each_with_the_same_value() {
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let stage = r(0.0, 0.0, 500.0, 400.0);
+        // The left and right paddings of a card, with a text across the middle: neither can reach the other.
+        let g = pad_group(vec![r(100.0, 100.0, 10.0, 200.0), r(290.0, 100.0, 10.0, 200.0)]);
+        let mut board = Board { content: vec![r(110.0, 190.0, 180.0, 20.0)], ..Board::default() };
+        let (placed, none) = place_group(ib, stage, &g, &mut board);
+        assert!(none.is_empty());
+        assert_eq!(placed.len(), 2, "one spine for each side");
+        let (l, rt) = (placed.iter().find(|p| p.spine.left).unwrap(), placed.iter().find(|p| !p.spine.left).unwrap());
+        assert_eq!((l.ids.clone(), rt.ids.clone()), (vec![0], vec![1]));
+        assert!(l.spine.badge.right() < ib.x && rt.spine.badge.x > ib.right(), "each number stands in its own margin");
+        assert!(!l.spine.badge.grow(6.0).hits(rt.spine.badge.grow(6.0)));
+    }
+
+    #[test]
+    fn a_band_across_the_middle_goes_to_the_side_with_more_bands_and_on_a_tie_to_the_left() {
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let top = r(100.0, 100.0, 200.0, 10.0);
+        let (l1, l2) = (r(100.0, 150.0, 10.0, 50.0), r(100.0, 210.0, 10.0, 50.0));
+        let (r1, r2) = (r(290.0, 150.0, 10.0, 50.0), r(290.0, 210.0, 10.0, 50.0));
+        assert_eq!(sides_of(ib, &[top, l1, l2, r1]), vec![true, true, true, false], "more on the left");
+        assert_eq!(sides_of(ib, &[top, l1, r1, r2]), vec![false, true, false, false], "more on the right");
+        assert_eq!(sides_of(ib, &[top, l1, r1]), vec![true, true, false], "a tie goes left");
+        assert_eq!(sides_of(ib, &[top]), vec![true], "alone, left");
+    }
+
+    #[test]
+    fn a_band_with_no_way_on_its_own_side_uses_the_other_side() {
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let stage = r(0.0, 0.0, 500.0, 400.0);
+        // `x` is in the left half and a text on its left blocks the way from the left; the right is clear. The right padding is the other band.
+        let x = r(110.0, 150.0, 30.0, 20.0);
+        let g = pad_group(vec![x, r(290.0, 100.0, 10.0, 200.0)]);
+        let mut board = Board { content: vec![r(100.0, 148.0, 10.0, 24.0)], ..Board::default() };
+        let (placed, none) = place_group(ib, stage, &g, &mut board);
+        assert!(none.is_empty(), "{none:?}");
+        assert_eq!(placed.len(), 1);
+        assert!(!placed[0].spine.left);
+        assert_eq!(placed[0].ids.len(), 2, "both bands on the right spine");
+    }
+
+    #[test]
+    fn a_band_with_no_way_on_either_side_is_left_with_no_trace() {
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let stage = r(0.0, 0.0, 500.0, 400.0);
+        let middle = r(140.0, 150.0, 20.0, 20.0);
+        let g = pad_group(vec![r(100.0, 100.0, 10.0, 200.0), middle]);
+        let mut board = Board { content: vec![r(110.0, 148.0, 30.0, 24.0), r(160.0, 148.0, 30.0, 24.0)], ..Board::default() };
+        let (placed, none) = place_group(ib, stage, &g, &mut board);
+        assert_eq!(none, vec![1]);
+        assert_eq!(placed.len(), 1);
+    }
+
+    #[test]
+    fn a_group_on_one_side_has_one_spine_as_before() {
+        let (ib, stage, texts, bands) = rows();
+        let mut board = Board { content: texts, ..Board::default() };
+        let (placed, none) = place_group(ib, stage, &pad_group(bands), &mut board);
+        assert!(none.is_empty());
+        assert_eq!(placed.len(), 1);
+        assert!(placed[0].spine.left);
+        assert_eq!(placed[0].ids.len(), 3);
+    }
+
+    #[test]
+    fn a_group_left_with_no_trace_is_placed_first_in_the_next_try() {
+        // A button: paddings of 8 above and below (across the middle: left) and of 16 at the sides. Placed in this order, the spine of the
+        // 8s takes the way from the left to the left 16; placed the other way round both fit.
+        let ib = r(100.0, 100.0, 100.0, 36.0);
+        let stage = r(0.0, 0.0, 500.0, 300.0);
+        let eight = pad_group(vec![r(100.0, 100.0, 100.0, 8.0), r(100.0, 128.0, 100.0, 8.0)]);
+        let sixteen = pad_group(vec![r(100.0, 108.0, 16.0, 20.0), r(184.0, 108.0, 16.0, 20.0)]);
+        let base = Board { content: vec![r(116.0, 108.0, 68.0, 20.0)], ..Board::default() };
+        let got = place_all_groups(ib, stage, &[eight, sixteen], &base);
+        assert_eq!(got.iter().map(|(_, n)| n.len()).sum::<usize>(), 0, "every band has a trace");
+        assert_eq!(got[1].0.len(), 2, "the 16 has a number on each side");
     }
 }
