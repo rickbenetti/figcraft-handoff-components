@@ -1209,7 +1209,12 @@ pub fn generate(input: Input) -> Result<Value> {
     let update = input.str("update").and_then(Update::from_key).unwrap_or(Update::All);
     let new_section = input.params.get("new_section").and_then(Value::as_bool).unwrap_or(false);
     // 2. Which Section: the first one of the component, unless a new one is asked for (or there is none).
-    let found = find_section(&page, &comp_key);
+    let mut found = find_section(&page, &comp_key);
+    // A Section an earlier build made for a variant is marked with the variant's id: it is the set's Section now (its marks are rewritten below).
+    let migrated = match (found, target.legacy_key) {
+        (None, Some(old)) => find_section(&page, &old.to_string()).inspect(|id| found = Some(*id)).map(|_| old),
+        _ => None,
+    };
     let first_run = found.is_none();
     let beside = found.is_some() && new_section;
     let section_id = if beside { None } else { found };
@@ -1251,6 +1256,12 @@ pub fn generate(input: Input) -> Result<Value> {
     let (section, sx, sy, existing, created) = match section_id {
         Some(id) => {
             let (sb, frames) = read_frames(lang, id)?;
+            if migrated.is_some() {
+                host(lang, "node.set", &json!({"ids": [id], "props": {"pluginData": {SECTION_MARK: comp_key}}}))?;
+                for f in &frames {
+                    host(lang, "node.set", &json!({"ids": [f.id], "props": {"pluginData": {REPORT_KEY: comp_key}}}))?;
+                }
+            }
             (id, sb.x, sb.y, frames, false)
         }
         None => {
@@ -1432,7 +1443,7 @@ pub fn generate(input: Input) -> Result<Value> {
     Ok(json!({
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
-        "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
+        "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "migrated_from": migrated, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
         "failed": failed, "master": ctx.master.borrow().clone(), "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "gallery": ctx.gallery.borrow().clone(), "spacing": ctx.spacing.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))

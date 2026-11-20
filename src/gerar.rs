@@ -1433,8 +1433,11 @@ pub struct Picked {
     pub title: String,
     /// What marks the report for a rerun: the set's id for a set, else the component's.
     pub key: u64,
-    /// The set, when a set was selected.
+    /// The set, when a set was selected (or a variant of one: the documentation is of the whole set).
     pub set: Option<SetPick>,
+    /// The id of the variant that was selected, when the selection was a variant (or an instance of one) and the set above it was taken
+    /// instead: 0.11.0 builds before this one marked such a Section with the variant's id.
+    pub legacy_key: Option<u64>,
 }
 
 /// A selected component set: its variants and which one is the default.
@@ -1549,6 +1552,14 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
     let comp = if component == id { node.clone() } else { host(lang, "node.get", &json!({"id": component, "fields": ["name", "type", "absoluteBounds"]}))? };
     // A variant is named like "Property=Value, …": look for its set only then.
     let variant_like = comp.get("name").and_then(Value::as_str).is_some_and(|n| n.contains('='));
+    // A variant of a set stands for the whole set: the documentation is the set's, as if the set had been selected.
+    if set.is_none() && variant_like && let Some(parent) = set_of(lang, component)? {
+        let mut up = resolve(lang, &[parent])?;
+        notes.append(&mut up.notes);
+        up.notes = notes;
+        up.legacy_key = Some(component);
+        return Ok(up);
+    }
     let holder = match set {
         Some(s) => s,
         None if variant_like => set_of(lang, component)?.unwrap_or(component),
@@ -1556,7 +1567,7 @@ pub fn resolve(lang: Lang, selection: &[u64]) -> Result<Picked> {
     };
     let title = if set_pick.is_some() { set_name } else { comp.get("name").and_then(Value::as_str).unwrap_or_default().to_string() };
     let key = if set_pick.is_some() { holder } else { component };
-    Ok(Picked { component, holder, node: comp, notes, title, key, set: set_pick })
+    Ok(Picked { component, holder, node: comp, notes, title, key, set: set_pick, legacy_key: None })
 }
 
 /// A stage: a top-level frame, away from everything, that the instance is placed on. (instance.place
