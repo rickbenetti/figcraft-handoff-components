@@ -333,5 +333,8 @@
   "GalleryLeftOut": "{n} options left out",
   "LayerGallery": "Gallery: {name}",
   "LayerTile": "Tile: {name}",
-  "MasterOrganized": "The original set was arranged with auto layout and wrap."
+  "MasterOrganized": "The original set was arranged with auto layout and wrap.",
+  "PanelWarnSupport": "The support frame could not be made: the Cover was made without approval pills.",
+  "PanelWarnMissingOne": "Not made, because it is missing and Update does not name it: {names}.",
+  "PanelWarnMissing": "Not made, because they are missing and Update does not name them: {names}."
 }

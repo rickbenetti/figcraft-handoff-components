@@ -257,6 +257,9 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnWide | Wide component: every frame was made wider. | Componente largo: todos os quadros foram alargados. |
 | PanelWarnReflow | The set could not be arranged in lines: the Master was made as wide as it. | Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele. |
 | PanelWarnApproval | The approval pills have no Area property: the Cover was made without the areas. | As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas. |
+| PanelWarnSupport | The support frame could not be made: the Cover was made without approval pills. | Não foi possível criar o quadro de apoio: a Capa ficou sem pílulas de aprovação. |
+| PanelWarnMissingOne | Not made, because it is missing and Update does not name it: {names}. | Não foi feito, porque falta e Atualizar não o nomeia: {names}. |
+| PanelWarnMissing | Not made, because they are missing and Update does not name them: {names}. | Não foram feitos, porque faltam e Atualizar não os nomeia: {names}. |
 | PanelWarnMarkersOne | {n} marker did not fit in the drawing; see the Note column. | {n} marcador não coube no desenho; veja a coluna Nota. |
 | PanelWarnMarkers | {n} markers did not fit in the drawing; see the Note column. | {n} marcadores não couberam no desenho; veja a coluna Nota. |
 | PanelWarnSpacingOne | {n} spacing band did not fit in the Layouts drawing; see the note in that frame. | {n} faixa de espaçamento não coube no desenho do Layouts; veja a nota nesse quadro. |

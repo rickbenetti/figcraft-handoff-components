@@ -333,5 +333,8 @@
   "GalleryLeftOut": "Ficaram de fora {n} opções",
   "LayerGallery": "Galeria: {name}",
   "LayerTile": "Azulejo: {name}",
-  "MasterOrganized": "O conjunto original foi organizado com auto layout em quebra de linha."
+  "MasterOrganized": "O conjunto original foi organizado com auto layout em quebra de linha.",
+  "PanelWarnSupport": "Não foi possível criar o quadro de apoio: a Capa ficou sem pílulas de aprovação.",
+  "PanelWarnMissingOne": "Não foi feito, porque falta e Atualizar não o nomeia: {names}.",
+  "PanelWarnMissing": "Não foram feitos, porque faltam e Atualizar não os nomeia: {names}."
 }

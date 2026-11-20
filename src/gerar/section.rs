@@ -332,10 +332,14 @@ pub enum Warn {
     MarkersDropped(usize),
     /// Numbers of the Layouts drawing that did not fit (how many): the frame says which in a note under the drawing.
     SpacingDropped(usize),
+    /// The support frame (and the set of approval pills) had to be made again for a Cover and could not be: the Cover has no pills.
+    SupportMissing,
+    /// Frames that are not there and that "Update" does not name, so no run made them (a bit for each frame of `Sec::ALL`, by its index).
+    FrameMissing(u16),
 }
 
 impl Warn {
-    pub const ALL: [Warn; 8] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty, Warn::MarkersDropped(0), Warn::SpacingDropped(0)];
+    pub const ALL: [Warn; 10] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty, Warn::SupportMissing, Warn::FrameMissing(0), Warn::MarkersDropped(0), Warn::SpacingDropped(0)];
 
     pub fn code(self) -> &'static str {
         match self {
@@ -347,6 +351,8 @@ impl Warn {
             Warn::ApprovalProperty => "approval_property_missing",
             Warn::MarkersDropped(_) => "markers_dropped",
             Warn::SpacingDropped(_) => "spacing_dropped",
+            Warn::SupportMissing => "support_missing",
+            Warn::FrameMissing(_) => "frame_missing",
         }
     }
 
@@ -360,6 +366,8 @@ impl Warn {
             Warn::ApprovalProperty => Key::PanelWarnApproval,
             Warn::MarkersDropped(_) => Key::PanelWarnMarkers,
             Warn::SpacingDropped(_) => Key::PanelWarnSpacing,
+            Warn::SupportMissing => Key::PanelWarnSupport,
+            Warn::FrameMissing(_) => Key::PanelWarnMissing,
         })
     }
 
@@ -368,6 +376,10 @@ impl Warn {
         match self {
             Warn::MarkersDropped(n) => tf(lang, plural(n, Key::PanelWarnMarkersOne, Key::PanelWarnMarkers), &[("n", &n.to_string())]),
             Warn::SpacingDropped(n) => tf(lang, plural(n, Key::PanelWarnSpacingOne, Key::PanelWarnSpacing), &[("n", &n.to_string())]),
+            Warn::FrameMissing(mask) => {
+                let names: Vec<&str> = Sec::ALL.iter().enumerate().filter(|(i, _)| mask & (1 << i) != 0).map(|(_, s)| t(lang, s.title_key())).collect();
+                tf(lang, plural(names.len(), Key::PanelWarnMissingOne, Key::PanelWarnMissing), &[("names", &names.join(", "))])
+            }
             w => w.text(lang).to_string(),
         }
     }
@@ -1169,6 +1181,15 @@ fn other_has_master(lang: Lang, page: &PageInfo, key: &str, this: Option<u64>) -
     Ok(false)
 }
 
+/// The frames that are not there, that no run made and that "Update" does not name: the Section is not new, the frame is not permanent (those
+/// are made again whenever they are gone) and it is not the Master. A bit for each frame of `Sec::ALL`, by its index.
+pub fn missing_mask(exists: &dyn Fn(Sec) -> bool, created: bool, update: Update) -> u16 {
+    if created {
+        return 0;
+    }
+    Sec::ALL.iter().filter(|s| !s.permanent() && **s != Sec::Master && !exists(**s) && !update.sections().contains(s)).fold(0, |m, s| m | (1 << s.index()))
+}
+
 /// Whether a run makes the frame `sec`: the Component Master whenever it is allowed; a frame that is not there yet when the Section is new
 /// (a permanent one also when it was deleted by hand); and a frame that is there only when the update names it, never a permanent one.
 /// Cover, Changelog and Support, once made, are never touched by any option of "Update", nor by Generate.
@@ -1176,7 +1197,7 @@ pub fn frame_is_made(sec: Sec, exists: bool, created: bool, update: Update, mast
     match (exists, sec) {
         (_, Sec::Master) => master_allowed,
         (false, s) if s.permanent() => true,
-        (false, _) => created,
+        (false, s) => created || update.sections().contains(&s),
         (true, s) if s.permanent() => false,
         (true, s) => update.sections().contains(&s),
     }
@@ -1281,6 +1302,25 @@ pub fn generate(input: Input) -> Result<Value> {
     // Section has one; a Section that has none makes it only when no other Section of the component holds the original.
     let master_allowed = !beside && (old(Sec::Master).is_some() || !other_has_master(lang, &page, &comp_key, section_id)?);
     let will_make = |sec: Sec| frame_is_made(sec, old(sec).is_some(), created, update, master_allowed);
+    // 4b. Frames that are gone and that Update does not name stay gone: the run says so.
+    let missing = missing_mask(&|s| old(s).is_some(), created, update);
+    if missing != 0 {
+        warnings.push(Warn::FrameMissing(missing));
+    }
+    // 4c. A Cover that is made again needs the set of approval pills: when the support frame is gone (a rerun never found one) it is made now,
+    // the way the first generation makes it. When that fails the Cover is made without pills and the run says so.
+    if ctx.pills.is_none() && will_make(Sec::Cover) && section_id.is_some() {
+        let (x, y) = section_origin(&boxes, None);
+        match build_support(&ctx, x, y) {
+            Ok((frame, set, w, h)) => {
+                boxes.push((x, y, w, h));
+                ctx.pills = Some(set);
+                support_made = Some(json!({"frame": frame, "set": set, "x": x, "y": y, "w": w, "h": h}));
+                ctx.pill_area = read_area_property(lang, set)?;
+            }
+            Err(_) => warnings.push(Warn::SupportMissing),
+        }
+    }
     // 5b. The width of the frames. They are all 1180, with the Master's room for the set at 988; a set that is wider is given auto layout with
     // wrap (the host lays its variants out in lines, the set is 988 wide). Only when not even one variant fits in a line, or the host does not
     // keep the layout, the Master grows and every frame made in this run grows with it, to the same width, so the column stays straight.
@@ -1365,9 +1405,11 @@ pub fn generate(input: Input) -> Result<Value> {
             match old(sec) {
                 // The new frame takes the old one's place; what is under the old one moves by the difference in height.
                 Some(e) => {
-                    shift_below(&mut placed, sec, e.y, e.h, h);
+                    // Where it stands now: an earlier frame of this run may have moved it (its own height changed).
+                    let (y0, h0) = placed.iter().find(|p| p.sec == sec).map_or((e.y, e.h), |p| (p.y, p.h));
+                    shift_below(&mut placed, sec, y0, h0, h);
                     placed.retain(|p| p.sec != sec);
-                    placed.push(Placed { sec, id: frame, x: e.x, y: e.y, w, h });
+                    placed.push(Placed { sec, id: frame, x: e.x, y: y0, w, h });
                 }
                 None => {
                     placed.retain(|p| p.sec != sec);
@@ -1403,9 +1445,14 @@ pub fn generate(input: Input) -> Result<Value> {
             let Some(me) = placed.iter().find(|p| p.sec == sec).cloned() else { continue };
             let above = Sec::ALL.iter().take(sec.index()).rev().find_map(|s| placed.iter().find(|p| p.sec == *s));
             let y = above.map_or(SECTION_PAD, |a| a.bottom() + FRAME_GAP);
-            // Open room for it: what stood at or under that line moves down by its height and a gap.
-            for p in placed.iter_mut().filter(|p| p.sec != sec && p.y >= y - 0.5) {
-                p.y += me.h + FRAME_GAP;
+            // Room for it: what stood at or under that line moves so that the frame right under starts one gap below this one (a hole the
+            // deleted frame left is closed, and a frame of another height is made room for), the others by the same amount.
+            let first = placed.iter().filter(|p| p.sec != sec && p.y >= y - 0.5).map(|p| p.y).fold(f64::INFINITY, f64::min);
+            if first.is_finite() {
+                let delta = y + me.h + FRAME_GAP - first;
+                for p in placed.iter_mut().filter(|p| p.sec != sec && p.y >= y - 0.5) {
+                    p.y += delta;
+                }
             }
             if let Some(p) = placed.iter_mut().find(|p| p.sec == sec) {
                 p.y = y;
@@ -1443,7 +1490,7 @@ pub fn generate(input: Input) -> Result<Value> {
     Ok(json!({
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
-        "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "migrated_from": migrated, "holder": target.holder,
+        "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "migrated_from": migrated, "missing": Sec::ALL.iter().filter(|s| missing & (1 << s.index()) != 0).map(|s| s.key()).collect::<Vec<_>>(), "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
         "failed": failed, "master": ctx.master.borrow().clone(), "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "gallery": ctx.gallery.borrow().clone(), "spacing": ctx.spacing.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
@@ -1815,6 +1862,47 @@ mod tests {
         assert!(frame_is_made(Sec::Layouts, false, true, Update::Tokens, false));
         assert!(frame_is_made(Sec::Master, true, false, Update::Layouts, true));
     }
+    #[test]
+    fn a_frame_that_is_gone_is_made_again_when_update_names_it_and_only_then() {
+        // Update names it: made again (a rerun, the Section is not new).
+        assert!(frame_is_made(Sec::Properties, false, false, Update::Properties, true));
+        assert!(frame_is_made(Sec::Anatomy, false, false, Update::All, true));
+        assert!(frame_is_made(Sec::Layouts, false, false, Update::Tables, true));
+        // Update does not name it: not made.
+        assert!(!frame_is_made(Sec::Properties, false, false, Update::Tokens, true));
+        assert!(!frame_is_made(Sec::Tokens, false, false, Update::Tables, true));
+    }
+
+    #[test]
+    fn the_frames_that_stay_gone_are_the_ones_update_does_not_name() {
+        let gone = |gone: &'static [Sec]| move |s: Sec| !gone.contains(&s);
+        let bit = |s: Sec| 1u16 << s.index();
+        // Properties is gone and Update names Tokens: it stays gone, and the run says so.
+        assert_eq!(missing_mask(&gone(&[Sec::Properties]), false, Update::Tokens), bit(Sec::Properties));
+        // Update names it: nothing is missing. A new Section makes everything. Cover, Changelog and the Master are never "missing".
+        assert_eq!(missing_mask(&gone(&[Sec::Properties]), false, Update::Properties), 0);
+        assert_eq!(missing_mask(&gone(&[Sec::Properties]), true, Update::Tokens), 0);
+        assert_eq!(missing_mask(&gone(&[Sec::Cover, Sec::Changelog, Sec::Master]), false, Update::Tokens), 0);
+        assert_eq!(missing_mask(&gone(&[Sec::Anatomy, Sec::Tokens]), false, Update::Layouts), bit(Sec::Anatomy) | bit(Sec::Tokens));
+    }
+
+    #[test]
+    fn the_new_warnings_have_their_codes_and_say_the_names_of_the_frames_in_both_languages() {
+        assert_eq!(Warn::SupportMissing.code(), "support_missing");
+        assert_eq!(Warn::FrameMissing(0).code(), "frame_missing");
+        let mask = (1u16 << Sec::Properties.index()) | (1 << Sec::Tokens.index());
+        assert_eq!(Warn::FrameMissing(mask).line(Lang::En), "Not made, because they are missing and Update does not name them: Properties, Tokens.");
+        assert_eq!(Warn::FrameMissing(1 << Sec::Layouts.index()).line(Lang::Pt), "Não foi feito, porque falta e Atualizar não o nomeia: Layouts (espaçamento).");
+        for lang in Lang::ALL {
+            assert!(!Warn::SupportMissing.text(lang).is_empty());
+            for w in [Warn::SupportMissing, Warn::FrameMissing(mask)] {
+                assert!(w.line(lang).chars().count() <= 140, "{}", w.line(lang));
+            }
+        }
+        let codes: Vec<&str> = Warn::ALL.iter().map(|w| w.code()).collect();
+        assert_eq!(codes.len(), 10);
+    }
+
     #[test]
     fn the_warning_for_markers_left_out_counts_them_and_is_short_in_both_languages() {
         // One: singular; three: plural; the number is in the text.

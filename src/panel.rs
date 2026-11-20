@@ -402,6 +402,7 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
     // f) The panel again.
     state.cleared.clear();
     let dropped = out.get("anatomy").and_then(|a| a.get("dropped")).and_then(Value::as_array).map_or(0, Vec::len);
+    let missing = out.get("missing").and_then(Value::as_array).map_or(0u16, |a| a.iter().filter_map(Value::as_str).filter_map(section::Sec::from_key).fold(0, |m, s| m | (1 << s.index())));
     let spacing_dropped = out.get("spacing").and_then(|a| a.get("outside_dropped")).and_then(Value::as_u64).unwrap_or(0) as usize;
     let warns: Vec<Warn> = out
         .get("warnings")
@@ -409,6 +410,7 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
         .map(|a| a.iter().filter_map(Value::as_str).filter_map(|c| Warn::ALL.into_iter().find(|w| w.code() == c)).map(|w| match w {
             Warn::MarkersDropped(_) => Warn::MarkersDropped(dropped),
             Warn::SpacingDropped(_) => Warn::SpacingDropped(spacing_dropped),
+            Warn::FrameMissing(_) => Warn::FrameMissing(missing),
             w => w,
         }).collect())
         .unwrap_or_default();
