@@ -11,15 +11,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 2,
       "inside": 0,
-      "outside": 2,
-      "dropped": 0,
+      "outside": 0,
+      "spines": 2,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 45.4
+      "stack_overlap": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -56,24 +61,24 @@
         "layouts",
         64.0,
         2529.0,
-        482.0
+        532.0
       ],
       [
         "tokens",
         64.0,
-        3075.0,
+        3125.0,
         736.0
       ],
       [
         "changelog",
         64.0,
-        3875.0,
+        3925.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      4218.0
+      4268.0
     ],
     "tables": [
       [
@@ -89,10 +94,12 @@
         3
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 82400738,
-    "calls": 1017
+    "fuel": 84266431,
+    "calls": 1032
   },
   "copia-2 / id 3 (Toast variant)": {
     "markers": {
@@ -106,15 +113,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 2,
+      "drawings": 2,
+      "deeper": false,
       "groups": 3,
       "inside": 0,
-      "outside": 3,
-      "dropped": 0,
+      "outside": 1,
+      "spines": 2,
+      "dropped": 2,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 23.4
+      "stack_overlap": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -151,24 +163,24 @@
         "layouts",
         64.0,
         3317.0,
-        585.0
+        1048.0
       ],
       [
         "tokens",
         64.0,
-        3966.0,
+        4429.0,
         727.0
       ],
       [
         "changelog",
         64.0,
-        4757.0,
+        5220.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5100.0
+      5563.0
     ],
     "tables": [
       [
@@ -184,10 +196,12 @@
         7
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 112231911,
-    "calls": 1275
+    "fuel": 117430859,
+    "calls": 1308
   },
   "carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -201,14 +215,19 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 2,
+      "drawings": 2,
+      "deeper": false,
       "groups": 3,
-      "inside": 1,
-      "outside": 2,
-      "dropped": 0,
+      "inside": 0,
+      "outside": 1,
+      "spines": 2,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
+      "stack_overlap": 0,
       "min_gap": 99
     },
     "frames": [
@@ -246,24 +265,24 @@
         "layouts",
         64.0,
         3393.0,
-        601.0
+        1150.0
       ],
       [
         "tokens",
         64.0,
-        4058.0,
+        4607.0,
         935.0
       ],
       [
         "changelog",
         64.0,
-        5057.0,
+        5606.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5400.0
+      5949.0
     ],
     "tables": [
       [
@@ -283,10 +302,12 @@
         7
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 261210863,
-    "calls": 1353
+    "fuel": 266338294,
+    "calls": 1395
   },
   "carga-v2 / id 194 (Card de carga)": {
     "markers": {
@@ -300,15 +321,20 @@
       "cross": 0
     },
     "spacing": {
-      "groups": 8,
+      "levels": 3,
+      "drawings": 3,
+      "deeper": false,
+      "groups": 17,
       "inside": 0,
-      "outside": 8,
-      "dropped": 0,
+      "outside": 0,
+      "spines": 15,
+      "dropped": 26,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 48.3
+      "stack_overlap": 0,
+      "min_gap": 12.0
     },
     "frames": [
       [
@@ -345,24 +371,24 @@
         "layouts",
         64.0,
         7282.0,
-        2661.0
+        7675.0
       ],
       [
         "tokens",
         64.0,
-        10007.0,
+        15021.0,
         2764.0
       ],
       [
         "changelog",
         64.0,
-        12835.0,
+        17849.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      13178.0
+      18192.0
     ],
     "tables": [
       [
@@ -378,10 +404,12 @@
         18
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 740959195,
-    "calls": 3972
+    "fuel": 798823001,
+    "calls": 4347
   },
   "ds-base-demo / Button": {
     "markers": {
@@ -395,15 +423,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 3,
       "inside": 0,
-      "outside": 3,
-      "dropped": 0,
+      "outside": 1,
+      "spines": 2,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 57.4
+      "stack_overlap": 0,
+      "min_gap": 60.8
     },
     "frames": [
       [
@@ -440,24 +473,24 @@
         "layouts",
         64.0,
         4669.0,
-        482.0
+        532.0
       ],
       [
         "tokens",
         64.0,
-        5215.0,
+        5265.0,
         1441.0
       ],
       [
         "changelog",
         64.0,
-        6720.0,
+        6770.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      7063.0
+      7113.0
     ],
     "tables": [
       [
@@ -478,11 +511,12 @@
       ]
     ],
     "warnings": [
-      "no_stage"
+      "no_stage",
+      "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 354794313,
-    "calls": 3660
+    "fuel": 356227797,
+    "calls": 3675
   },
   "ds-base-demo / Card": {
     "markers": {
@@ -496,15 +530,20 @@
       "cross": 0
     },
     "spacing": {
-      "groups": 7,
-      "inside": 1,
-      "outside": 6,
-      "dropped": 0,
+      "levels": 4,
+      "drawings": 4,
+      "deeper": false,
+      "groups": 10,
+      "inside": 0,
+      "outside": 3,
+      "spines": 5,
+      "dropped": 10,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 40.2
+      "stack_overlap": 0,
+      "min_gap": 36.0
     },
     "frames": [
       [
@@ -541,24 +580,24 @@
         "layouts",
         64.0,
         5523.0,
-        906.0
+        3110.0
       ],
       [
         "tokens",
         64.0,
-        6493.0,
+        8697.0,
         2131.0
       ],
       [
         "changelog",
         64.0,
-        8688.0,
+        10892.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      9031.0
+      11235.0
     ],
     "tables": [
       [
@@ -578,10 +617,12 @@
         8
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 374998717,
-    "calls": 3423
+    "fuel": 392055416,
+    "calls": 3561
   },
   "ds-base-demo / Accordion": {
     "markers": {
@@ -595,15 +636,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 2,
       "inside": 0,
-      "outside": 2,
-      "dropped": 0,
+      "outside": 0,
+      "spines": 2,
+      "dropped": 2,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 99
+      "stack_overlap": 0,
+      "min_gap": 39.0
     },
     "frames": [
       [
@@ -640,24 +686,24 @@
         "layouts",
         64.0,
         3629.0,
-        564.0
+        614.0
       ],
       [
         "tokens",
         64.0,
-        4257.0,
+        4307.0,
         948.0
       ],
       [
         "changelog",
         64.0,
-        5269.0,
+        5319.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5612.0
+      5662.0
     ],
     "tables": [
       [
@@ -677,10 +723,12 @@
         3
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 149705325,
-    "calls": 1614
+    "fuel": 153397043,
+    "calls": 1638
   },
   "ds-base-demo / Code": {
     "markers": {
@@ -694,15 +742,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 3,
       "inside": 0,
-      "outside": 3,
-      "dropped": 0,
+      "outside": 0,
+      "spines": 3,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 99
+      "stack_overlap": 0,
+      "min_gap": 15.5
     },
     "frames": [
       [
@@ -739,24 +792,24 @@
         "layouts",
         64.0,
         2708.0,
-        534.0
+        584.0
       ],
       [
         "tokens",
         64.0,
-        3306.0,
+        3356.0,
         671.0
       ],
       [
         "changelog",
         64.0,
-        4041.0,
+        4091.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      4384.0
+      4434.0
     ],
     "tables": [
       [
@@ -772,10 +825,12 @@
         2
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 92226001,
-    "calls": 1023
+    "fuel": 96128368,
+    "calls": 1050
   },
   "ds-base-demo / Icon": {
     "markers": {
@@ -863,7 +918,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 128517309,
+    "fuel": 128419173,
     "calls": 1551
   },
   "pt-BR / copia-2 / id 32": {
@@ -878,15 +933,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 2,
       "inside": 0,
-      "outside": 2,
-      "dropped": 0,
+      "outside": 0,
+      "spines": 2,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 45.4
+      "stack_overlap": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -923,24 +983,24 @@
         "layouts",
         64.0,
         2529.0,
-        482.0
+        532.0
       ],
       [
         "tokens",
         64.0,
-        3075.0,
+        3125.0,
         736.0
       ],
       [
         "changelog",
         64.0,
-        3875.0,
+        3925.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      4218.0
+      4268.0
     ],
     "tables": [
       [
@@ -956,10 +1016,12 @@
         3
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 83036574,
-    "calls": 1026
+    "fuel": 84894775,
+    "calls": 1041
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -973,14 +1035,19 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 2,
+      "drawings": 2,
+      "deeper": false,
       "groups": 3,
-      "inside": 1,
-      "outside": 2,
-      "dropped": 0,
+      "inside": 0,
+      "outside": 1,
+      "spines": 2,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
+      "stack_overlap": 0,
       "min_gap": 99
     },
     "frames": [
@@ -1018,24 +1085,24 @@
         "layouts",
         64.0,
         3393.0,
-        601.0
+        1150.0
       ],
       [
         "tokens",
         64.0,
-        4058.0,
+        4607.0,
         935.0
       ],
       [
         "changelog",
         64.0,
-        5057.0,
+        5606.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5400.0
+      5949.0
     ],
     "tables": [
       [
@@ -1055,10 +1122,12 @@
         7
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 262286229,
-    "calls": 1362
+    "fuel": 267255692,
+    "calls": 1404
   },
   "pt-BR / ds-base-demo / Button": {
     "markers": {
@@ -1072,15 +1141,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 3,
       "inside": 0,
-      "outside": 3,
-      "dropped": 0,
+      "outside": 1,
+      "spines": 2,
+      "dropped": 1,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 57.4
+      "stack_overlap": 0,
+      "min_gap": 60.8
     },
     "frames": [
       [
@@ -1117,24 +1191,24 @@
         "layouts",
         64.0,
         4703.0,
-        482.0
+        532.0
       ],
       [
         "tokens",
         64.0,
-        5249.0,
+        5299.0,
         1441.0
       ],
       [
         "changelog",
         64.0,
-        6754.0,
+        6804.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      7097.0
+      7147.0
     ],
     "tables": [
       [
@@ -1155,11 +1229,12 @@
       ]
     ],
     "warnings": [
-      "no_stage"
+      "no_stage",
+      "spacing_dropped"
     ],
     "failed": [],
-    "fuel": 356972173,
-    "calls": 3669
+    "fuel": 358168315,
+    "calls": 3684
   },
   "pt-BR / ds-base-demo / Card": {
     "markers": {
@@ -1173,15 +1248,20 @@
       "cross": 0
     },
     "spacing": {
-      "groups": 7,
-      "inside": 1,
-      "outside": 6,
-      "dropped": 0,
+      "levels": 4,
+      "drawings": 4,
+      "deeper": false,
+      "groups": 10,
+      "inside": 0,
+      "outside": 3,
+      "spines": 5,
+      "dropped": 10,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 40.2
+      "stack_overlap": 0,
+      "min_gap": 36.0
     },
     "frames": [
       [
@@ -1218,24 +1298,24 @@
         "layouts",
         64.0,
         5523.0,
-        906.0
+        3110.0
       ],
       [
         "tokens",
         64.0,
-        6493.0,
+        8697.0,
         2149.0
       ],
       [
         "changelog",
         64.0,
-        8706.0,
+        10910.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      9049.0
+      11253.0
     ],
     "tables": [
       [
@@ -1255,10 +1335,12 @@
         8
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 376867926,
-    "calls": 3432
+    "fuel": 394552224,
+    "calls": 3570
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
@@ -1272,15 +1354,20 @@
       "cross": 0
     },
     "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
       "groups": 2,
       "inside": 0,
-      "outside": 2,
-      "dropped": 0,
+      "outside": 0,
+      "spines": 2,
+      "dropped": 2,
       "badge_over_content": 0,
       "guide_over_content": 0,
       "cross": 0,
       "oblique": 0,
-      "min_gap": 99
+      "stack_overlap": 0,
+      "min_gap": 39.0
     },
     "frames": [
       [
@@ -1317,24 +1404,24 @@
         "layouts",
         64.0,
         3629.0,
-        564.0
+        614.0
       ],
       [
         "tokens",
         64.0,
-        4257.0,
+        4307.0,
         948.0
       ],
       [
         "changelog",
         64.0,
-        5269.0,
+        5319.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5612.0
+      5662.0
     ],
     "tables": [
       [
@@ -1354,10 +1441,12 @@
         3
       ]
     ],
-    "warnings": [],
+    "warnings": [
+      "spacing_dropped"
+    ],
     "failed": [],
-    "fuel": 151254937,
-    "calls": 1623
+    "fuel": 154755263,
+    "calls": 1647
   },
   "cover editada / pills before": {
     "nodes": 74,
@@ -1485,7 +1574,9 @@
         "lang": "en",
         "new_section": false,
         "failed": [],
-        "warnings": [],
+        "warnings": [
+          "spacing_dropped"
+        ],
         "sets_found": 0,
         "area_retries": 0
       },
@@ -1494,7 +1585,8 @@
         "new_section": false,
         "failed": [],
         "warnings": [
-          "no_stage"
+          "no_stage",
+          "spacing_dropped"
         ],
         "sets_found": 1,
         "area_retries": 0
@@ -1503,7 +1595,9 @@
         "lang": "pt-BR",
         "new_section": false,
         "failed": [],
-        "warnings": [],
+        "warnings": [
+          "spacing_dropped"
+        ],
         "sets_found": 1,
         "area_retries": 0
       },
@@ -1511,7 +1605,9 @@
         "lang": "pt-BR",
         "new_section": true,
         "failed": [],
-        "warnings": [],
+        "warnings": [
+          "spacing_dropped"
+        ],
         "sets_found": 1,
         "area_retries": 0
       }
