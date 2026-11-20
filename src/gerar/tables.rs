@@ -13,25 +13,16 @@ pub(super) fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers:
     table(c.lang, parent, name, &reflow::scale_columns(cols, c.useful.get()), headers, rows)
 }
 use super::*;
-use crate::delta::{Diff, Kind, Label, Swatch};
+use crate::delta::{Diff, Kind, Label};
 use crate::variants::Axis;
 
 /// The columns (they add up to 1084).
 const PROPS_COLS: [f64; 4] = [240.0, 140.0, 460.0, 244.0];
 const ANATOMY_COLS: [f64; 4] = [60.0, 120.0, 280.0, 624.0];
 const LAYOUT_COLS: [f64; 4] = [180.0, 120.0, 420.0, 364.0];
-/// The first two columns of a matrix (the widths of the 1824 layout scaled to 1084); the options share what is left, in whole pixels.
-const MATRIX_ELEMENT_W: f64 = 119.0;
-const MATRIX_PROPERTY_W: f64 = 166.0;
-/// The most options a matrix shows side by side; more are stacked in tables of the same frame.
-const MATRIX_SLICE: usize = 5;
-/// The most nodes the matrices of one run may make.
-pub const MATRIX_NODE_CAP: usize = 400;
 /// The most nodes the table of Layouts may make (about 10 layers of five rows): a component with hundreds of layers with spacing
 /// would otherwise spend the run's whole budget on one frame.
 pub const LAYOUT_NODE_CAP: usize = 400;
-/// Longest value text in a matrix cell.
-const CELL_CHARS: usize = 60;
 
 pub(super) fn muted_note(lang: Lang, parent: u64, text: &str) -> Result<u64> {
     text_with(lang, parent, text, LINE_SIZE, pal::GUIDE, "Note", json!({"width": USEFUL_W, "textAutoResize": "height"}))
@@ -39,10 +30,6 @@ pub(super) fn muted_note(lang: Lang, parent: u64, text: &str) -> Result<u64> {
 
 pub(super) fn heads(lang: Lang, keys: &[Key]) -> Vec<String> {
     keys.iter().map(|k| t(lang, *k).to_string()).collect()
-}
-
-fn cut(s: &str) -> String {
-    if s.chars().count() <= CELL_CHARS { s.to_string() } else { format!("{}…", s.chars().take(CELL_CHARS - 1).collect::<String>()) }
 }
 
 /// An instance of `component` in a temporary frame far off the page, walked as the 0.10.0 report walked the instance it audited (an
@@ -150,21 +137,6 @@ pub fn merge_spacing(list: Vec<Spacing>) -> Vec<(Spacing, usize)> {
     out
 }
 
-/// The header of an option's column: its name, and the mark of the default one after it ("Small · Default"); when the option is itself
-/// named like the mark (case and accents aside) the name says it once.
-pub fn option_header(lang: Lang, name: &str, is_default: bool) -> String {
-    let mark = t(lang, Key::LegendDefault);
-    if !is_default || fold_accents(name) == fold_accents(mark) {
-        return name.to_string();
-    }
-    format!("{name} · {mark}")
-}
-
-/// Lower case with the common Portuguese accents taken off, to compare two words.
-fn fold_accents(s: &str) -> String {
-    s.trim().chars().flat_map(char::to_lowercase).map(|ch| match ch { 'á' | 'à' | 'â' | 'ã' => 'a', 'é' | 'ê' => 'e', 'í' => 'i', 'ó' | 'ô' | 'õ' => 'o', 'ú' | 'ü' => 'u', 'ç' => 'c', _ => ch }).collect()
-}
-
 /// The rows of each layer's spacing (Top, Right, Bottom, Left, Gap), one list per layer: a side whose value is 0 and that has no token says
 /// nothing and is left out; a layer left with no row is left out too (it is not in the list).
 fn layer_rows(lang: Lang, layers: &[(Spacing, usize)]) -> Vec<Vec<Vec<Cv>>> {
@@ -264,145 +236,168 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------------------------
-// States and Variants
+// States and Variants: a gallery of instances
 // ---------------------------------------------------------------------------------------------
 
-/// What a row of a matrix is about.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Rk {
-    Label(Label),
-    Shown,
-    Swap,
+/// The room of a tile around its instance, the least tile width, the radius, and the gap between cells (in a line and between lines).
+const TILE_PAD: f64 = 24.0;
+const TILE_MIN_W: f64 = 160.0;
+const TILE_RADIUS: f64 = 12.0;
+const CELL_GAP: f64 = 48.0;
+/// The nodes a cell makes besides its instance: the cell, the tile and the two texts (and a third when it has a note).
+const CELL_OVERHEAD: usize = 4;
+/// The nodes of instances the gallery may make, the most cells of an axis and of the frame.
+pub const GALLERY_NODE_BUDGET: usize = 200;
+pub const GALLERY_AXIS_CAP: usize = 24;
+pub const GALLERY_CELL_CAP: usize = 80;
+/// The most names "changes: …" lists.
+const CHANGE_NAMES: usize = 4;
+
+/// The node budget of the gallery for a component whose instance has `cell` nodes (the instance and what its cell adds): 200, or three
+/// cells when even one does not fit in 200.
+pub fn gallery_budget(cell: usize) -> usize {
+    if cell > GALLERY_NODE_BUDGET { 3 * cell } else { GALLERY_NODE_BUDGET }
 }
 
-/// A row of an axis's matrix: the element, the property and a cell for each option.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Mrow {
-    pub element: String,
-    pub property: String,
-    pub cells: Vec<Cv>,
-}
-
-fn hex_of(value: &str) -> String {
-    let rest = value.strip_prefix('#').unwrap_or_default();
-    let n = rest.chars().take_while(char::is_ascii_hexdigit).count();
-    format!("#{}", &rest[..n.min(8)])
-}
-
-fn side_cell(lang: Lang, label: Label, side: &delta::Side) -> Cv {
-    let c = delta::cell_of(side, label, lang);
-    let swatch = c.colour.map(|s| (hex_of(&c.value), s == Swatch::Hollow));
-    let text = cut(&c.value);
-    if c.token.is_none() && swatch.is_none() { Cv::Text(text) } else { Cv::Val { token: c.token, text, swatch } }
-}
-
-/// The rows of the matrix of an axis. `options[i]` is what option `i` changes from the default option (`None` for the default
-/// itself, which is the base). A row is a layer and a property that some option changes; its cell in an option that doesn't change
-/// it is the default's value. `root` names the component's own box (the layer `None`).
-pub fn matrix(lang: Lang, root: &str, options: &[Option<&Diff>]) -> Vec<Mrow> {
-    struct Row {
-        layer: Option<String>,
-        rk: Rk,
-        base: Cv,
-        cells: Vec<Option<Cv>>,
-    }
-    let mut rows: Vec<Row> = Vec::new();
-    for (i, diff) in options.iter().enumerate() {
-        let Some(diff) = diff else { continue };
-        for ch in &diff.changes {
-            let (rk, base, cell) = match &ch.kind {
-                Kind::Changed { label, from, to } => (Rk::Label(*label), side_cell(lang, *label, from), side_cell(lang, *label, to)),
-                Kind::Shown(on) => {
-                    let word = |v: bool| Cv::Text(t(lang, if v { Key::DeltaVisible } else { Key::DeltaHidden }).to_string());
-                    (Rk::Shown, word(!*on), word(*on))
-                }
-                Kind::Swapped(text) => (Rk::Swap, Cv::Text(delta::DASH.to_string()), Cv::Text(cut(text))),
-            };
-            let at = match rows.iter().position(|r| r.layer == ch.layer && r.rk == rk) {
-                Some(p) => p,
-                None => {
-                    rows.push(Row { layer: ch.layer.clone(), rk, base, cells: vec![None; options.len()] });
-                    rows.len() - 1
-                }
-            };
-            rows[at].cells[i] = Some(cell);
+/// Which options of each axis the gallery draws. `options[a]` is how many options axis `a` has and `defaults[a]` the index of its
+/// default; every cell costs `cell` nodes. The default of each axis always goes in; then the axes take an option each in turn
+/// (rotation) while the next one fits in `budget` nodes, the axis's cap and the frame's. Returns, for each axis, the indices kept (in
+/// order); the options not kept are the ones left out.
+pub fn plan_cells(options: &[usize], defaults: &[Option<usize>], cell: usize, budget: usize, axis_cap: usize, cap: usize) -> Vec<Vec<usize>> {
+    let mut kept: Vec<Vec<usize>> = vec![Vec::new(); options.len()];
+    let mut used = 0usize;
+    let mut total = 0usize;
+    for (a, d) in defaults.iter().enumerate() {
+        if let Some(d) = d.filter(|d| *d < options[a]) {
+            kept[a].push(d);
+            used += cell;
+            total += 1;
         }
     }
-    rows.into_iter()
-        .map(|r| Mrow {
-            element: r.layer.as_deref().map_or_else(|| root.to_string(), delta::title),
-            property: match r.rk {
-                Rk::Label(l) => t(lang, l.key()).to_string(),
-                Rk::Shown => t(lang, Key::PropVisibility).to_string(),
-                Rk::Swap => t(lang, Key::TypeInstance).to_string(),
-            },
-            cells: r.cells.into_iter().map(|c| c.unwrap_or_else(|| r.base.clone())).collect(),
-        })
-        .collect()
-}
-
-/// The nodes a matrix row costs when it is drawn in `tables` tables.
-fn matrix_row_cost(r: &Mrow, tables: usize) -> usize {
-    // Every table repeats the row: its frame (a separator) and the element and property cells; the option cells are split among them.
-    tables * (1 + 4) + r.cells.iter().map(Cv::nodes).sum::<usize>()
-}
-
-/// What an axis asks for when the nodes are shared: how many tables it is drawn in, how many header cells each has, and its rows.
-pub struct AxisAsk<'a> {
-    pub tables: usize,
-    pub heads: usize,
-    pub rows: &'a [Mrow],
-}
-
-/// How many rows each axis gets out of `cap` nodes: first every axis with rows gets its tables' headers, then the axes take a row in
-/// turn (in rotation) while the next row of each fits, so a big axis cannot take what the others need. An axis whose next row does
-/// not fit stops; the others go on.
-pub fn allocate_rows(axes: &[AxisAsk], cap: usize) -> Vec<usize> {
-    let mut taken = vec![0usize; axes.len()];
-    let mut used = 0usize;
-    let mut active: Vec<bool> = axes
-        .iter()
-        .map(|a| {
-            let cost = a.tables * table_nodes(a.heads, &[]);
-            let ok = !a.rows.is_empty() && used + cost <= cap;
-            if ok {
-                used += cost;
-            }
-            ok
-        })
-        .collect();
+    let mut next = vec![0usize; options.len()];
+    let mut open: Vec<bool> = vec![true; options.len()];
     loop {
         let mut progressed = false;
-        for (i, a) in axes.iter().enumerate() {
-            if !active[i] || taken[i] >= a.rows.len() {
+        for a in 0..options.len() {
+            if !open[a] {
                 continue;
             }
-            let cost = matrix_row_cost(&a.rows[taken[i]], a.tables);
-            if used + cost > cap {
-                active[i] = false;
-            } else {
-                used += cost;
-                taken[i] += 1;
-                progressed = true;
+            while next[a] < options[a] && kept[a].contains(&next[a]) {
+                next[a] += 1;
             }
+            if next[a] >= options[a] || kept[a].len() >= axis_cap || total >= cap || used + cell > budget {
+                open[a] = false;
+                continue;
+            }
+            kept[a].push(next[a]);
+            next[a] += 1;
+            used += cell;
+            total += 1;
+            progressed = true;
         }
         if !progressed {
             break;
         }
     }
-    taken
+    for k in &mut kept {
+        k.sort_unstable();
+    }
+    kept
 }
 
-/// The columns of a matrix of `n` options: the first two as above and the rest shared in whole pixels (the first options take the
-/// remainder), adding up to exactly 1084.
-fn matrix_cols(n: usize) -> Vec<f64> {
-    let rest = USEFUL_W as usize - (MATRIX_ELEMENT_W + MATRIX_PROPERTY_W) as usize;
-    let mut cols = vec![MATRIX_ELEMENT_W, MATRIX_PROPERTY_W];
-    cols.extend((0..n).map(|i| (rest / n + usize::from(i < rest % n)) as f64));
-    cols
+/// The variant a cell shows for option `option` of axis `prop`: the one with that option and the other axes at the default, else (a
+/// set with holes) the one that has the option and the most other axes at the default; the flag says it is the nearer one, not the exact.
+pub fn cell_variant(info: &crate::variants::SetInfo, default: &crate::variants::Pairs, prop: &str, option: &str) -> Option<(crate::variants::Variant, bool)> {
+    let mut exact = default.clone();
+    if let Some(slot) = exact.iter_mut().find(|(p, _)| p == prop) {
+        slot.1 = option.to_string();
+    }
+    if let Some(v) = info.find(&exact) {
+        return Some((v.clone(), false));
+    }
+    let score = |v: &crate::variants::Variant| {
+        let pairs = crate::variants::parse_name(&v.name);
+        if !pairs.iter().any(|(k, o)| k == prop && o == option) {
+            return None;
+        }
+        Some(pairs.iter().filter(|(k, o)| k != prop && default.iter().any(|(dk, dv)| dk == k && dv == o)).count())
+    };
+    info.variants.iter().filter_map(|v| score(v).map(|n| (n, v))).max_by(|a, b| a.0.cmp(&b.0).then(std::cmp::Ordering::Greater)).map(|(_, v)| (v.clone(), true))
 }
 
-/// The States and Variants frame: one matrix for each variant axis.
+/// What the reader calls a change, for "changes: …", in the order they are listed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Group {
+    Fill,
+    Border,
+    Opacity,
+    Radius,
+    Spacing,
+    Typography,
+    Visibility,
+    Effect,
+    Size,
+    Text,
+    Swap,
+}
+
+impl Group {
+    fn key(self) -> Key {
+        match self {
+            Group::Fill => Key::PropFill,
+            Group::Border => Key::GroupBorder,
+            Group::Opacity => Key::DeltaOpacity,
+            Group::Radius => Key::PropRadius,
+            Group::Spacing => Key::GroupSpacing,
+            Group::Typography => Key::PropTypography,
+            Group::Visibility => Key::PropVisibility,
+            Group::Effect => Key::GroupEffect,
+            Group::Size => Key::GroupSize,
+            Group::Text => Key::DeltaContent,
+            Group::Swap => Key::TypeInstance,
+        }
+    }
+
+    fn of(kind: &Kind) -> Group {
+        match kind {
+            Kind::Shown(_) => Group::Visibility,
+            Kind::Swapped(_) => Group::Swap,
+            Kind::Changed { label, .. } => match label {
+                Label::Prop(Prop::Fill) => Group::Fill,
+                Label::Prop(Prop::Stroke) | Label::StrokeWeight => Group::Border,
+                Label::Opacity => Group::Opacity,
+                Label::Prop(Prop::Radius) => Group::Radius,
+                Label::Prop(Prop::Gap | Prop::PadH | Prop::PadV) => Group::Spacing,
+                Label::Prop(Prop::Typography) => Group::Typography,
+                Label::Effects => Group::Effect,
+                Label::Width | Label::Height | Label::HSizing | Label::VSizing => Group::Size,
+                Label::Content => Group::Text,
+            },
+        }
+    }
+}
+
+/// The line under a tile: "changes: Fill, Border" (names only, at most four and "…" for more), "default" for the default option, "label
+/// only" when the option differs in nothing the plugin reads.
+pub fn changes_line(lang: Lang, is_default: bool, diff: &Diff) -> String {
+    if is_default {
+        return t(lang, Key::GalleryDefault).to_string();
+    }
+    let mut groups: Vec<Group> = diff.changes.iter().map(|c| Group::of(&c.kind)).collect();
+    groups.sort_unstable();
+    groups.dedup();
+    if groups.is_empty() {
+        return t(lang, Key::GalleryLabelOnly).to_string();
+    }
+    let mut names: Vec<String> = groups.iter().take(CHANGE_NAMES).map(|g| t(lang, g.key()).to_string()).collect();
+    if groups.len() > CHANGE_NAMES {
+        names.push("…".to_string());
+    }
+    tf(lang, Key::GalleryChanges, &[("list", &names.join(", "))])
+}
+
+/// The States and Variants frame: a gallery, one block for each variant axis with a tile for each option (an instance of the component on
+/// the stage's colour), its name under it and what it changes from the default.
 pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
     let lang = c.lang;
     header(c, frame, t(lang, Key::SecVariants))?;
@@ -418,88 +413,103 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
         return Ok(());
     }
     let base_walked = base_walk(c)?;
-    let temp = temp_stage(lang)?;
     let base_nodes: Vec<Value> = base_walked.iter().map(|(n, _)| n.clone()).collect();
     let vars = c.vars_for(&base_nodes)?;
     let styles = c.styles_for(&base_nodes)?;
     let base_snap = delta::snapshot(lang, &base_walked, &vars, &styles);
-    // 1. What each axis changes (the diff of each option from the default option).
-    struct Gathered {
-        prop: String,
-        present: Vec<(String, bool, Option<Diff>)>,
-        rows: Vec<Mrow>,
-        missing: Vec<String>,
+    // 1. Which variant each option shows (the default option shows the default variant), and which options go in.
+    struct Pick {
+        option: String,
+        is_default: bool,
+        variant: Option<(variants::Variant, bool)>,
     }
-    let mut gathered: Vec<Gathered> = Vec::new();
-    let mut walked_options = 0usize;
-    let mut not_shown = 0usize;
-    for axis in &axes {
-        let mut present: Vec<(String, bool, Option<Diff>)> = Vec::new();
-        let mut missing: Vec<String> = Vec::new();
-        for opt in &axis.options {
-            let Some(variant) = &opt.variant else {
-                missing.push(opt.option.clone());
-                continue;
-            };
-            if opt.is_default {
-                present.push((opt.option.clone(), true, None));
-                continue;
-            }
-            if walked_options >= MAX_AXIS_ROWS {
-                not_shown += 1;
-                continue;
-            }
-            walked_options += 1;
-            let walked = walk_instance(lang, temp, variant.id)?;
-            let diff = delta::compare(&base_snap, &delta::snapshot(lang, &walked, &vars, &styles));
-            present.push((opt.option.clone(), false, Some(diff)));
-        }
-        let diffs: Vec<Option<&Diff>> = present.iter().map(|(_, _, d)| d.as_ref()).collect();
-        let rows = matrix(lang, &c.target.title, &diffs);
-        gathered.push(Gathered { prop: axis.prop.clone(), present, rows, missing });
+    let picks: Vec<Vec<Pick>> = axes
+        .iter()
+        .map(|axis| {
+            axis.options
+                .iter()
+                .map(|o| Pick { option: o.option.clone(), is_default: o.is_default, variant: if o.is_default { o.variant.clone().map(|v| (v, false)) } else { cell_variant(&sp.info, &sp.default, &axis.prop, &o.option) } })
+                .collect()
+        })
+        .collect();
+    let cell_nodes = base_walked.len() + CELL_OVERHEAD;
+    let budget = gallery_budget(cell_nodes);
+    // An option with no variant at all is not defined (said under its axis), never a cell.
+    let options: Vec<usize> = picks.iter().map(Vec::len).collect();
+    let defaults: Vec<Option<usize>> = picks.iter().map(|p| p.iter().position(|x| x.is_default && x.variant.is_some())).collect();
+    let mut kept = plan_cells(&options, &defaults, cell_nodes, budget, GALLERY_AXIS_CAP, GALLERY_CELL_CAP);
+    for (a, k) in kept.iter_mut().enumerate() {
+        k.retain(|i| picks[a][*i].variant.is_some());
     }
-    host(lang, "edit.delete", &json!({"ids": [temp]}))?;
-    // 2. The nodes are shared among the axes.
-    let asks: Vec<AxisAsk> = gathered.iter().map(|g| AxisAsk { tables: g.present.len().div_ceil(MATRIX_SLICE).max(1), heads: 2 + MATRIX_SLICE.min(g.present.len()), rows: &g.rows }).collect();
-    let taken = allocate_rows(&asks, MATRIX_NODE_CAP);
-    // 3. Each axis is drawn with its rows, and says how many it left out.
-    for (g, taken) in gathered.iter().zip(taken) {
-        let ax_name = tf(lang, Key::LayerAxis, &[("name", &g.prop)]);
+    // 2. Each axis is drawn: its name, then its cells in a grid that wraps at the useful width.
+    let mut nodes_used = 0usize;
+    let mut cells_made = 0usize;
+    for ((axis, pk), keep) in axes.iter().zip(&picks).zip(&kept) {
+        let ax_name = tf(lang, Key::LayerAxis, &[("name", &axis.prop)]);
         let mut ax = FlowSpec::new(&ax_name, USEFUL_W, "vertical");
-        ax.gap = 16.0;
+        ax.gap = 24.0;
         let ax = flow_frame(lang, frame, ax)?;
-        text_with(lang, ax, &g.prop, theme::SECTION_SIZE, pal::TEXT, "Axis", bold())?;
-        if g.rows.is_empty() {
-            muted_note(lang, ax, t(lang, Key::DeltaNone))?;
+        text_with(lang, ax, &axis.prop, theme::SECTION_SIZE, pal::TEXT, "Axis", bold())?;
+        let grid_name = tf(lang, Key::LayerGallery, &[("name", &axis.prop)]);
+        let mut grid = FlowSpec::new(&grid_name, USEFUL_W, "horizontal");
+        grid.gap = CELL_GAP;
+        let grid = flow_frame(lang, ax, grid)?;
+        host(lang, "node.set", &json!({"ids": [grid], "props": {"wrap": true, "crossGap": CELL_GAP, "sizingH": "fixed", "sizingV": "hug", "width": USEFUL_W}}))?;
+        for i in keep {
+            let Some((variant, nearest)) = &pk[*i].variant else { continue };
+            let made = draw_cell(c, grid, &pk[*i].option, pk[*i].is_default, variant, *nearest, &base_snap, &vars, &styles)?;
+            nodes_used += made;
+            cells_made += 1;
         }
-        if taken > 0 {
-            for (si, slice) in g.present.chunks(MATRIX_SLICE).enumerate() {
-                let first = si * MATRIX_SLICE;
-                let mut headers = heads(lang, &[Key::TblElement, Key::TblProperty]);
-                headers.extend(slice.iter().map(|(name, is_default, _)| option_header(lang, name, *is_default)));
-                let body: Vec<Vec<Cv>> = g.rows[..taken]
-                    .iter()
-                    .map(|r| {
-                        let mut cells = vec![Cv::Bold(r.element.clone()), Cv::Muted(r.property.clone())];
-                        cells.extend(r.cells[first..first + slice.len()].iter().cloned());
-                        cells
-                    })
-                    .collect();
-                put_table(c, ax, &format!("{} {}", g.prop, si + 1), &matrix_cols(slice.len()), &headers, &body)?;
-            }
-        }
-        let left_out = g.rows.len() - taken;
+        let left_out = pk.iter().enumerate().filter(|(i, p)| p.variant.is_some() && !keep.contains(i)).count();
         if left_out > 0 {
-            muted_note(lang, ax, &tf(lang, plural(left_out, Key::MatrixLeftOutOne, Key::MatrixLeftOut), &[("n", &left_out.to_string())]))?;
+            muted_note(lang, ax, &tf(lang, plural(left_out, Key::GalleryLeftOutOne, Key::GalleryLeftOut), &[("n", &left_out.to_string())]))?;
         }
-        if !g.missing.is_empty() {
-            muted_note(lang, ax, &tf(lang, Key::NotDefined, &[("list", &g.missing.join(", "))]))?;
+        let missing: Vec<&str> = pk.iter().filter(|p| p.variant.is_none()).map(|p| p.option.as_str()).collect();
+        if !missing.is_empty() {
+            muted_note(lang, ax, &tf(lang, Key::NotDefined, &[("list", &missing.join(", "))]))?;
         }
     }
-    if not_shown > 0 {
-        muted_note(lang, frame, &tf(lang, plural(not_shown, Key::MoreVariantsOne, Key::MoreVariants), &[("n", &not_shown.to_string())]))?;
-    }
+    *c.gallery.borrow_mut() = Some(json!({"cells": cells_made, "nodes": nodes_used, "budget": budget, "cell_estimate": cell_nodes, "raised": budget != GALLERY_NODE_BUDGET, "kept": kept.iter().map(Vec::len).collect::<Vec<_>>()}));
     Ok(())
+}
+
+/// One cell of the gallery in `grid`: the tile (the stage's colour, 12 radius, 24 of room) with an instance of `variant` in it, the option's
+/// name under it (bold), and "changes: …" and, when it is the nearest combination, a note. Returns how many nodes it made.
+#[allow(clippy::too_many_arguments)]
+fn draw_cell(c: &Ctx, grid: u64, option: &str, is_default: bool, variant: &variants::Variant, nearest: bool, base: &[delta::Snap], vars: &Vars, styles: &Styles) -> Result<usize> {
+    let lang = c.lang;
+    let mut spec = FlowSpec::new(option, TILE_MIN_W, "vertical");
+    spec.gap = 12.0;
+    spec.extra = json!({"sizingH": "hug"});
+    let cell = flow_frame(lang, grid, spec)?;
+    let tile_name = tf(lang, Key::LayerTile, &[("name", option)]);
+    let mut tile = FlowSpec::new(&tile_name, TILE_MIN_W, "vertical");
+    tile.padding = json!(TILE_PAD);
+    tile.fill = Some(c.stage.fill());
+    tile.extra = json!({"cornerRadius": TILE_RADIUS, "crossAlign": "center", "sizingH": "fixed", "sizingV": "hug"});
+    let tile = flow_frame(lang, cell, tile)?;
+    let made = host(lang, "instance.create", &json!({"component": variant.id, "parent": tile}))?;
+    let instance = id_of(lang, &made, "instance.create")?;
+    let walked = walk_layers(lang, instance)?;
+    let (iw, _) = bounds(walked.first().map(|(n, _)| n).unwrap_or(&Value::Null)).map_or((variant.w, variant.h), |b| (b.w, b.h));
+    // The tile is as wide as its instance and the room (the least 160); one wider than the frame is not scaled: it says so.
+    let wide = iw + 2.0 * TILE_PAD > USEFUL_W;
+    let tile_w = (iw + 2.0 * TILE_PAD).max(TILE_MIN_W).min(USEFUL_W);
+    if (tile_w - TILE_MIN_W).abs() > 0.01 {
+        host(lang, "node.set", &json!({"ids": [tile], "props": {"width": tile_w}}))?;
+    }
+    let diff = if is_default { Diff::default() } else { delta::compare(base, &delta::snapshot(lang, &walked, vars, styles)) };
+    text_with(lang, cell, option, FONT, pal::TEXT, "Option", json!({"fontStyle": "Bold", "width": tile_w, "textAutoResize": "height"}))?;
+    text_with(lang, cell, &changes_line(lang, is_default, &diff), FONT, pal::TEXT2, "Changes", json!({"width": tile_w, "textAutoResize": "height"}))?;
+    let mut notes = 0;
+    for (on, key) in [(nearest, Key::GalleryNearest), (wide, Key::GalleryWide)] {
+        if on {
+            text_with(lang, cell, t(lang, key), FONT, pal::GUIDE, "Note", json!({"width": tile_w, "textAutoResize": "height"}))?;
+            notes += 1;
+        }
+    }
+    Ok(walked.len() + CELL_OVERHEAD - 1 + notes)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -631,81 +641,6 @@ mod tests {
         assert_eq!(PROPS_COLS, [240.0, 140.0, 460.0, 244.0]);
         assert_eq!(ANATOMY_COLS, [60.0, 120.0, 280.0, 624.0]);
         assert_eq!(LAYOUT_COLS, [180.0, 120.0, 420.0, 364.0]);
-        for n in 1..=5 {
-            let cols = matrix_cols(n);
-            assert_eq!(cols[0], 119.0);
-            assert_eq!(cols[1], 166.0);
-            assert_eq!(cols.iter().sum::<f64>(), USEFUL_W, "{n} options add up exactly");
-            assert!(cols[2..].iter().all(|c| c.fract() == 0.0 && *c >= 100.0), "whole pixels: {cols:?}");
-        }
-        assert_eq!(matrix_cols(5), [119.0, 166.0, 160.0, 160.0, 160.0, 160.0, 159.0], "799 shared by 5: the first four take the remainder");
-    }
-
-    #[test]
-    fn a_matrix_has_a_row_for_each_layer_and_property_an_option_changes_and_a_column_for_each_option() {
-        // Axis State: Enabled (the default), Hover and Pressed change the fill of the root; Pressed also the radius of "Icon".
-        let hover = Diff { changes: vec![changed(None, Label::Prop(Prop::Fill), "#C6005C", "#B10652")], unreadable_effect: false };
-        let pressed = Diff { changes: vec![changed(None, Label::Prop(Prop::Fill), "#C6005C", "#9E0749"), changed(Some("/Icon"), Label::Prop(Prop::Radius), "4", "8")], unreadable_effect: false };
-        let rows = matrix(Lang::En, "Button", &[None, Some(&hover), Some(&pressed)]);
-        assert_eq!(rows.len(), 2);
-        assert_eq!((rows[0].element.as_str(), rows[0].property.as_str()), ("Button", "Fill"));
-        assert_eq!(rows[0].cells.len(), 3);
-        // The default's cell is the value the changes come from; an option that doesn't change it holds the default's value.
-        assert!(matches!(&rows[0].cells[0], Cv::Val { text, .. } if text == "#C6005C"));
-        assert!(matches!(&rows[0].cells[1], Cv::Val { text, .. } if text == "#B10652"));
-        assert_eq!((rows[1].element.as_str(), rows[1].property.as_str()), ("Icon", "Radius"));
-        assert_eq!(rows[1].cells, [Cv::Text("4".into()), Cv::Text("4".into()), Cv::Text("8".into())]);
-    }
-
-    #[test]
-    fn an_axis_that_only_switches_a_layer_on_and_off_has_a_matrix() {
-        let on = Diff { changes: vec![Change { layer: Some("/Left icon".into()), kind: Kind::Shown(true), minor: false }], unreadable_effect: false };
-        let rows = matrix(Lang::En, "Button", &[None, Some(&on)]);
-        assert_eq!(rows.len(), 1);
-        assert_eq!((rows[0].element.as_str(), rows[0].property.as_str()), ("Left icon", "Visibility"));
-        assert_eq!(rows[0].cells, [Cv::Text("hidden".into()), Cv::Text("visible".into())]);
-    }
-
-    #[test]
-    fn an_axis_with_no_change_has_no_rows() {
-        assert!(matrix(Lang::En, "Button", &[None, Some(&Diff::default())]).is_empty());
-    }
-
-    fn mrow(n: usize, options: usize) -> Mrow {
-        Mrow { element: format!("L{n}"), property: "Fill".into(), cells: vec![Cv::Text("a".into()); options] }
-    }
-
-    #[test]
-    fn the_nodes_are_shared_among_the_axes_in_rotation_and_each_keeps_its_headers() {
-        let big: Vec<Mrow> = (0..200).map(|n| mrow(n, 5)).collect();
-        let small: Vec<Mrow> = (0..3).map(|n| mrow(n, 3)).collect();
-        let asks = [AxisAsk { tables: 2, heads: 7, rows: &big }, AxisAsk { tables: 1, heads: 5, rows: &small }];
-        let taken = allocate_rows(&asks, MATRIX_NODE_CAP);
-        // The small axis gets all its rows (the big one cannot take them), the big one gets what is left.
-        assert_eq!(taken[1], 3, "{taken:?}");
-        assert!(taken[0] > 0 && taken[0] < 200, "{taken:?}");
-        let used = 2 * table_nodes(7, &[]) + table_nodes(5, &[]) + taken[0] * matrix_row_cost(&big[0], 2) + taken[1] * matrix_row_cost(&small[0], 1);
-        assert!(used <= MATRIX_NODE_CAP, "{used}");
-        // A first-come budget would have given everything to the first axis: the rotation does not.
-        let alone = allocate_rows(&asks[..1], MATRIX_NODE_CAP);
-        assert!(alone[0] > taken[0]);
-    }
-
-    #[test]
-    fn an_axis_without_rows_asks_for_nothing_and_a_cap_too_small_for_the_headers_gives_nothing() {
-        let rows: Vec<Mrow> = (0..4).map(|n| mrow(n, 5)).collect();
-        let none: Vec<Mrow> = Vec::new();
-        let asks = [AxisAsk { tables: 1, heads: 7, rows: &none }, AxisAsk { tables: 1, heads: 7, rows: &rows }];
-        assert_eq!(allocate_rows(&asks, 1_000_000), [0, 4]);
-        assert_eq!(allocate_rows(&asks, 3), [0, 0]);
-        // Several axes that all fit: every one gets every row.
-        let a = [AxisAsk { tables: 1, heads: 5, rows: &rows }, AxisAsk { tables: 1, heads: 5, rows: &rows }, AxisAsk { tables: 1, heads: 5, rows: &rows }];
-        assert_eq!(allocate_rows(&a, MATRIX_NODE_CAP), [4, 4, 4]);
-        // Many axes that do not: each still gets something.
-        let many: Vec<AxisAsk> = (0..8).map(|_| AxisAsk { tables: 1, heads: 7, rows: &rows }).collect();
-        let t = allocate_rows(&many, MATRIX_NODE_CAP);
-        assert!(t.iter().all(|n| *n >= 1), "{t:?}");
-        assert!(t.iter().sum::<usize>() < 32, "{t:?}");
     }
 
     #[test]
@@ -757,18 +692,6 @@ mod tests {
     }
 
     #[test]
-    fn the_default_option_named_like_the_mark_is_said_once_in_both_languages() {
-        assert_eq!(option_header(Lang::Pt, "Pequeno", true), "Pequeno · Padrão");
-        assert_eq!(option_header(Lang::Pt, "Padrão", true), "Padrão");
-        assert_eq!(option_header(Lang::Pt, "padrao", true), "padrao");
-        assert_eq!(option_header(Lang::Pt, "Padrão", false), "Padrão");
-        assert_eq!(option_header(Lang::En, "Small", true), "Small · Default");
-        assert_eq!(option_header(Lang::En, "Default", true), "Default");
-        assert_eq!(option_header(Lang::En, "DEFAULT", true), "DEFAULT");
-        assert_eq!(option_header(Lang::En, "Small", false), "Small");
-    }
-
-    #[test]
     fn a_side_with_no_value_and_no_token_has_no_row_and_a_side_with_a_token_stays_at_zero() {
         // Only the gap has a value: one row. The top has a token: it stays though it is 0.
         let only_gap = spacing_of(&node("List", [0.0; 4], 12.0), None, None, None).unwrap_or_else(unreachable_spacing);
@@ -794,5 +717,82 @@ mod tests {
 
     fn unreachable_spacing() -> Spacing {
         Spacing { name: String::new(), sides: Default::default() }
+    }
+
+    #[test]
+    fn the_default_of_each_axis_always_goes_in_and_the_axes_share_what_is_left_in_turn() {
+        // Two axes of 6 options, cells of 10 nodes, 100 nodes: both defaults, then 4 more cells each... 100 / 10 = 10 cells.
+        let kept = plan_cells(&[6, 6], &[Some(0), Some(2)], 10, 100, 24, 80);
+        assert_eq!(kept.iter().map(Vec::len).sum::<usize>(), 10);
+        assert!(kept[0].contains(&0) && kept[1].contains(&2));
+        assert_eq!((kept[0].len(), kept[1].len()), (5, 5), "in rotation, neither axis takes it all: {kept:?}");
+        // A budget that holds only the defaults keeps only them.
+        let kept = plan_cells(&[6, 6], &[Some(0), Some(0)], 10, 20, 24, 80);
+        assert_eq!(kept, vec![vec![0], vec![0]]);
+        // The caps: 24 an axis, 80 in the frame.
+        let kept = plan_cells(&[40], &[Some(0)], 1, 10_000, 24, 80);
+        assert_eq!(kept[0].len(), 24);
+        let kept = plan_cells(&[24, 24, 24, 24], &[Some(0); 4], 1, 10_000, 24, 80);
+        assert_eq!(kept.iter().map(Vec::len).sum::<usize>(), 80);
+        // A default that is not among the options (or an axis with none) is not forced in.
+        assert_eq!(plan_cells(&[0, 3], &[None, Some(1)], 5, 100, 24, 80), vec![vec![], vec![0, 1, 2]]);
+        // The indices come back in order.
+        let kept = plan_cells(&[5], &[Some(3)], 1, 3, 24, 80);
+        assert_eq!(kept, vec![vec![0, 1, 3]]);
+    }
+
+    #[test]
+    fn the_budget_is_200_nodes_or_three_cells_when_one_does_not_fit() {
+        assert_eq!(gallery_budget(12), 200);
+        assert_eq!(gallery_budget(200), 200);
+        assert_eq!(gallery_budget(250), 750);
+    }
+
+    fn set_of(names: &[&str]) -> crate::variants::SetInfo {
+        let variants = names.iter().enumerate().map(|(i, n)| crate::variants::Variant { id: i as u64 + 1, name: (*n).to_string(), w: 10.0, h: 10.0 }).collect();
+        crate::variants::SetInfo::new(100, "Set".into(), variants)
+    }
+
+    #[test]
+    fn a_cell_shows_the_variant_with_the_option_and_the_other_axes_at_their_default() {
+        let info = set_of(&["Type=A, Size=S", "Type=B, Size=S", "Type=A, Size=L", "Type=B, Size=L"]);
+        let default = crate::variants::parse_name("Type=A, Size=S");
+        let (v, nearest) = cell_variant(&info, &default, "Size", "L").unwrap();
+        assert_eq!((v.name.as_str(), nearest), ("Type=A, Size=L", false));
+        let (v, nearest) = cell_variant(&info, &default, "Type", "B").unwrap();
+        assert_eq!((v.name.as_str(), nearest), ("Type=B, Size=S", false));
+        // A set with holes: no "Type=C, Size=S": the nearest that has Type=C and the most axes at the default.
+        let info = set_of(&["Type=A, Size=S, State=On", "Type=C, Size=L, State=Off", "Type=C, Size=S, State=Off"]);
+        let default = crate::variants::parse_name("Type=A, Size=S, State=On");
+        let (v, nearest) = cell_variant(&info, &default, "Type", "C").unwrap();
+        assert_eq!((v.name.as_str(), nearest), ("Type=C, Size=S, State=Off", true), "two of the other axes at the default? Size only: the one with Size=S");
+        // An option no variant has: none.
+        assert!(cell_variant(&info, &default, "Type", "Z").is_none());
+    }
+
+    #[test]
+    fn the_line_under_a_tile_lists_names_only_in_a_fixed_order_and_is_honest_about_nothing() {
+        let diff = Diff { changes: vec![changed(None, Label::Prop(Prop::Radius), "4", "8"), changed(None, Label::Prop(Prop::Fill), "#111", "#222"), changed(Some("Icon"), Label::Prop(Prop::Fill), "#111", "#222"), changed(None, Label::Prop(Prop::Gap), "4", "8")], unreadable_effect: false };
+        assert_eq!(changes_line(Lang::En, false, &diff), "changes: Fill, Radius, Spacing");
+        assert_eq!(changes_line(Lang::Pt, false, &diff), "muda: Preenchimento, Raio, Espaçamento");
+        assert_eq!(changes_line(Lang::En, true, &diff), "default");
+        assert_eq!(changes_line(Lang::Pt, true, &Diff::default()), "padrão");
+        assert_eq!(changes_line(Lang::En, false, &Diff::default()), "label only");
+        assert_eq!(changes_line(Lang::Pt, false, &Diff::default()), "só o rótulo");
+        // At most four names, then an ellipsis.
+        let many = Diff {
+            changes: vec![
+                changed(None, Label::Prop(Prop::Fill), "a", "b"),
+                changed(None, Label::StrokeWeight, "1", "2"),
+                changed(None, Label::Opacity, "1", "0.5"),
+                changed(None, Label::Prop(Prop::Radius), "1", "2"),
+                changed(None, Label::Prop(Prop::PadH), "1", "2"),
+                changed(None, Label::Width, "1", "2"),
+            ],
+            unreadable_effect: false,
+        };
+        assert_eq!(changes_line(Lang::En, false, &many), "changes: Fill, Border, Opacity, Radius, …");
+        // No value ever shows in the line.
+        assert!(!changes_line(Lang::En, false, &many).contains('#'));
     }
 }

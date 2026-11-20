@@ -260,6 +260,19 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnMarkersOne | {n} marker did not fit in the drawing; see the Note column. | {n} marcador não coube no desenho; veja a coluna Nota. |
 | PanelWarnMarkers | {n} markers did not fit in the drawing; see the Note column. | {n} marcadores não couberam no desenho; veja a coluna Nota. |
 | AnatNoMarker | No marker: it did not fit in the drawing. | Sem marcador: não coube no desenho. |
+| GroupBorder | Border | Borda |
+| GroupSpacing | Spacing | Espaçamento |
+| GroupEffect | Effect | Efeito |
+| GroupSize | Size | Tamanho |
+| GalleryChanges | changes: {list} | muda: {list} |
+| GalleryDefault | default | padrão |
+| GalleryLabelOnly | label only | só o rótulo |
+| GalleryNearest | closest combination | combinação mais próxima |
+| GalleryWide | wider than the frame | mais larga que o quadro |
+| GalleryLeftOutOne | {n} option left out | Ficou de fora {n} opção |
+| GalleryLeftOut | {n} options left out | Ficaram de fora {n} opções |
+| LayerGallery | Gallery: {name} | Galeria: {name} |
+| LayerTile | Tile: {name} | Azulejo: {name} |
 | LayoutsOmittedOne | {n} layer without spacing was left out. | {n} camada sem espaçamento foi omitida. |
 | LayoutsOmitted | {n} layers without spacing were left out. | {n} camadas sem espaçamento foram omitidas. |
 | MasterOrganized | The original set was arranged with auto layout and wrap. | O conjunto original foi organizado com auto layout em quebra de linha. |
@@ -295,7 +308,6 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | TblNumber | No. | Nº |
 | TblLayer | Layer | Camada |
 | TblNote | Note | Nota |
-| TblElement | Element | Elemento |
 | TblSide | Side | Lado |
 | TblToken | Token | Token |
 | TblValue | Value | Valor |
