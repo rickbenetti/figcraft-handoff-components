@@ -1337,7 +1337,7 @@ pub fn generate(input: Input) -> Result<Value> {
     }
     // 6. The stage of the Master, over every variant (a sample of them in a big set), when the Master is made now.
     let stage_sampled: std::cell::Cell<Option<(usize, usize)>> = std::cell::Cell::new(None);
-    if will_make(Sec::Master) {
+    if will_make(Sec::Master) || will_make(Sec::Variants) {
         ctx.stage = choose_stage(lang, &target, page.settings.stage_mode(), &stage_sampled)?;
         if ctx.stage.too_low() {
             warnings.push(Warn::NoStage);
