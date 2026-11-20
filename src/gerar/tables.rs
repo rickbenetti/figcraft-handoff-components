@@ -5,7 +5,7 @@
 
 #![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
-use super::section::{Ctx, Cv, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table, table_nodes};
+use super::section::{Ctx, Cv, StageChoice, USEFUL_W, Walk, bold, header, judge, pal, pick_stage_for, table};
 
 /// A table of the frame, noted for the answer (its name and how many rows it has).
 pub(super) fn put_table(c: &Ctx, parent: u64, name: &str, cols: &[f64], headers: &[String], rows: &[Vec<Cv>]) -> Result<u64> {
@@ -19,10 +19,6 @@ use crate::variants::Axis;
 /// The columns (they add up to 1084).
 const PROPS_COLS: [f64; 4] = [240.0, 140.0, 460.0, 244.0];
 const ANATOMY_COLS: [f64; 4] = [60.0, 120.0, 280.0, 624.0];
-const LAYOUT_COLS: [f64; 4] = [180.0, 120.0, 420.0, 364.0];
-/// The most nodes the table of Layouts may make (about 10 layers of five rows): a component with hundreds of layers with spacing
-/// would otherwise spend the run's whole budget on one frame.
-pub const LAYOUT_NODE_CAP: usize = 400;
 
 pub(super) fn muted_note(lang: Lang, parent: u64, text: &str) -> Result<u64> {
     text_with(lang, parent, text, LINE_SIZE, pal::GUIDE, "Note", json!({"width": USEFUL_W, "textAutoResize": "height"}))
@@ -93,146 +89,6 @@ fn property_list(c: &Ctx) -> Result<Vec<PropView>> {
     let defs = host(lang, "component.properties", &json!({"id": c.target.component})).ok();
     let mut component_name = |id: u64| host(lang, "node.get", &json!({"id": id, "fields": ["name"]})).ok().and_then(|n| n.get("name").and_then(Value::as_str).map(ToString::to_string));
     Ok(defs.as_ref().map(|d| property_views(lang, d, c.target.set.as_ref().map(|sp| &sp.default), &mut component_name)).unwrap_or_default())
-}
-
-// ---------------------------------------------------------------------------------------------
-// Layouts
-// ---------------------------------------------------------------------------------------------
-
-/// What a layer's auto layout says about its spacing: the four sides of its padding and the gap, with their tokens.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Spacing {
-    pub name: String,
-    /// Top, right, bottom, left, gap: (token, value).
-    pub sides: [(Option<String>, String); 5],
-}
-
-/// One layer's spacing from its node and the tokens the audit found on it (`pad_v` is the vertical padding's, `pad_h` the horizontal
-/// one's, `gap` the gap's). `None` when the layer has no auto layout, or no padding and no gap and no token.
-pub fn spacing_of(node: &Value, pad_v: Option<String>, pad_h: Option<String>, gap_token: Option<String>) -> Option<Spacing> {
-    let layout = node.get("layout").filter(|l| matches!(l.get("mode").and_then(Value::as_str), Some("horizontal" | "vertical" | "grid")))?;
-    let pad: Vec<f64> = layout.get("padding").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_f64).collect()).unwrap_or_default();
-    let [top, right, bottom, left] = pad[..] else { return None };
-    let gap = layout.get("gap").and_then(Value::as_f64).unwrap_or(0.0);
-    let any = [top, right, bottom, left, gap].iter().any(|v| v.abs() > 0.005) || pad_v.is_some() || pad_h.is_some() || gap_token.is_some();
-    if !any {
-        return None;
-    }
-    let px = |v: f64| format!("{}px", audit::number(v));
-    Some(Spacing {
-        name: node.get("name").and_then(Value::as_str).unwrap_or_default().to_string(),
-        sides: [(pad_v.clone(), px(top)), (pad_h.clone(), px(right)), (pad_v, px(bottom)), (pad_h, px(left)), (gap_token, px(gap))],
-    })
-}
-
-/// Layers that are alike (the same name and the same spacing) are one, with how many they are.
-pub fn merge_spacing(list: Vec<Spacing>) -> Vec<(Spacing, usize)> {
-    let mut out: Vec<(Spacing, usize)> = Vec::new();
-    for s in list {
-        match out.iter_mut().find(|(o, _)| *o == s) {
-            Some((_, n)) => *n += 1,
-            None => out.push((s, 1)),
-        }
-    }
-    out
-}
-
-/// The rows of each layer's spacing (Top, Right, Bottom, Left, Gap), one list per layer: a side whose value is 0 and that has no token says
-/// nothing and is left out; a layer left with no row is left out too (it is not in the list).
-fn layer_rows(lang: Lang, layers: &[(Spacing, usize)]) -> Vec<Vec<Vec<Cv>>> {
-    let sides = [Key::SideTop, Key::SideRight, Key::SideBottom, Key::SideLeft, Key::PropGap];
-    layers
-        .iter()
-        .map(|(s, n)| {
-            let name = if *n > 1 { format!("{} (x{n})", s.name) } else { s.name.clone() };
-            sides
-                .iter()
-                .zip(&s.sides)
-                .filter(|(_, (token, value))| token.is_some() || value != "0px")
-                .map(|(side, (token, value))| vec![Cv::Bold(name.clone()), Cv::Muted(t(lang, *side).to_string()), token.clone().map_or_else(|| Cv::Guide("—".to_string()), Cv::Text), Cv::Text(value.clone())])
-                .collect::<Vec<_>>()
-        })
-        .filter(|rows| !rows.is_empty())
-        .collect()
-}
-
-/// The table rows of the spacing of the layers (see [`layer_rows`]).
-#[cfg(test)]
-pub fn layout_rows(lang: Lang, layers: &[(Spacing, usize)]) -> Vec<Vec<Cv>> {
-    layer_rows(lang, layers).into_iter().flatten().collect()
-}
-
-/// How many layers (counting the ones merged into another) have no row at all.
-pub fn layers_without_rows(lang: Lang, layers: &[(Spacing, usize)]) -> usize {
-    layers.iter().filter(|l| layer_rows(lang, std::slice::from_ref(l)).is_empty()).map(|(_, n)| *n).sum()
-}
-
-/// The rows of the layers that fit in [`LAYOUT_NODE_CAP`] nodes (a layer's rows go together), and how many rows were left out.
-pub fn capped_layout_rows(lang: Lang, layers: &[(Spacing, usize)]) -> (Vec<Vec<Cv>>, usize) {
-    let groups = layer_rows(lang, layers);
-    let total: usize = groups.iter().map(Vec::len).sum();
-    let mut used = table_nodes(4, &[]);
-    let mut taken: Vec<Vec<Cv>> = Vec::new();
-    for group in groups {
-        let cost: usize = group.iter().map(|r| 1 + r.iter().map(Cv::nodes).sum::<usize>()).sum();
-        if used + cost > LAYOUT_NODE_CAP {
-            break;
-        }
-        used += cost;
-        taken.extend(group);
-    }
-    let left = total - taken.len();
-    (taken, left)
-}
-
-/// The Layouts frame: a table of the padding and gap of each layer of the default variant, with their tokens.
-pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
-    let lang = c.lang;
-    header(c, frame, t(lang, Key::SecLayouts))?;
-    let walked = base_walk(c)?;
-    let nodes: Vec<Value> = walked.iter().map(|(n, _)| n.clone()).collect();
-    let vars = c.vars_for(&nodes)?;
-    let styles = Styles::default();
-    let drawn = rendered(&walked);
-    let mut list: Vec<Spacing> = Vec::new();
-    // The layers with auto layout and no spacing at all (no padding, no gap, no token): they have no row, and the note counts them.
-    let mut no_spacing = 0usize;
-    for (i, (n, _)) in walked.iter().enumerate() {
-        if !drawn.get(i).copied().unwrap_or(false) {
-            continue;
-        }
-        // Only a layer with auto layout has padding or a gap: the others are not audited (a row costs fuel in a big file).
-        if !matches!(n.get("layout").and_then(|l| l.get("mode")).and_then(Value::as_str), Some("horizontal" | "vertical" | "grid")) {
-            continue;
-        }
-        let rows = audit::rows_for(lang, n, &vars, &styles);
-        let token = |p: Prop| rows.iter().find(|r| r.property == p && r.state != State::Unbound).map(|r| r.token.clone());
-        if let Some(mut s) = spacing_of(n, token(Prop::PadV), token(Prop::PadH), token(Prop::Gap)) {
-            // The root is the component itself: its name, not the name of the variant that was walked.
-            if i == 0 {
-                s.name = c.target.title.clone();
-            }
-            list.push(s);
-        } else {
-            no_spacing += 1;
-        }
-    }
-    let merged = merge_spacing(list);
-    if merged.is_empty() {
-        muted_note(lang, frame, t(lang, Key::LayoutsNone))?;
-        return Ok(());
-    }
-    let omitted = no_spacing + layers_without_rows(lang, &merged);
-    let (rows, left_out) = capped_layout_rows(lang, &merged);
-    let headers = heads(lang, &[Key::TblLayer, Key::TblSide, Key::TblToken, Key::TblValue]);
-    put_table(c, frame, "Layouts", &LAYOUT_COLS, &headers, &rows)?;
-    if omitted > 0 {
-        muted_note(lang, frame, &tf(lang, plural(omitted, Key::LayoutsOmittedOne, Key::LayoutsOmitted), &[("n", &omitted.to_string())]))?;
-    }
-    if left_out > 0 {
-        muted_note(lang, frame, &tf(lang, plural(left_out, Key::MatrixLeftOutOne, Key::MatrixLeftOut), &[("n", &left_out.to_string())]))?;
-    }
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -495,7 +351,7 @@ fn draw_cell(c: &Ctx, grid: u64, option: &str, is_default: bool, variant: &varia
     let (iw, _) = bounds(walked.first().map(|(n, _)| n).unwrap_or(&Value::Null)).map_or((variant.w, variant.h), |b| (b.w, b.h));
     // The tile is as wide as its instance and the room (the least 160); one wider than the frame is not scaled: it says so.
     let wide = iw + 2.0 * TILE_PAD > USEFUL_W;
-    let tile_w = (iw + 2.0 * TILE_PAD).max(TILE_MIN_W).min(USEFUL_W);
+    let tile_w = (iw + 2.0 * TILE_PAD).clamp(TILE_MIN_W, USEFUL_W);
     if (tile_w - TILE_MIN_W).abs() > 0.01 {
         host(lang, "node.set", &json!({"ids": [tile], "props": {"width": tile_w}}))?;
     }
@@ -624,6 +480,7 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<(bool, usize)> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::delta::{Change, Side};
@@ -635,25 +492,13 @@ mod tests {
 
     #[test]
     fn the_columns_add_up_to_the_useful_width() {
-        for cols in [PROPS_COLS, ANATOMY_COLS, LAYOUT_COLS] {
+        for cols in [PROPS_COLS, ANATOMY_COLS] {
             assert_eq!(cols.iter().sum::<f64>(), USEFUL_W);
         }
         assert_eq!(PROPS_COLS, [240.0, 140.0, 460.0, 244.0]);
         assert_eq!(ANATOMY_COLS, [60.0, 120.0, 280.0, 624.0]);
-        assert_eq!(LAYOUT_COLS, [180.0, 120.0, 420.0, 364.0]);
     }
 
-    #[test]
-    fn the_table_of_layouts_stops_at_its_node_cap_and_counts_the_rows_left_out() {
-        let layer = |n: usize| Spacing { name: format!("L{n}"), sides: [(None, "8px".into()), (None, "8px".into()), (None, "8px".into()), (None, "8px".into()), (None, "4px".into())] };
-        let layers: Vec<(Spacing, usize)> = (0..200).map(|n| (layer(n), 1)).collect();
-        let (rows, left) = capped_layout_rows(Lang::En, &layers);
-        assert_eq!(rows.len() % 5, 0, "a layer's five rows go together");
-        assert!(!rows.is_empty() && left > 0 && rows.len() + left == 1000, "{} + {left}", rows.len());
-        assert!(table_nodes(4, &rows) <= LAYOUT_NODE_CAP);
-        let (few, none) = capped_layout_rows(Lang::En, &layers[..3]);
-        assert_eq!((few.len(), none), (15, 0));
-    }
 
     #[test]
     fn the_anatomy_note_is_a_dash_when_there_is_nothing_to_say_and_equal_layers_are_one_row() {
@@ -665,59 +510,10 @@ mod tests {
         assert_eq!(plain[0], Cv::Bold("1".into()));
     }
 
-    fn node(name: &str, padding: [f64; 4], gap: f64) -> Value {
-        json!({"name": name, "layout": {"mode": "horizontal", "padding": padding, "gap": gap}})
-    }
 
-    #[test]
-    fn a_layer_with_padding_has_five_rows_and_alike_layers_are_merged() {
-        let a = spacing_of(&node("Button", [8.0, 16.0, 8.0, 16.0], 4.0), Some("space/2".into()), Some("space/4".into()), None);
-        let b = a.clone();
-        let none = spacing_of(&node("Flat", [0.0; 4], 0.0), None, None, None);
-        assert!(none.is_none(), "no padding, no gap, no token: no row");
-        assert!(spacing_of(&json!({"name": "Text"}), None, None, None).is_none(), "no auto layout");
-        let merged = merge_spacing(vec![a.unwrap_or_else(unreachable_spacing), b.unwrap_or_else(unreachable_spacing)]);
-        assert_eq!(merged.len(), 1);
-        assert_eq!(merged[0].1, 2);
-        let rows = layout_rows(Lang::En, &merged);
-        assert_eq!(rows.len(), 5);
-        assert_eq!(rows[0][0], Cv::Bold("Button (x2)".into()));
-        assert_eq!(rows[0][1], Cv::Muted("Top".into()));
-        assert_eq!(rows[0][2], Cv::Text("space/2".into()));
-        assert_eq!(rows[0][3], Cv::Text("8px".into()));
-        assert_eq!(rows[1][1], Cv::Muted("Right".into()));
-        assert_eq!(rows[1][3], Cv::Text("16px".into()));
-        assert_eq!(rows[4][1], Cv::Muted("Gap".into()));
-        assert_eq!(rows[4][2], Cv::Guide("—".into()), "no token: a dash");
-    }
 
-    #[test]
-    fn a_side_with_no_value_and_no_token_has_no_row_and_a_side_with_a_token_stays_at_zero() {
-        // Only the gap has a value: one row. The top has a token: it stays though it is 0.
-        let only_gap = spacing_of(&node("List", [0.0; 4], 12.0), None, None, None).unwrap_or_else(unreachable_spacing);
-        let rows = layout_rows(Lang::En, &[(only_gap, 1)]);
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0][1], Cv::Muted("Gap".into()));
-        let with_token = spacing_of(&node("Box", [0.0; 4], 0.0), Some("space/0".into()), None, None).unwrap_or_else(unreachable_spacing);
-        let rows = layout_rows(Lang::En, &[(with_token, 1)]);
-        assert_eq!(rows.len(), 2, "top and bottom carry the vertical token");
-        assert_eq!(rows[0][3], Cv::Text("0px".into()));
-    }
 
-    #[test]
-    fn a_layer_left_with_no_row_is_not_in_the_table_and_is_counted() {
-        let empty = Spacing { name: "Flat".into(), sides: std::array::from_fn(|_| (None, "0px".to_string())) };
-        let full = spacing_of(&node("Button", [8.0, 16.0, 8.0, 16.0], 4.0), None, None, None).unwrap_or_else(unreachable_spacing);
-        let layers = vec![(empty, 3), (full, 1)];
-        assert_eq!(layout_rows(Lang::En, &layers).len(), 5);
-        assert_eq!(layers_without_rows(Lang::En, &layers), 3);
-        let (rows, left) = capped_layout_rows(Lang::En, &layers);
-        assert_eq!((rows.len(), left), (5, 0));
-    }
 
-    fn unreachable_spacing() -> Spacing {
-        Spacing { name: String::new(), sides: Default::default() }
-    }
 
     #[test]
     fn the_default_of_each_axis_always_goes_in_and_the_axes_share_what_is_left_in_turn() {

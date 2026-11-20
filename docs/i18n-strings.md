@@ -273,8 +273,10 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | GalleryLeftOut | {n} options left out | Ficaram de fora {n} opções |
 | LayerGallery | Gallery: {name} | Galeria: {name} |
 | LayerTile | Tile: {name} | Azulejo: {name} |
-| LayoutsOmittedOne | {n} layer without spacing was left out. | {n} camada sem espaçamento foi omitida. |
-| LayoutsOmitted | {n} layers without spacing were left out. | {n} camadas sem espaçamento foram omitidas. |
+| LayoutsLegendPadding | Padding | Espaçamento interno |
+| LayoutsLegendGap | Gap | Espaço entre itens |
+| LayoutsLeftOutOne | {n} layer left out | Ficou de fora {n} camada |
+| LayoutsLeftOut | {n} layers left out | Ficaram de fora {n} camadas |
 | MasterOrganized | The original set was arranged with auto layout and wrap. | O conjunto original foi organizado com auto layout em quebra de linha. |
 | PanelUpdate | Update | Atualizar |
 | PanelTitleUpdate | UPDATE | ATUALIZAR |
@@ -308,18 +310,12 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | TblNumber | No. | Nº |
 | TblLayer | Layer | Camada |
 | TblNote | Note | Nota |
-| TblSide | Side | Lado |
 | TblToken | Token | Token |
-| TblValue | Value | Valor |
-| SideTop | Top | Topo |
-| SideRight | Right | Direita |
-| SideBottom | Bottom | Base |
-| SideLeft | Left | Esquerda |
 | PropVisibility | Visibility | Visibilidade |
 | MatrixLeftOut | {n} rows were left out | Ficaram de fora {n} linhas |
 | MatrixLeftOutOne | {n} row was left out | Ficou de fora {n} linha |
 | PropsNone | This component has no properties. | Este componente não tem propriedades. |
-| LayoutsNone | No layer has padding or a gap. | Nenhuma camada tem espaçamento interno nem espaço entre itens. |
+| LayoutsNone | This component does not use auto layout spacing. | Este componente não usa espaçamento automático. |
 | VariantsNone | This component has no variants. | Este componente não tem variantes. |
 | TableFailed | This section could not be made: {reason} | Esta seção não pôde ser feita: {reason} |
 | PanelWarnFailed | A section could not be made: see its frame. | Uma seção não pôde ser feita: veja o quadro dela. |

@@ -18,6 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 pub mod section;
 pub mod reflow;
+pub mod spacing;
 pub mod tables;
 pub mod tokens;
 

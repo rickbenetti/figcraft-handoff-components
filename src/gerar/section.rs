@@ -896,6 +896,8 @@ pub(super) struct Ctx<'a> {
     pub(super) markers: std::cell::RefCell<Option<Value>>,
     /// What the gallery of States and Variants drew (cells, nodes, the budget), for the answer.
     pub(super) gallery: std::cell::RefCell<Option<Value>>,
+    /// What the Layouts drawing made (layers, bands, numbers outside), for the answer.
+    pub(super) spacing: std::cell::RefCell<Option<Value>>,
 }
 
 impl Ctx<'_> {
@@ -1218,7 +1220,7 @@ pub fn generate(input: Input) -> Result<Value> {
         _ => None,
     };
     let calls0 = HOST_CALLS.load(Ordering::Relaxed);
-    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, pill_area: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), gallery: std::cell::RefCell::new(None), frame_w: std::cell::Cell::new(FRAME_W), useful: std::cell::Cell::new(USEFUL_W), master: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
+    let mut ctx = Ctx { lang, target: &target, mode: page.settings.stage_mode(), pills: None, pill_area: None, stage: StageChoice { stage: Stage::Light, lowest: None, auto: false }, area_retries: std::cell::Cell::new(0), vars: std::cell::RefCell::new(None), styles: std::cell::RefCell::new(None), modes: std::cell::RefCell::new(None), tables: std::cell::RefCell::new(Vec::new()), tokens: std::cell::RefCell::new(None), markers: std::cell::RefCell::new(None), gallery: std::cell::RefCell::new(None), spacing: std::cell::RefCell::new(None), frame_w: std::cell::Cell::new(FRAME_W), useful: std::cell::Cell::new(USEFUL_W), master: std::cell::RefCell::new(None), base_walk: std::cell::RefCell::new(None) };
     // 2b. The set of approval pills: ONE for the whole document. It lives in the Support frame, outside every Section; a new Section
     // reuses the oldest one there is, and only when there is none (first generation, or a Support frame that was deleted) a Support frame
     // is made, to the right of everything, before the Section. A rerun never makes one.
@@ -1315,7 +1317,7 @@ pub fn generate(input: Input) -> Result<Value> {
                 })),
                 Sec::Variants => Some(tables::build_variants(&ctx, frame)),
                 Sec::Tokens => Some(tokens::build_tokens(&ctx, frame)),
-                Sec::Layouts => Some(tables::build_layouts(&ctx, frame)),
+                Sec::Layouts => Some(spacing::build_layouts(&ctx, frame)),
                 _ => None,
             };
             #[cfg(feature = "test-hooks")]
@@ -1423,7 +1425,7 @@ pub fn generate(input: Input) -> Result<Value> {
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
         "warnings": warnings.iter().map(|w| w.code()).collect::<Vec<_>>(), "export": export_result, "lang": lang.code(), "component": target.key, "holder": target.holder,
         "stage": {"sampled": stage_sampled.get().map(|(a, b)| json!([a, b])), "name": ctx.stage.name(), "dark": ctx.stage.stage == Stage::Dark, "auto": ctx.stage.auto, "lowest": ctx.stage.lowest, "fill": ctx.stage.fill()},
-        "failed": failed, "master": ctx.master.borrow().clone(), "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "gallery": ctx.gallery.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
+        "failed": failed, "master": ctx.master.borrow().clone(), "tokens": ctx.tokens.borrow().clone(), "anatomy": ctx.markers.borrow().clone(), "gallery": ctx.gallery.borrow().clone(), "spacing": ctx.spacing.borrow().clone(), "tables": ctx.tables.borrow().iter().map(|(n, r)| json!({"name": n, "rows": r})).collect::<Vec<_>>(), "pill_set": ctx.pills, "support": {"sets_found": support_count, "made": support_made, "set": ctx.pills}, "area_retries": ctx.area_retries.get(), "host_calls": HOST_CALLS.load(Ordering::Relaxed) - calls0,
     }))
 }
 
