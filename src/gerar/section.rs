@@ -1,15 +1,16 @@
-//! The 0.11 document: one Section for the component, with a frame (in ONE ROW, left to right) for each part of the handoff (Cover, Component Master,
-//! Properties, Anatomy, States and Variants, Layouts, Tokens, Changelog and the support components), 1920 px wide, 64 px
-//! apart, with 64 px of room around them inside the Section.
+//! The 0.11 document: one Section for the component, with eight frames in ONE COLUMN, top to bottom (Cover, Component Master, Properties,
+//! Anatomy, States and Variants, Layouts, Tokens, Changelog), each 1180 px wide (wider only when the Master asks), 64 px apart, with 64 px of
+//! room around them inside the Section. The set of approval pills lives in a Support frame of its own, outside every Section.
 //!
 //! The first generation makes everything. A rerun replaces only the frames "Update" names (the five that are drawn from the
-//! component); Cover, Changelog and the support components are made once, never replaced, and made again only when they were
-//! deleted by hand. The Component Master is made again on every run (so a new version of the plugin reaches a document that
+//! component); Cover and Changelog are made once, never replaced, and made again only when they were deleted by hand. A frame
+//! that was deleted by hand and that Update names is made again in its place; one that Update does not name stays gone and the run says so
+//! (`frame_missing`). The Component Master is made again on every run (so a new version of the plugin reaches a document that
 //! exists), with the original component moved out of the old frame and into the new one. "New Section" makes another Section
 //! beside the first, with every frame but the Master.
 //!
-//! In this step Cover, Component Master, Changelog and the support components have their content; the other five frames carry
-//! their title and a line that says when they are made.
+//! Every frame is drawn: Cover, Component Master and Changelog here; Properties, Anatomy, States and Variants and Layouts in `tables`
+//! and `spacing`; Tokens in `tokens`.
 
 #![warn(dead_code)] // the module above allows dead code (the 0.10.0 drawing); this one is checked
 
