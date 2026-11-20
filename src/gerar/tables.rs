@@ -306,6 +306,11 @@ pub(super) fn build_variants(c: &Ctx, frame: u64) -> Result<()> {
         ax.gap = 24.0;
         let ax = flow_frame(lang, frame, ax)?;
         text_with(lang, ax, &axis.prop, theme::SECTION_SIZE, pal::TEXT, "Axis", bold())?;
+        // An axis with only its default option (a component with a variant property and nothing to vary) says what the frame always said.
+        if pk.len() <= 1 {
+            muted_note(lang, ax, t(lang, Key::DeltaNone))?;
+            continue;
+        }
         let grid_name = tf(lang, Key::LayerGallery, &[("name", &axis.prop)]);
         let mut grid = FlowSpec::new(&grid_name, USEFUL_W, "horizontal");
         grid.gap = CELL_GAP;
