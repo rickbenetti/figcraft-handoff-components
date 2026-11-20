@@ -402,10 +402,15 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
     // f) The panel again.
     state.cleared.clear();
     let dropped = out.get("anatomy").and_then(|a| a.get("dropped")).and_then(Value::as_array).map_or(0, Vec::len);
+    let spacing_dropped = out.get("spacing").and_then(|a| a.get("outside_dropped")).and_then(Value::as_u64).unwrap_or(0) as usize;
     let warns: Vec<Warn> = out
         .get("warnings")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(Value::as_str).filter_map(|c| Warn::ALL.into_iter().find(|w| w.code() == c)).map(|w| if matches!(w, Warn::MarkersDropped(_)) { Warn::MarkersDropped(dropped) } else { w }).collect())
+        .map(|a| a.iter().filter_map(Value::as_str).filter_map(|c| Warn::ALL.into_iter().find(|w| w.code() == c)).map(|w| match w {
+            Warn::MarkersDropped(_) => Warn::MarkersDropped(dropped),
+            Warn::SpacingDropped(_) => Warn::SpacingDropped(spacing_dropped),
+            w => w,
+        }).collect())
         .unwrap_or_default();
     state.message = if warns.is_empty() { Message::Done(name) } else { Message::Warned(name, warns) };
     draw(&form, &state.message)?;

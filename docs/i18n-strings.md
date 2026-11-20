@@ -259,6 +259,9 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnApproval | The approval pills have no Area property: the Cover was made without the areas. | As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas. |
 | PanelWarnMarkersOne | {n} marker did not fit in the drawing; see the Note column. | {n} marcador não coube no desenho; veja a coluna Nota. |
 | PanelWarnMarkers | {n} markers did not fit in the drawing; see the Note column. | {n} marcadores não couberam no desenho; veja a coluna Nota. |
+| PanelWarnSpacingOne | {n} spacing value did not fit in the Layouts drawing; see the note in that frame. | {n} valor de espaçamento não coube no desenho do Layouts; veja a nota nesse quadro. |
+| PanelWarnSpacing | {n} spacing values did not fit in the Layouts drawing; see the note in that frame. | {n} valores de espaçamento não couberam no desenho do Layouts; veja a nota nesse quadro. |
+| LayoutsNoMarker | No marker: it did not fit in the drawing ({values}). | Sem marcador: não coube no desenho ({values}). |
 | AnatNoMarker | No marker: it did not fit in the drawing. | Sem marcador: não coube no desenho. |
 | GroupBorder | Border | Borda |
 | GroupSpacing | Spacing | Espaçamento |

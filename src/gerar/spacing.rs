@@ -1,8 +1,11 @@
 //! The Layouts frame (0.11): a drawing of the component's spacing. A stage (the Anatomy's: the same width and the same colour rule) with the
 //! instance of the default variant, and over it, for each layer with auto layout that has padding or a gap, translucent bands on the areas
-//! of the padding (one for each side) and between the children (the gap), each with its value in px. The padding is green and the gap violet
-//! (neither is the orange of the Anatomy's markers); a band that is too thin for its number sends the number out of the instance, to a
-//! circle with a straight guide, placed by the Anatomy's marker placer (the same gaps of 12 px and the same ban on diagonals).
+//! of the padding (one for each side) and between the children (the gap). The padding is green and the gap violet (neither is the orange of
+//! the Anatomy's markers). Bands of the same kind and value in the same layer share ONE number ("8 (x3)"). The number is written inside
+//! the first band that holds it (the band is empty space, and the patch is at least 4 px short of its edges all round) and else stands
+//! outside the instance, in a circle or a pill with a straight guide placed by the Anatomy's marker placer; a guide never crosses a text,
+//! a vector or an instance with nothing inside, nor another guide. A number with no way in is not drawn: the frame says so in a note.
+//! Values are the component's real px. The drawing is not scaled (see the report of prompt 59: the host cannot scale an instance whole).
 //!
 //! 0.10.0 drew this with the host's `measure.padding` (a line for each side and gap of ONE frame, with its value) as a rectangle with an
 //! outline over the instance and the value on a patch of the stage's colour; the layers it measured were the root or a wrapper standing in
@@ -19,8 +22,6 @@ use super::*;
 /// circles and guides; the instance is not counted).
 pub const LAYER_CAP: usize = 8;
 pub const NODE_CAP: usize = 120;
-/// A band thinner than this in its thin direction has its number outside.
-pub const THIN: f64 = 20.0;
 /// The fill of the bands of the layers at the top (the component and its children) and of the deeper ones, as a percentage.
 const FILL_TOP: u8 = 30;
 const FILL_DEEP: u8 = 18;
@@ -37,13 +38,6 @@ pub struct Band {
     pub(super) rect: Rect,
     pub gap: bool,
     pub value: f64,
-}
-
-impl Band {
-    /// The least of its width and height.
-    pub(super) fn thin(&self) -> f64 {
-        self.rect.w.min(self.rect.h)
-    }
 }
 
 /// The auto layout of a layer as the bands need it.
@@ -96,15 +90,101 @@ pub(super) fn bands_of(r: Rect, auto: &Auto, kids: &[Rect]) -> Vec<Band> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Layer {
     pub node: usize,
+    /// What makes it one of a row of repeated layers: its parent in the walk and its name (the rows of a list). None for the component.
+    pub family: Option<(usize, String)>,
     pub depth: usize,
     pub area: f64,
     pub bands: Vec<Band>,
 }
 
-/// How many nodes a layer's bands make: a rectangle for each; a number inside a band is a patch and its text; a number outside is a
-/// circle, its text and its guide.
+/// One number for a set of bands: the bands of the same kind (padding or gap) and the same value in ONE layer ("the two gaps of 8 of
+/// the list"), or in the layers of a row of repeated siblings (same parent, same name: the three rows of a list, each with its gap of 8
+/// between the icon and the text). `members` are (layer, band) pairs in reading order (top to bottom, then left to right): the first is
+/// where the guide goes. A layer with another parent or another name is never joined.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Group {
+    pub gap: bool,
+    pub value: f64,
+    pub members: Vec<(usize, usize)>,
+}
+
+impl Group {
+    /// The number as written: the value, and "(xN)" when the group has N > 1 bands (the Anatomy's form).
+    pub fn label(&self) -> String {
+        if self.members.len() > 1 { format!("{} (x{})", value_text(self.value), self.members.len()) } else { value_text(self.value) }
+    }
+}
+
+/// The groups of the layers' bands, in the order of their first bands (reading order).
+pub(super) fn groups_of(layers: &[Layer]) -> Vec<Group> {
+    let mut order: Vec<(usize, usize)> = layers.iter().enumerate().flat_map(|(li, l)| (0..l.bands.len()).map(move |bi| (li, bi))).collect();
+    let rect = |m: &(usize, usize)| layers[m.0].bands[m.1].rect;
+    order.sort_by(|a, b| rect(a).y.total_cmp(&rect(b).y).then(rect(a).x.total_cmp(&rect(b).x)));
+    let mut out: Vec<(Group, usize)> = Vec::new();
+    for m in order {
+        let b = &layers[m.0].bands[m.1];
+        let joins = |g: &(Group, usize)| {
+            let first = &layers[g.1];
+            g.0.gap == b.gap && (g.0.value - b.value).abs() < 0.005 && (g.1 == m.0 || (first.family.is_some() && first.family == layers[m.0].family))
+        };
+        match out.iter_mut().find(|g| joins(g)) {
+            Some(g) => g.0.members.push(m),
+            None => out.push((Group { gap: b.gap, value: b.value, members: vec![m] }, m.0)),
+        }
+    }
+    out.into_iter().map(|(g, _)| g).collect()
+}
+
+/// How many nodes a layer's drawing makes: a rectangle for each band, and for each number (a group of bands) at most a guide, a circle
+/// and its text.
 pub(super) fn layer_nodes(l: &Layer) -> usize {
-    l.bands.iter().map(|b| 1 + if b.thin() < THIN { 3 } else { 2 }).sum()
+    l.bands.len() + 3 * groups_of(std::slice::from_ref(l)).len()
+}
+
+/// The size of the patch a number inside a band is written on (the text and its padding).
+pub(super) fn patch_size(label: &str) -> (f64, f64) {
+    (label.chars().count() as f64 * CHAR_W + 2.0 * LABEL_PAD_X, LABEL_H)
+}
+
+/// The room around a number written inside a band: the band is empty space, and the number must not reach its edge (the content of the
+/// next layer starts there).
+pub const INSIDE_ROOM: f64 = 4.0;
+
+/// Whether the number fits inside the band: the band is at least as thick as the patch is high, plus 4 px, and as long as the patch is
+/// wide, plus 4 px.
+pub(super) fn fits_inside(band: Rect, label: &str) -> bool {
+    let (w, h) = patch_size(label);
+    band.w >= w + INSIDE_ROOM && band.h >= h + INSIDE_ROOM
+}
+
+/// How much wider than a circle a number's marker outside is, on each side: a circle holds two digits; longer ("8 (x3)") makes a pill.
+pub(super) fn pill_extra(label: &str) -> f64 {
+    ((label.chars().count() as f64 * MARKER_CHAR_W + 12.0 - MARKER_D) / 2.0).max(0.0)
+}
+
+/// What an instance holds that a number or a guide must not cover: its texts, its vectors and its instances with nothing inside (an
+/// icon). The component itself is not one. The rectangles are the walk's.
+pub(super) fn content_of(walked: &[(Value, usize)], drawn: &[bool]) -> Vec<Rect> {
+    walked
+        .iter()
+        .enumerate()
+        .filter(|(i, (_, depth))| *depth >= 1 && drawn.get(*i).copied().unwrap_or(false))
+        .filter(|(_, (n, _))| {
+            let kind = n.get("type").and_then(Value::as_str).unwrap_or_default();
+            let leaf = n.get("children").and_then(Value::as_array).is_none_or(Vec::is_empty);
+            matches!(kind, "TEXT" | "VECTOR" | "ELLIPSE" | "STAR" | "POLYGON" | "LINE" | "BOOLEAN_OPERATION") || (kind == "INSTANCE" && leaf)
+        })
+        .filter_map(|(_, (n, _))| bounds(n))
+        .filter(|b| b.w > 0.0 && b.h > 0.0)
+        .collect()
+}
+
+/// A content rectangle as an obstacle for a guide: shrunk by the room the placer then grows it by (less the half pixel it forgives), so
+/// the guide is kept off exactly the content's own box and a band that touches that box is still reached on its edge; never below 2 px
+/// (an icon is still an obstacle).
+pub(super) fn obstacle(t: Rect) -> Rect {
+    let shrink = (GUIDE_CLEAR - 0.5).min((t.w.min(t.h) - 2.0) / 2.0).max(0.0);
+    t.grow(-shrink)
 }
 
 /// The layers drawn, and how many were left out: the component (depth 0) first, then the others by area, largest first; at most
@@ -160,6 +240,12 @@ fn auto_of(node: &Value) -> Option<Auto> {
 /// stands on the stage. The first number is how many layers use auto layout at all.
 pub(super) fn layers_of(walked: &[(Value, usize)], drawn: &[bool], offset: (f64, f64)) -> (usize, Vec<Layer>) {
     let by_id: HashMap<u64, usize> = walked.iter().enumerate().filter_map(|(i, (n, _))| Some((n.get("id")?.as_u64()?, i))).collect();
+    let parent_of: HashMap<usize, usize> = walked
+        .iter()
+        .enumerate()
+        .flat_map(|(p, (n, _))| n.get("children").and_then(Value::as_array).into_iter().flatten().filter_map(|c| by_id.get(&c.get("id")?.as_u64()?).map(|k| (*k, p))).collect::<Vec<_>>())
+        .collect();
+    let name_of = |n: &Value| n.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
     let rect_of = |i: usize| bounds(&walked[i].0).map(|b| Rect { x: b.x + offset.0, y: b.y + offset.1, ..b });
     let mut with_auto = 0usize;
     let mut out = Vec::new();
@@ -180,7 +266,7 @@ pub(super) fn layers_of(walked: &[(Value, usize)], drawn: &[bool], offset: (f64,
             .filter_map(rect_of)
             .collect();
         let bands = bands_of(r, &auto, &kids);
-        out.push(Layer { node: i, depth: *depth, area: r.w * r.h, bands });
+        out.push(Layer { node: i, family: parent_of.get(&i).map(|p| (*p, name_of(node))), depth: *depth, area: r.w * r.h, bands });
     }
     (with_auto, out)
 }
@@ -190,8 +276,36 @@ fn value_text(v: f64) -> String {
     audit::number(v)
 }
 
-/// The Layouts frame.
-pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
+/// Places the numbers that stand outside their bands (`avoid`: what no marker may cover, the content that spills out of the instance too). `items(choice)` makes the items for the first band of each group (`choice[k]` is
+/// which band of group `k` its guide goes to); a number with no place is tried again at the group's next band, up to four more times, and
+/// the try that places the most is the one used. Returns the markers and the band each group ended on.
+pub(super) fn place_outside(ib: Rect, stage: Rect, groups: usize, spare: &[usize], avoid: &[Rect], items: &dyn Fn(&[usize]) -> Vec<Item>) -> (Vec<Marker>, Vec<usize>) {
+    let mut choice = vec![0usize; groups];
+    let mut best = place_markers(ib, stage, &items(&choice), avoid);
+    for _ in 0..4 {
+        let mut next = choice.clone();
+        let mut changed = false;
+        for k in (0..groups).filter(|k| !best.iter().any(|m| m.number == k + 1)) {
+            if next[k] < spare[k] {
+                next[k] += 1;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+        let tried = place_markers(ib, stage, &items(&next), avoid);
+        if tried.len() <= best.len() {
+            break;
+        }
+        best = tried;
+        choice = next;
+    }
+    (best, choice)
+}
+
+/// The Layouts frame. Returns how many numbers did not fit in the drawing (they are not drawn; the frame says which).
+pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<usize> {
     let lang = c.lang;
     header(c, frame, t(lang, Key::SecLayouts))?;
     let walked = base_walk(c)?;
@@ -202,11 +316,9 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
     all.retain(|l| !l.bands.is_empty());
     if with_auto == 0 || all.is_empty() {
         muted_note(lang, frame, t(lang, Key::LayoutsNone))?;
-        return Ok(());
+        return Ok(0);
     }
     let (layers, left_out) = choose_layers(all);
-    // The texts of the instance (where the walk stood): a guide to a number outside does not run over one.
-    let texts: Vec<Rect> = walked.iter().enumerate().filter(|(i, (n, _))| drawn.get(*i).copied().unwrap_or(false) && n.get("type").and_then(Value::as_str) == Some("TEXT")).filter_map(|(_, (n, _))| bounds(n)).collect();
     // The stage: the Anatomy's width, the instance of the default variant in the middle, and the colour the Anatomy's rule picks.
     let target = c.target;
     let size = bounds(&target.node).unwrap_or(Rect { x: 0.0, y: 0.0, w: 200.0, h: 100.0 });
@@ -221,35 +333,54 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
     let col = colours(dark);
     // The walk's rectangles move onto the stage's instance.
     let offset = (ib0.x - root.x, ib0.y - root.y);
-    let moved: Vec<Layer> = layers
-        .iter()
-        .map(|l| Layer { bands: l.bands.iter().map(|b| Band { rect: Rect { x: b.rect.x + offset.0, y: b.rect.y + offset.1, ..b.rect }, ..*b }).collect(), ..l.clone() })
-        .collect();
-    // The numbers: inside their band when it is thick enough; the others stand outside, each with a straight guide (the Anatomy's placer).
-    let mut outside: Vec<(usize, usize)> = Vec::new();
-    for (li, l) in moved.iter().enumerate() {
-        for (bi, b) in l.bands.iter().enumerate() {
-            if b.thin() < THIN || value_text(b.value).chars().count() as f64 * CHAR_W + 2.0 * LABEL_PAD_X > b.rect.w.max(b.rect.h) {
-                outside.push((li, bi));
-            }
-        }
-    }
-    let make_items = |moved: &[Layer], dy: f64| -> Vec<Item> {
-        outside
-            .iter()
-            .enumerate()
-            .map(|(k, (li, bi))| {
-                let rect = moved[*li].bands[*bi].rect;
-                // The texts stand in the guide's way, shrunk by the room a guide keeps from them plus a pixel: a band that touches a text's
-                // edge is reached on that edge, a guide that would have to run over the text is not.
-                let blockers = texts.iter().map(|t| Rect { x: t.x + offset.0, y: t.y + offset.1 + dy, ..*t }.grow(-GUIDE_CLEAR - 1.0)).filter(|t| t.w > 0.0 && t.h > 0.0).collect();
-                Item { number: k + 1, root: false, layer: rect, kind: Kind::Small, inside: vec![], blockers, rims: vec![] }
-            })
-            .collect()
+    let to_stage = |r: Rect, dy: f64| Rect { x: r.x + offset.0, y: r.y + offset.1 + dy, ..r };
+    let mut moved: Vec<Layer> = layers.iter().map(|l| Layer { bands: l.bands.iter().map(|b| Band { rect: to_stage(b.rect, 0.0), ..*b }).collect(), ..l.clone() }).collect();
+    let content0: Vec<Rect> = content_of(&walked, &drawn).into_iter().map(|r| to_stage(r, 0.0)).collect();
+    // The numbers: one for each group of bands. Inside the first band that is big enough for it and has no content under the patch (the
+    // band is empty space); else outside, with a straight guide (the Anatomy's placer) that crosses no text, icon or instance of the
+    // component.
+    let groups: Vec<Group> = groups_of(&moved);
+    let patch_at = |b: Rect, label: &str| {
+        let (w, h) = patch_size(label);
+        Rect { x: b.x + (b.w - w) / 2.0, y: b.y + (b.h - h) / 2.0, w, h }
     };
-    let items = make_items(&moved, 0.0);
+    // For each group: the band its number stands inside, if there is one.
+    let inside: Vec<Option<(usize, usize)>> = groups
+        .iter()
+        .map(|g| {
+            let label = g.label();
+            g.members.iter().copied().find(|(li, bi)| {
+                let b = moved[*li].bands[*bi].rect;
+                fits_inside(b, &label) && !content0.iter().any(|t| patch_at(b, &label).hits(*t))
+            })
+        })
+        .collect();
+    let outside: Vec<usize> = (0..groups.len()).filter(|gi| inside[*gi].is_none()).collect();
+    let spare: Vec<usize> = outside.iter().map(|gi| groups[*gi].members.len() - 1).collect();
+    let items_for = |moved: &[Layer], dy: f64| {
+        let shifted: Vec<Rect> = content0.iter().map(|t| Rect { y: t.y + dy, ..*t }).collect();
+        let outside = outside.clone();
+        let groups = groups.clone();
+        let moved = moved.to_vec();
+        move |choice: &[usize]| -> Vec<Item> {
+            outside
+                .iter()
+                .enumerate()
+                .map(|(k, gi)| {
+                    let g = &groups[*gi];
+                    let (li, bi) = g.members[choice[k]];
+                    let rect = moved[li].bands[bi].rect;
+                    // A content box that most of the band lies under (a big image instance the band is drawn on) cannot be avoided: the
+                    // guide has to enter it, as the Anatomy's does for a layer on a wide text's box.
+                    let blockers = shifted.iter().filter(|t| !mostly_under(rect, **t)).map(|t| obstacle(*t)).collect();
+                    Item { number: k + 1, root: false, layer: rect, kind: Kind::Small, inside: vec![], blockers, rims: vec![], extra: pill_extra(&g.label()) }
+                })
+                .collect()
+        }
+    };
     let big = Rect { y: ib0.y - MARKERS_ROOM_MAX, h: ib0.h + 2.0 * MARKERS_ROOM_MAX, ..sb0 };
-    let room = place_markers(ib0, big, &items, &[]).iter().map(|m| (ib0.y - m.centre.1).max(m.centre.1 - ib0.bottom()).max(0.0) + MARKER_EDGE).fold(STAGE_ROOM / 2.0, f64::max);
+    let (first, _) = place_outside(ib0, big, outside.len(), &spare, &content0, &items_for(&moved, 0.0));
+    let room = first.iter().map(|m| (ib0.y - m.centre.1).max(m.centre.1 - ib0.bottom()).max(0.0) + MARKER_EDGE).fold(STAGE_ROOM / 2.0, f64::max);
     let h1 = h0.max(size.h + 2.0 * room);
     let (sb, ib, dy) = if (h1 - h0).abs() > 0.5 {
         let dy = (h1 - h0) / 2.0;
@@ -260,13 +391,16 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
         (sb0, ib0, 0.0)
     };
     host(lang, "node.set", &json!({"ids": [stage], "props": {"fill": choice.fill(), "stroke": theme::BORDER, "strokeWeight": 1, "strokeAlign": "inside", "width": stage_w}}))?;
-    let shift = |r: Rect| Rect { y: r.y + dy, ..r };
-    let moved: Vec<Layer> = moved.iter().map(|l| Layer { bands: l.bands.iter().map(|b| Band { rect: shift(b.rect), ..*b }).collect(), ..l.clone() }).collect();
-    let items = make_items(&moved, dy);
-    let markers = place_markers(ib, sb, &items, &[]);
+    for l in &mut moved {
+        for b in &mut l.bands {
+            b.rect.y += dy;
+        }
+    }
+    let content: Vec<Rect> = content0.iter().map(|t| Rect { y: t.y + dy, ..*t }).collect();
+    let (markers, _) = place_outside(ib, sb, outside.len(), &spare, &content, &items_for(&moved, dy));
     let origin = (sb.x, sb.y);
     // The bands first (the numbers go on top).
-    for (li, l) in moved.iter().enumerate() {
+    for l in &moved {
         let percent = if l.depth <= 1 { FILL_TOP } else { FILL_DEEP };
         for b in &l.bands {
             let colour = if b.gap { col.gap } else { col.padding };
@@ -278,45 +412,44 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
                     "props": {"fill": fill_colour(percent, colour), "stroke": colour, "strokeWeight": 1.0, "strokeAlign": "inside"}}),
             )?;
         }
-        let _ = li;
     }
-    // The numbers inside their band: a pill of the band's colour with the number in the colour that reads on it.
-    for (li, l) in moved.iter().enumerate() {
-        for (bi, b) in l.bands.iter().enumerate() {
-            // A number outside that the placer found no straight way for stays on its band (over its edges, but there).
-            if outside.iter().position(|o| *o == (li, bi)).is_some_and(|k| markers.iter().any(|m| m.number == k + 1)) {
-                continue;
-            }
-            let label = value_text(b.value);
-            let (fill, ink) = if b.gap { (col.gap, col.on_gap) } else { (col.padding, col.on_padding) };
-            let tw = CHAR_W * label.chars().count() as f64;
-            let (cx, cy) = (b.rect.x + b.rect.w / 2.0, b.rect.y + b.rect.h / 2.0);
-            let patch = value_label(lang, stage, origin, &label, cx - tw / 2.0, cy - LABEL_H / 2.0 + LABEL_PAD_Y, ink, fill, &tf(lang, Key::LayerValue, &[("value", &label)]))?;
-            let _ = patch;
-        }
+    let mut badges: Vec<Value> = Vec::new();
+    let mut guides: Vec<Value> = Vec::new();
+    let mut dropped: Vec<String> = Vec::new();
+    // The numbers inside their band: a patch of the band's colour with the number in the colour that reads on it.
+    for (gi, g) in groups.iter().enumerate() {
+        let Some((li, bi)) = inside[gi] else { continue };
+        let label = g.label();
+        let (fill, ink) = if g.gap { (col.gap, col.on_gap) } else { (col.padding, col.on_padding) };
+        let at = patch_at(moved[li].bands[bi].rect, &label);
+        value_label(lang, stage, origin, &label, at.x + LABEL_PAD_X, at.y + LABEL_PAD_Y, ink, fill, &tf(lang, Key::LayerValue, &[("value", &label)]))?;
+        badges.push(json!({"label": label, "inside": true, "rect": [at.x, at.y, at.w, at.h]}));
     }
-    // The numbers outside: a guide (straight) from the circle to the band's edge, the circle and the number.
-    let mut dropped = 0usize;
-    for (k, (li, bi)) in outside.iter().enumerate() {
-        let b = &moved[*li].bands[*bi];
+    // The numbers outside: a straight guide from the marker to the band's edge, then the marker (a circle, or a pill for a longer text)
+    // and its text. A number the placer found no straight way for is not drawn (never over the instance): the frame says so.
+    for (k, gi) in outside.iter().enumerate() {
+        let g = &groups[*gi];
         let Some(m) = markers.iter().find(|m| m.number == k + 1) else {
-            dropped += 1;
+            dropped.push(format!("{} px", g.label()));
             continue;
         };
-        let (fill, ink) = if b.gap { (col.gap, col.on_gap) } else { (col.padding, col.on_padding) };
+        let (fill, ink) = if g.gap { (col.gap, col.on_gap) } else { (col.padding, col.on_padding) };
+        let label = g.label();
         let (start, tip) = guide_of(m);
-        let label = value_text(b.value);
         let name = tf(lang, Key::LayerLeader, &[("n", &label)]);
         leader(lang, stage, origin, start, tip, (fill, GUIDE_WEIGHT), &name)?;
-        let circle = host(
+        let width = MARKER_D + 2.0 * m.extra;
+        let shape = host(
             lang,
-            "shape.ellipse",
-            &json!({"x": m.centre.0 - MARKER_D / 2.0 - origin.0, "y": m.centre.1 - MARKER_D / 2.0 - origin.1, "width": MARKER_D, "height": MARKER_D, "parent": stage,
-                "name": tf(lang, Key::LayerValue, &[("value", &label)]), "select": false, "props": {"fill": fill}}),
+            "shape.rectangle",
+            &json!({"x": m.centre.0 - width / 2.0 - origin.0, "y": m.centre.1 - MARKER_D / 2.0 - origin.1, "width": width, "height": MARKER_D, "parent": stage,
+                "name": tf(lang, Key::LayerValue, &[("value", &label)]), "select": false, "props": {"fill": fill, "cornerRadius": MARKER_D / 2.0}}),
         )?;
-        let _ = id_of(lang, &circle, "shape.ellipse")?;
+        let _ = id_of(lang, &shape, "shape.rectangle")?;
         let tw = MARKER_CHAR_W * label.chars().count() as f64;
         text(lang, stage, &label, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - MARKER_LABEL_H / 2.0 - origin.1, MARKER_FONT, ink, None, &tf(lang, Key::LayerValue, &[("value", &label)]))?;
+        badges.push(json!({"label": label, "inside": false, "rect": [m.centre.0 - width / 2.0, m.centre.1 - MARKER_D / 2.0, width, MARKER_D]}));
+        guides.push(json!([start.0, start.1, tip.0, tip.1]));
     }
     host(lang, "node.reparent", &json!({"ids": [stage], "parent": frame}))?;
     // The legend: one line.
@@ -336,15 +469,20 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<()> {
     if left_out > 0 {
         muted_note(lang, frame, &tf(lang, plural(left_out, Key::LayoutsLeftOutOne, Key::LayoutsLeftOut), &[("n", &left_out.to_string())]))?;
     }
+    if !dropped.is_empty() {
+        muted_note(lang, frame, &tf(lang, Key::LayoutsNoMarker, &[("values", &dropped.join(", "))]))?;
+    }
     *c.spacing.borrow_mut() = Some(json!({
         "layers": layers.len(), "left_out": left_out, "with_auto_layout": with_auto, "stage": [sb.x, sb.y, sb.w, sb.h], "dark": dark,
-        "bands": moved.iter().map(|l| l.bands.len()).sum::<usize>(), "outside": outside.len(), "outside_dropped": dropped,
+        "bands": moved.iter().map(|l| l.bands.len()).sum::<usize>(), "groups": groups.len(), "inside": inside.iter().flatten().count(), "outside": outside.len(),
+        "outside_dropped": dropped.len(), "dropped": dropped,
         "nodes": moved.iter().map(layer_nodes).sum::<usize>(),
         "list": moved.iter().flat_map(|l| l.bands.iter().map(move |b| json!({"depth": l.depth, "gap": b.gap, "value": b.value, "rect": [b.rect.x, b.rect.y, b.rect.w, b.rect.h]}))).collect::<Vec<_>>(),
         "markers": markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "tip": [m.tip.0, m.tip.1], "layer": [m.layer.x, m.layer.y, m.layer.w, m.layer.h]})).collect::<Vec<_>>(),
+        "badges": badges, "guides": guides, "content": content.iter().map(|r| json!([r.x, r.y, r.w, r.h])).collect::<Vec<_>>(),
         "component": [ib.x, ib.y, ib.w, ib.h],
     }));
-    Ok(())
+    Ok(dropped.len())
 }
 
 #[cfg(test)]
@@ -405,7 +543,7 @@ mod tests {
     }
 
     fn layer(node: usize, depth: usize, area: f64, bands: usize) -> Layer {
-        Layer { node, depth, area, bands: (0..bands).map(|i| Band { rect: r(i as f64 * 30.0, 0.0, 24.0, 24.0), gap: false, value: 8.0 }).collect() }
+        Layer { node, family: None, depth, area, bands: (0..bands).map(|i| Band { rect: r(i as f64 * 30.0, 0.0, 24.0, 24.0), gap: false, value: 8.0 + i as f64 }).collect() }
     }
 
     #[test]
@@ -419,20 +557,228 @@ mod tests {
         let (kept, left) = choose_layers(many);
         assert_eq!((kept.len(), left), (8, 2));
         assert_eq!(kept[0].node, 0);
-        // Nodes: bands 3 each (rectangle, patch, text); 12 bands of 3 = 36 a layer, so 120 / 36 = 3 layers go in whole.
+        // Nodes: a rectangle for each band and up to three for each number (12 bands of 12 values = 12 + 36 = 48 a layer), so 120 / 48 = 2
+        // layers go in whole.
         let heavy: Vec<Layer> = (0..6).map(|i| layer(i, usize::from(i > 0), 100.0 - i as f64, 12)).collect();
         let (kept, left) = choose_layers(heavy);
-        assert_eq!(kept.len(), 3);
-        assert_eq!(left, 3);
+        assert_eq!(kept.len(), 2);
+        assert_eq!(left, 4);
         assert!(kept.iter().map(layer_nodes).sum::<usize>() <= NODE_CAP);
     }
 
+    fn band(x: f64, y: f64, w: f64, h: f64, gap: bool, value: f64) -> Band {
+        Band { rect: r(x, y, w, h), gap, value }
+    }
+
+    fn layer_with(node: usize, family: Option<(usize, &str)>, bands: Vec<Band>) -> Layer {
+        Layer { node, family: family.map(|(p, n)| (p, n.to_string())), depth: 1, area: 1.0, bands }
+    }
+
     #[test]
-    fn a_thin_band_costs_a_circle_a_number_and_a_guide() {
-        let thin = Layer { node: 0, depth: 0, area: 1.0, bands: vec![Band { rect: r(0.0, 0.0, 100.0, 8.0), gap: false, value: 8.0 }] };
-        assert_eq!(layer_nodes(&thin), 1 + 3);
-        let thick = Layer { node: 0, depth: 0, area: 1.0, bands: vec![Band { rect: r(0.0, 0.0, 100.0, 24.0), gap: true, value: 8.0 }] };
-        assert_eq!(layer_nodes(&thick), 1 + 2);
+    fn bands_of_the_same_kind_and_value_in_a_layer_share_one_number() {
+        // The list: three gaps of 8 (one number "8 (x3)", at the first from the top); a padding of 8 too is another kind: its own number.
+        let bands = vec![
+            band(0.0, 60.0, 100.0, 8.0, true, 8.0),
+            band(0.0, 20.0, 100.0, 8.0, true, 8.0),
+            band(0.0, 100.0, 100.0, 8.0, true, 8.0),
+            band(0.0, 0.0, 100.0, 8.0, false, 8.0),
+            band(0.0, 140.0, 100.0, 16.0, true, 16.0),
+        ];
+        let groups = groups_of(&[layer_with(3, Some((0, "List")), bands)]);
+        assert_eq!(groups.len(), 3);
+        let gaps8 = groups.iter().find(|g| g.gap && (g.value - 8.0).abs() < 0.01).unwrap();
+        assert_eq!(gaps8.members, vec![(0, 1), (0, 0), (0, 2)], "reading order: top to bottom");
+        assert_eq!(gaps8.label(), "8 (x3)");
+        let pad8 = groups.iter().find(|g| !g.gap).unwrap();
+        assert_eq!((pad8.members.len(), pad8.label().as_str()), (1, "8"), "a padding is not a gap, even with the same value");
+        assert_eq!(groups.iter().find(|g| g.value > 10.0).unwrap().label(), "16");
+    }
+
+    #[test]
+    fn the_four_paddings_of_a_card_are_one_number() {
+        let bands = vec![band(0.0, 0.0, 320.0, 24.0, false, 24.0), band(0.0, 342.0, 320.0, 24.0, false, 24.0), band(0.0, 24.0, 24.0, 318.0, false, 24.0), band(296.0, 24.0, 24.0, 318.0, false, 24.0)];
+        let groups = groups_of(&[layer_with(0, None, bands)]);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].label(), "24 (x4)");
+        assert_eq!(groups[0].members[0], (0, 0), "the guide goes to the top band");
+    }
+
+    #[test]
+    fn the_rows_of_a_list_share_one_number_for_the_gap_between_their_icon_and_text() {
+        // Three rows (siblings, same name), each with a gap of 8 between the icon and the text: "8 (x3)". The list's own gaps of 8
+        // between the rows are in another layer (the rows' parent): another number.
+        let row = |node: usize, y: f64| layer_with(node, Some((1, "Row")), vec![band(10.0, y, 8.0, 20.0, true, 8.0)]);
+        let list = layer_with(1, Some((0, "List")), vec![band(0.0, 30.0, 100.0, 8.0, true, 8.0), band(0.0, 58.0, 100.0, 8.0, true, 8.0)]);
+        let groups = groups_of(&[list, row(2, 20.0), row(3, 48.0), row(4, 76.0)]);
+        let mut labels: Vec<String> = groups.iter().map(Group::label).collect();
+        labels.sort();
+        assert_eq!(labels, vec!["8 (x2)", "8 (x3)"]);
+        // The guide goes to the first row from the top.
+        let rows = groups.iter().find(|g| g.members.len() == 3).unwrap();
+        assert_eq!(rows.members[0], (1, 0));
+    }
+
+    #[test]
+    fn layers_that_are_not_repeated_siblings_never_share_a_number() {
+        // A header and a footer, both with padding 16 but with other names; and two rows of different parents.
+        let band16 = |y: f64| vec![band(0.0, y, 100.0, 16.0, false, 16.0)];
+        let groups = groups_of(&[layer_with(1, Some((0, "Header")), band16(0.0)), layer_with(2, Some((0, "Footer")), band16(100.0)), layer_with(3, Some((5, "Row")), band16(200.0)), layer_with(4, Some((6, "Row")), band16(300.0))]);
+        assert_eq!(groups.len(), 4);
+        assert!(groups.iter().all(|g| g.members.len() == 1));
+        // The component has no family: it is its own.
+        let root = layer_with(0, None, band16(0.0));
+        assert_eq!(groups_of(&[root.clone(), root]).len(), 2);
+    }
+
+    #[test]
+    fn a_number_goes_inside_a_band_only_when_its_patch_is_four_short_of_every_edge() {
+        // "20" is 17 + 8 = 25 wide and 18 high: the band needs 29 x 22.
+        assert_eq!(patch_size("20"), (25.0, 18.0));
+        assert!(fits_inside(r(0.0, 0.0, 320.0, 24.0), "24"), "a band 24 thick holds the number");
+        assert!(!fits_inside(r(0.0, 0.0, 320.0, 21.0), "24"), "21 is less than 18 + 4");
+        assert!(fits_inside(r(0.0, 0.0, 320.0, 22.0), "24"));
+        // A band 20 wide (the Popovers' side padding) is thick enough for the height but the patch is 25 wide: outside.
+        assert!(!fits_inside(r(0.0, 0.0, 20.0, 99.0), "20"));
+        assert!(!fits_inside(r(0.0, 0.0, 28.0, 99.0), "20"));
+        assert!(fits_inside(r(0.0, 0.0, 29.0, 99.0), "20"));
+        // A longer text needs a longer band.
+        assert!(!fits_inside(r(0.0, 0.0, 60.0, 24.0), "8 (x3)"));
+        assert!(fits_inside(r(0.0, 0.0, 100.0, 24.0), "8 (x3)"));
+    }
+
+    #[test]
+    fn a_marker_is_a_circle_for_two_digits_and_a_pill_for_a_longer_text() {
+        assert_eq!(pill_extra("8"), 0.0);
+        assert_eq!(pill_extra("20"), 0.0);
+        assert!(pill_extra("8 (x3)") > 15.0);
+        // The pill holds its text: the width it makes is at least the text and 6 px each side.
+        let label = "24 (x4)";
+        assert!(MARKER_D + 2.0 * pill_extra(label) >= MARKER_CHAR_W * label.chars().count() as f64 + 12.0 - 0.001);
+    }
+
+    #[test]
+    fn content_is_what_a_number_or_a_guide_must_not_cover() {
+        let node = |id: u64, kind: &str, x: f64, y: f64, w: f64, h: f64, kids: &[u64]| json!({"id": id, "type": kind, "absoluteBounds": {"x": x, "y": y, "width": w, "height": h}, "children": kids.iter().map(|k| json!({"id": k})).collect::<Vec<_>>()});
+        let walked = vec![
+            (node(1, "COMPONENT", 0.0, 0.0, 100.0, 40.0, &[2, 3, 4, 5, 6]), 0),
+            (node(2, "TEXT", 10.0, 10.0, 40.0, 14.0, &[]), 1),
+            (node(3, "FRAME", 0.0, 0.0, 100.0, 40.0, &[]), 1),
+            (node(4, "INSTANCE", 60.0, 10.0, 16.0, 16.0, &[]), 1),
+            (node(5, "INSTANCE", 80.0, 0.0, 20.0, 40.0, &[7]), 1),
+            (node(6, "VECTOR", 90.0, 10.0, 8.0, 8.0, &[]), 1),
+            (node(7, "TEXT", 82.0, 10.0, 10.0, 10.0, &[]), 2),
+        ];
+        let content = content_of(&walked, &[true; 7]);
+        assert_eq!(content, vec![r(10.0, 10.0, 40.0, 14.0), r(60.0, 10.0, 16.0, 16.0), r(90.0, 10.0, 8.0, 8.0), r(82.0, 10.0, 10.0, 10.0)], "a text, an icon instance, a vector and the text in the button; not the frames, the component or an instance with something in it");
+        // A hidden layer is not content.
+        assert_eq!(content_of(&walked, &[true, false, true, true, true, true, true]).len(), 3);
+    }
+
+    #[test]
+    fn an_obstacle_is_the_content_a_little_smaller_and_never_under_two_pixels() {
+        assert_eq!(obstacle(r(0.0, 0.0, 100.0, 40.0)), r(3.5, 3.5, 93.0, 33.0));
+        let icon = obstacle(r(0.0, 0.0, 14.0, 9.0));
+        assert!(icon.w >= 2.0 - 0.001 && icon.h >= 2.0 - 0.001, "{icon:?}");
+        assert!(icon.x >= 0.0 && icon.right() <= 14.0 + 0.001, "it stays inside the icon");
+    }
+
+    fn band_item(number: usize, layer: Rect, blockers: Vec<Rect>, extra: f64) -> Item {
+        Item { number, root: false, layer, kind: Kind::Small, inside: vec![], blockers, rims: vec![], extra }
+    }
+
+    /// A guide as the placer returns it, whether it runs over any of the rectangles (a hair smaller, so that touching is fine).
+    fn crosses_any(m: &Marker, over: &[Rect]) -> bool {
+        let (a, b) = guide_of(m);
+        over.iter().any(|t| {
+            let t = t.grow(-0.5);
+            let (x0, x1, y0, y1) = (a.0.min(b.0), a.0.max(b.0), a.1.min(b.1), a.1.max(b.1));
+            x0 < t.right() && t.x < x1 && y0 < t.bottom() && t.y < y1 || (x0 == x1 && x0 > t.x && x0 < t.right() && y0 < t.bottom() && t.y < y1) || (y0 == y1 && y0 > t.y && y0 < t.bottom() && x0 < t.right() && t.x < x1)
+        })
+    }
+
+    #[test]
+    fn a_guide_runs_through_empty_space_to_a_band_between_two_lines_of_text() {
+        // An instance 200 x 200 at (100, 100): two lines of text (full width), a gap band between them. A guide from above or below would
+        // cross a line; one from the side runs along the band.
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let stage = r(0.0, 0.0, 400.0, 400.0);
+        let texts = [r(110.0, 120.0, 180.0, 40.0), r(110.0, 176.0, 180.0, 40.0)];
+        let gap = r(110.0, 160.0, 180.0, 16.0);
+        let blockers: Vec<Rect> = texts.iter().map(|t| obstacle(*t)).collect();
+        let (ms, _) = place_outside(ib, stage, 1, &[0], &[], &|_| vec![band_item(1, gap, blockers.clone(), 0.0)]);
+        assert_eq!(ms.len(), 1, "a straight way in from the side exists");
+        let (a, b) = guide_of(&ms[0]);
+        assert!(a.0 == b.0 || a.1 == b.1, "straight");
+        assert!(!crosses_any(&ms[0], &texts), "the guide runs over no text: {a:?} {b:?}");
+        assert!((ms[0].centre.1 - 168.0).abs() < 8.5, "the guide stays in the band's rows: {:?}", ms[0].centre);
+    }
+
+    #[test]
+    fn a_number_with_no_clean_way_in_is_left_out_and_never_forced_over_content() {
+        // The band is boxed in by text on every side: no straight guide gets in, so the placer returns no marker for it.
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let stage = r(0.0, 0.0, 400.0, 400.0);
+        let boxed = r(190.0, 190.0, 20.0, 20.0);
+        let walls = [r(150.0, 150.0, 100.0, 40.0), r(150.0, 210.0, 100.0, 40.0), r(150.0, 150.0, 40.0, 100.0), r(210.0, 150.0, 40.0, 100.0)];
+        let blockers: Vec<Rect> = walls.iter().map(|t| obstacle(*t)).collect();
+        let (ms, _) = place_outside(ib, stage, 1, &[0], &[], &|_| vec![band_item(1, boxed, blockers.clone(), 0.0)]);
+        assert!(ms.is_empty(), "{:?}", ms.iter().map(|m| m.centre).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_group_tries_its_next_band_when_the_first_has_no_way_in() {
+        // Two bands of one group: the first is boxed in; the second is open to the left. The number goes to the second.
+        let ib = r(100.0, 100.0, 200.0, 200.0);
+        let stage = r(0.0, 0.0, 400.0, 400.0);
+        let boxed = r(190.0, 190.0, 20.0, 20.0);
+        let open = r(110.0, 110.0, 180.0, 8.0);
+        let walls = [r(150.0, 150.0, 100.0, 40.0), r(150.0, 210.0, 100.0, 40.0), r(150.0, 150.0, 40.0, 100.0), r(210.0, 150.0, 40.0, 100.0)];
+        let blockers: Vec<Rect> = walls.iter().map(|t| obstacle(*t)).collect();
+        let bands = [boxed, open];
+        let (ms, choice) = place_outside(ib, stage, 1, &[1], &[], &|c| vec![band_item(1, bands[c[0]], blockers.clone(), 0.0)]);
+        assert_eq!(ms.len(), 1);
+        assert_eq!(choice, vec![1]);
+        assert!(!crosses_any(&ms[0], &walls));
+    }
+
+    #[test]
+    fn a_pill_beside_the_instance_stands_as_far_from_it_as_a_circle_does() {
+        let ib = r(200.0, 100.0, 100.0, 100.0);
+        let stage = r(0.0, 0.0, 500.0, 300.0);
+        let extra = pill_extra("12 (x2)");
+        for band in [r(200.0, 150.0, 100.0, 8.0), r(210.0, 100.0, 8.0, 100.0)] {
+            let (ms, _) = place_outside(ib, stage, 1, &[0], &[], &|_| vec![band_item(1, band, vec![], extra)]);
+            let m = &ms[0];
+            let (left, right) = (m.centre.0 - MARKER_D / 2.0 - extra, m.centre.0 + MARKER_D / 2.0 + extra);
+            let clear_of = if m.centre.0 < ib.x { ib.x - right } else if m.centre.0 > ib.right() { left - ib.right() } else { f64::INFINITY };
+            assert!(clear_of >= MARKER_CLEAR - 0.01, "the pill is {clear_of} from the instance: {:?}", m.centre);
+        }
+    }
+
+    #[test]
+    fn a_marker_stays_off_content_that_spills_out_of_the_instance() {
+        // A narrow instance whose text is wider than it: the text sticks out to the left, so a marker on the left would sit on it.
+        let ib = r(100.0, 100.0, 16.0, 200.0);
+        let stage = r(0.0, 0.0, 400.0, 400.0);
+        let spill = r(60.0, 150.0, 56.0, 17.0);
+        let band = r(100.0, 100.0, 16.0, 8.0);
+        let (ms, _) = place_outside(ib, stage, 1, &[0], &[spill], &|_| vec![band_item(1, band, vec![], 0.0)]);
+        assert_eq!(ms.len(), 1);
+        let m = &ms[0];
+        let circle = r(m.centre.0 - MARKER_D / 2.0, m.centre.1 - MARKER_D / 2.0, MARKER_D, MARKER_D);
+        assert!(!circle.hits(spill), "the marker {:?} sits on the text that spills out", m.centre);
+    }
+
+    #[test]
+    fn a_pill_keeps_clear_of_a_circle_next_to_it() {
+        // Two bands side by side at the same height on the left of the instance: the pill takes more room, so the circle is farther.
+        let ib = r(200.0, 100.0, 100.0, 100.0);
+        let stage = r(0.0, 0.0, 500.0, 300.0);
+        let (ms, _) = place_outside(ib, stage, 2, &[0, 0], &[], &|_| vec![band_item(1, r(200.0, 120.0, 100.0, 8.0), vec![], pill_extra("8 (x3)")), band_item(2, r(200.0, 140.0, 100.0, 8.0), vec![], 0.0)]);
+        assert_eq!(ms.len(), 2);
+        let (a, b) = (&ms[0], &ms[1]);
+        let d = (a.centre.0 - b.centre.0).hypot(a.centre.1 - b.centre.1);
+        assert!(d >= MARKER_STEP + a.extra - 0.01, "{d} apart, pill extra {}", a.extra);
     }
 
     #[test]

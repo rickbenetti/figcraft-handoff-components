@@ -330,10 +330,12 @@ pub enum Warn {
     ApprovalProperty,
     /// Markers of the Anatomy that did not fit in the drawing (how many numbers have none): the table says so in its Note column.
     MarkersDropped(usize),
+    /// Numbers of the Layouts drawing that did not fit (how many): the frame says which in a note under the drawing.
+    SpacingDropped(usize),
 }
 
 impl Warn {
-    pub const ALL: [Warn; 7] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty, Warn::MarkersDropped(0)];
+    pub const ALL: [Warn; 8] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty, Warn::MarkersDropped(0), Warn::SpacingDropped(0)];
 
     pub fn code(self) -> &'static str {
         match self {
@@ -344,6 +346,7 @@ impl Warn {
             Warn::LegacyDoc => "legacy_doc",
             Warn::ApprovalProperty => "approval_property_missing",
             Warn::MarkersDropped(_) => "markers_dropped",
+            Warn::SpacingDropped(_) => "spacing_dropped",
         }
     }
 
@@ -356,6 +359,7 @@ impl Warn {
             Warn::LegacyDoc => Key::PanelWarnLegacy,
             Warn::ApprovalProperty => Key::PanelWarnApproval,
             Warn::MarkersDropped(_) => Key::PanelWarnMarkers,
+            Warn::SpacingDropped(_) => Key::PanelWarnSpacing,
         })
     }
 
@@ -363,6 +367,7 @@ impl Warn {
     pub fn line(self, lang: Lang) -> String {
         match self {
             Warn::MarkersDropped(n) => tf(lang, plural(n, Key::PanelWarnMarkersOne, Key::PanelWarnMarkers), &[("n", &n.to_string())]),
+            Warn::SpacingDropped(n) => tf(lang, plural(n, Key::PanelWarnSpacingOne, Key::PanelWarnSpacing), &[("n", &n.to_string())]),
             w => w.text(lang).to_string(),
         }
     }
@@ -1317,7 +1322,11 @@ pub fn generate(input: Input) -> Result<Value> {
                 })),
                 Sec::Variants => Some(tables::build_variants(&ctx, frame)),
                 Sec::Tokens => Some(tokens::build_tokens(&ctx, frame)),
-                Sec::Layouts => Some(spacing::build_layouts(&ctx, frame)),
+                Sec::Layouts => Some(spacing::build_layouts(&ctx, frame).map(|dropped| {
+                    if dropped > 0 {
+                        warnings.push(Warn::SpacingDropped(dropped));
+                    }
+                })),
                 _ => None,
             };
             #[cfg(feature = "test-hooks")]

@@ -10,6 +10,17 @@
       "tip_in_text": 0,
       "cross": 0
     },
+    "spacing": {
+      "groups": 2,
+      "inside": 0,
+      "outside": 2,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 45.4
+    },
     "frames": [
       [
         "cover",
@@ -80,8 +91,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 82556256,
-    "calls": 1035
+    "fuel": 82400738,
+    "calls": 1017
   },
   "copia-2 / id 3 (Toast variant)": {
     "markers": {
@@ -93,6 +104,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 3,
+      "inside": 0,
+      "outside": 3,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 23.4
     },
     "frames": [
       [
@@ -129,24 +151,24 @@
         "layouts",
         64.0,
         3317.0,
-        525.0
+        585.0
       ],
       [
         "tokens",
         64.0,
-        3906.0,
+        3966.0,
         727.0
       ],
       [
         "changelog",
         64.0,
-        4697.0,
+        4757.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      5040.0
+      5100.0
     ],
     "tables": [
       [
@@ -164,8 +186,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 113215098,
-    "calls": 1305
+    "fuel": 112231911,
+    "calls": 1275
   },
   "carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -177,6 +199,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 3,
+      "inside": 1,
+      "outside": 2,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -252,8 +285,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 261042812,
-    "calls": 1374
+    "fuel": 261210863,
+    "calls": 1353
   },
   "carga-v2 / id 194 (Card de carga)": {
     "markers": {
@@ -265,6 +298,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 8,
+      "inside": 0,
+      "outside": 8,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 48.3
     },
     "frames": [
       [
@@ -336,8 +380,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 749428436,
-    "calls": 4140
+    "fuel": 740959195,
+    "calls": 3972
   },
   "ds-base-demo / Button": {
     "markers": {
@@ -349,6 +393,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 3,
+      "inside": 0,
+      "outside": 3,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 57.4
     },
     "frames": [
       [
@@ -385,24 +440,24 @@
         "layouts",
         64.0,
         4669.0,
-        530.0
+        482.0
       ],
       [
         "tokens",
         64.0,
-        5263.0,
+        5215.0,
         1441.0
       ],
       [
         "changelog",
         64.0,
-        6768.0,
+        6720.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      7111.0
+      7063.0
     ],
     "tables": [
       [
@@ -426,8 +481,8 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 356124210,
-    "calls": 3684
+    "fuel": 354794313,
+    "calls": 3660
   },
   "ds-base-demo / Card": {
     "markers": {
@@ -439,6 +494,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 7,
+      "inside": 1,
+      "outside": 6,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 40.2
     },
     "frames": [
       [
@@ -514,8 +580,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 375607784,
-    "calls": 3477
+    "fuel": 374998717,
+    "calls": 3423
   },
   "ds-base-demo / Accordion": {
     "markers": {
@@ -527,6 +593,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 2,
+      "inside": 0,
+      "outside": 2,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -602,8 +679,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 151656466,
-    "calls": 1659
+    "fuel": 149705325,
+    "calls": 1614
   },
   "ds-base-demo / Code": {
     "markers": {
@@ -615,6 +692,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 3,
+      "inside": 0,
+      "outside": 3,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -686,8 +774,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 93401855,
-    "calls": 1050
+    "fuel": 92226001,
+    "calls": 1023
   },
   "ds-base-demo / Icon": {
     "markers": {
@@ -700,6 +788,7 @@
       "tip_in_text": 0,
       "cross": 0
     },
+    "spacing": null,
     "frames": [
       [
         "cover",
@@ -774,7 +863,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 128313877,
+    "fuel": 128517309,
     "calls": 1551
   },
   "pt-BR / copia-2 / id 32": {
@@ -787,6 +876,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 2,
+      "inside": 0,
+      "outside": 2,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 45.4
     },
     "frames": [
       [
@@ -858,8 +958,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 83241692,
-    "calls": 1044
+    "fuel": 83036574,
+    "calls": 1026
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
     "markers": {
@@ -871,6 +971,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 3,
+      "inside": 1,
+      "outside": 2,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -946,8 +1057,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 261883877,
-    "calls": 1383
+    "fuel": 262286229,
+    "calls": 1362
   },
   "pt-BR / ds-base-demo / Button": {
     "markers": {
@@ -959,6 +1070,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 3,
+      "inside": 0,
+      "outside": 3,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 57.4
     },
     "frames": [
       [
@@ -995,24 +1117,24 @@
         "layouts",
         64.0,
         4703.0,
-        530.0
+        482.0
       ],
       [
         "tokens",
         64.0,
-        5297.0,
+        5249.0,
         1441.0
       ],
       [
         "changelog",
         64.0,
-        6802.0,
+        6754.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      7145.0
+      7097.0
     ],
     "tables": [
       [
@@ -1036,8 +1158,8 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 358340870,
-    "calls": 3693
+    "fuel": 356972173,
+    "calls": 3669
   },
   "pt-BR / ds-base-demo / Card": {
     "markers": {
@@ -1049,6 +1171,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 7,
+      "inside": 1,
+      "outside": 6,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 40.2
     },
     "frames": [
       [
@@ -1124,8 +1257,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 377545792,
-    "calls": 3486
+    "fuel": 376867926,
+    "calls": 3432
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
@@ -1137,6 +1270,17 @@
       "oblique": 0,
       "tip_in_text": 0,
       "cross": 0
+    },
+    "spacing": {
+      "groups": 2,
+      "inside": 0,
+      "outside": 2,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "min_gap": 99
     },
     "frames": [
       [
@@ -1212,8 +1356,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 153435686,
-    "calls": 1668
+    "fuel": 151254937,
+    "calls": 1623
   },
   "cover editada / pills before": {
     "nodes": 74,

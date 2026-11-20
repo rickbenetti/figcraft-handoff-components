@@ -178,6 +178,35 @@ def marker_check(a):
             "cross": sum(len(r["crosses"]) for r in rows) // 2 + sum(r["over_text"] for r in rows)}
 
 
+def spacing_check(a):
+    """What the Layouts drawing must be, as numbers: how many numbers there are (`groups`, a number for each set of equal bands) and how they
+    stand (`inside` a band, `outside` with a guide, `dropped` with no place), `badge_over_content` (a number whose patch or marker meets a
+    text, a vector or an instance with nothing in it: 0), `guide_over_content` (a guide that runs over one: 0), `cross` (guides that cross
+    each other: 0), `oblique` (guides that are not horizontal or vertical: 0) and `min_gap` (the least gap between two markers outside, at
+    least 12)."""
+    if not a or "badges" not in a:
+        return None
+    content = a.get("content") or []
+    rects = lambda r: (r[0] + 0.5, r[1] + 0.5, r[2] - 1.0, r[3] - 1.0)
+    over = lambda p, r: p[0] < r[0] + r[2] and r[0] < p[0] + p[2] and p[1] < r[1] + r[3] and r[1] < p[1] + p[3]
+    badge_over = sum(1 for b in a["badges"] if any(over(rects(b["rect"]), c) for c in content))
+    guides = a.get("guides") or []
+    # A content box the guide's tip lies in (a big image instance the band is drawn on) is one the guide has to enter.
+    guide_over = sum(1 for g in guides for c in content if _seg_rect((g[0], g[1]), (g[2], g[3]), c, 0.5) and not (c[0] - 0.5 <= g[2] <= c[0] + c[2] + 0.5 and c[1] - 0.5 <= g[3] <= c[1] + c[3] + 0.5))
+    cross = sum(1 for i, g in enumerate(guides) for h in guides[i + 1:] if _cross((g[0], g[1]), (g[2], g[3]), (h[0], h[1]), (h[2], h[3])))
+    oblique = sum(1 for g in guides if abs(g[0] - g[2]) > 0.01 and abs(g[1] - g[3]) > 0.01)
+    # Each marker is a capsule (a circle is one with a segment of length 0): the gap between two is the distance between their segments
+    # less the two radii.
+    caps = [(b["rect"][0] + b["rect"][3] / 2, b["rect"][0] + b["rect"][2] - b["rect"][3] / 2, b["rect"][1] + b["rect"][3] / 2, b["rect"][3] / 2) for b in a["badges"] if not b["inside"]]
+    gap = 999.0
+    for i, p in enumerate(caps):
+        for q in caps[i + 1:]:
+            dx = max(0.0, q[0] - p[1], p[0] - q[1])
+            gap = min(gap, (dx * dx + (p[2] - q[2]) ** 2) ** 0.5 - p[3] - q[3])
+    return {"groups": a["groups"], "inside": a["inside"], "outside": a["outside"], "dropped": a.get("outside_dropped", 0), "badge_over_content": badge_over,
+            "guide_over_content": guide_over, "cross": cross, "oblique": oblique, "min_gap": round(min(gap, 99), 1)}
+
+
 FRAME_PAD, FRAME_GAP, SECTION_PAD = 48, 64, 64
 
 
@@ -239,6 +268,7 @@ def run_case(src, layer, tmp, n, lang=None):
     return {
         "invariants": frame_invariants(out, o, tmp, n),
         "markers": marker_check(o.get("anatomy")),
+        "spacing": spacing_check(o.get("spacing")),
         "frames": [[f["key"], f["x"], f["y"], f["h"]] for f in o["frames"]],
         "section": [o["section_size"]["w"], o["section_size"]["h"]],
         "tables": [[t["name"], t["rows"]] for t in o["tables"]],
@@ -527,10 +557,13 @@ def main():
         mk = got.get("markers") or {}
         if mk and (mk["oblique"] or mk["tip_in_text"] or mk["cross"] or mk["min_gap"] < 12):
             diffs.append(f"{name}: INVARIANT: markers: oblique {mk['oblique']}, tip_in_text {mk['tip_in_text']}, cross {mk['cross']}, min_gap {mk['min_gap']} (>= 12)")
+        sp = got.get("spacing") or {}
+        if sp and (sp["badge_over_content"] or sp["guide_over_content"] or sp["cross"] or sp["oblique"] or sp["min_gap"] < 12):
+            diffs.append(f"{name}: INVARIANT: layouts: badge_over_content {sp['badge_over_content']}, guide_over_content {sp['guide_over_content']}, cross {sp['cross']}, oblique {sp['oblique']}, min_gap {sp['min_gap']} (>= 12)")
         if "frames" not in want:
             diffs.append(f"{name}: the baseline entry is in the old format: regenerate it with --update")
             continue
-        for key in ("frames", "section", "tables", "warnings", "failed", "markers"):
+        for key in ("frames", "section", "tables", "warnings", "failed", "markers", "spacing"):
             if got[key] != want.get(key):
                 diffs.append(f"{name}: {key}: baseline {want.get(key)!r}, now {got[key]!r}")
         # A private file may already hold a Section of the component (the person generated it in the app): then the run is a rerun and the

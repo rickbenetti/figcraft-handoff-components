@@ -333,7 +333,7 @@ impl<'a> Tree<'a> {
                 blockers.push(b);
             }
         }
-        Some(Item { number, root: owner == 0, layer, kind, inside, blockers, rims })
+        Some(Item { number, root: owner == 0, layer, kind, inside, blockers, rims, extra: 0.0 })
     }
 }
 
@@ -409,6 +409,8 @@ struct Item {
     blockers: Vec<Rect>,
     /// The rectangles of every other layer (the ones that hold this one too): a guide never runs along the edge of one of them.
     rims: Vec<Rect>,
+    /// How much wider than a circle its marker is, on each side: 0 for a circle, more for a pill that holds a longer text ("8 (x3)").
+    extra: f64,
 }
 
 /// The sides of the component, nearest to the layer's edge first (a tie goes Top, Bottom, Left, Right); the component's own marker
@@ -547,11 +549,12 @@ fn strictly_in(p: (f64, f64), r: Rect) -> bool {
 /// at a point that no layer inside it covers.
 fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: &[usize], lenient: &[usize]) -> Vec<Marker> {
     let r = MARKER_D / 2.0;
-    let off = MARKER_CLEAR + r;
-    let inside_stage = |c: (f64, f64)| c.0 >= stage.x + MARKER_EDGE - 0.01 && c.0 <= stage.right() - MARKER_EDGE + 0.01 && c.1 >= stage.y + MARKER_EDGE - 0.01 && c.1 <= stage.bottom() - MARKER_EDGE + 0.01;
-    let clear = |out: &[Marker], c: (f64, f64)| {
-        let circle = Rect { x: c.0 - r, y: c.1 - r, w: MARKER_D, h: MARKER_D };
-        inside_stage(c) && out.iter().all(|m| (m.centre.0 - c.0).hypot(m.centre.1 - c.1) >= MARKER_STEP - 0.01) && !avoid.iter().any(|v| circle.grow(2.0).hits(*v))
+    let off0 = MARKER_CLEAR + r;
+    // A pill (an `extra` over 0) keeps `extra` more from the stage's edge and from every other marker than a circle does.
+    let inside_stage = |c: (f64, f64), extra: f64| c.0 >= stage.x + MARKER_EDGE + extra - 0.01 && c.0 <= stage.right() - MARKER_EDGE - extra + 0.01 && c.1 >= stage.y + MARKER_EDGE - 0.01 && c.1 <= stage.bottom() - MARKER_EDGE + 0.01;
+    let clear = |out: &[Marker], c: (f64, f64), extra: f64| {
+        let circle = Rect { x: c.0 - r - extra, y: c.1 - r, w: MARKER_D + 2.0 * extra, h: MARKER_D };
+        inside_stage(c, extra) && out.iter().all(|m| (m.centre.0 - c.0).hypot(m.centre.1 - c.1) >= MARKER_STEP + extra + m.extra - 0.01) && !avoid.iter().any(|v| circle.grow(2.0).hits(*v))
     };
     let mut out: Vec<Marker> = Vec::new();
     for &idx in order {
@@ -562,6 +565,8 @@ fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: 
         'item: for side in sides_for(item, ib) {
             let horizontal = matches!(side, Side::Top | Side::Bottom);
             let (lo, len) = if horizontal { (l.x, l.w) } else { (l.y, l.h) };
+            // A pill beside the component is as far out as a circle's edge would be: its centre `extra` farther.
+            let off = off0 + if horizontal { 0.0 } else { item.extra };
             let mut tried: Vec<f64> = Vec::new();
             // A container is reached where nothing inside it is near its edge (the centres of the free stretches, the longest first);
             // only when no side has such a stretch (the second try) at the usual places along the edge, on the border.
@@ -606,10 +611,10 @@ fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: 
                         Side::Left => (ib.x - dist, p),
                         Side::Right => (ib.right() + dist, p),
                     };
-                    if !clear(&out, c) {
+                    if !clear(&out, c, item.extra) {
                         continue;
                     }
-                    let m = Marker { item: idx, number: item.number, centre: c, end: anchor, tip, way: if item.root { Way::Root } else { Way::Straight }, side, layer: l, shared_edge: lenient && container };
+                    let m = Marker { item: idx, number: item.number, centre: c, end: anchor, tip, way: if item.root { Way::Root } else { Way::Straight }, side, layer: l, shared_edge: lenient && container, extra: item.extra };
                     if out.iter().any(|k| tangled_with(&m, k)) {
                         continue;
                     }
@@ -692,7 +697,9 @@ struct Marker {
     layer: Rect,
     /// The guide of a container that its layers inside cover to the edge: it ends on the border, where the guides of the layers inside
     /// may end too (no free stretch of the edge exists; said in the answer).
-    shared_edge: bool
+    shared_edge: bool,
+    /// The item's `extra` (a pill's half-width beyond the circle's).
+    extra: f64,
 }
 
 /// Whether the segments `a`-`b` and `c`-`d` cross (touching at a shared end doesn't count).
@@ -715,7 +722,9 @@ fn point_to_segment(p: (f64, f64), a: (f64, f64), b: (f64, f64)) -> f64 {
 fn guide_of(m: &Marker) -> ((f64, f64), (f64, f64)) {
     let (dx, dy) = (m.tip.0 - m.centre.0, m.tip.1 - m.centre.1);
     let d = dx.hypot(dy).max(0.001);
-    ((m.centre.0 + dx / d * MARKER_D / 2.0, m.centre.1 + dy / d * MARKER_D / 2.0), m.tip)
+    // A pill is wider than a circle: a horizontal guide leaves it at its end.
+    let radius = MARKER_D / 2.0 + if dx.abs() > dy.abs() { m.extra } else { 0.0 };
+    ((m.centre.0 + dx / d * radius, m.centre.1 + dy / d * radius), m.tip)
 }
 
 /// Whether the guides and circles of `m` and `k` are tangled: the guides cross, one passes through (or within half the gap of) the
@@ -724,13 +733,13 @@ fn tangled_with(m: &Marker, k: &Marker) -> bool {
     let (a, b) = guide_of(m);
     let (c, d) = guide_of(k);
     // Far apart (the boxes of the two guides, each grown by a circle's reach, do not meet): nothing can be tangled.
-    let reach = MARKER_D / 2.0 + MARKER_GAP;
+    let reach = MARKER_D / 2.0 + MARKER_GAP + m.extra.max(k.extra);
     if a.0.max(b.0) + reach < c.0.min(d.0) || c.0.max(d.0) + reach < a.0.min(b.0) || a.1.max(b.1) + reach < c.1.min(d.1) || c.1.max(d.1) + reach < a.1.min(b.1) {
         return false;
     }
     segments_cross(a, b, c, d)
-        || point_to_segment(k.centre, a, b) < MARKER_D / 2.0 + MARKER_GAP / 2.0
-        || point_to_segment(m.centre, c, d) < MARKER_D / 2.0 + MARKER_GAP / 2.0
+        || point_to_segment(k.centre, a, b) < MARKER_D / 2.0 + MARKER_GAP / 2.0 + k.extra
+        || point_to_segment(m.centre, c, d) < MARKER_D / 2.0 + MARKER_GAP / 2.0 + m.extra
         || point_to_segment(k.end, a, b) < 2.0
         || point_to_segment(m.end, c, d) < 2.0
         || point_to_segment(k.tip, a, b) < 2.0
@@ -3479,7 +3488,7 @@ mod tests {
             assert!(!strictly_in(m.tip, l));
         }
         // A 40 x 30 layer is not small: its tip goes GUIDE_INSET in.
-        let big = Item { number: 2, root: false, layer: Rect { x: 150.0, y: 220.0, w: 40.0, h: 30.0 }, kind: Kind::Other, inside: vec![], blockers: vec![], rims: vec![] };
+        let big = Item { number: 2, root: false, layer: Rect { x: 150.0, y: 220.0, w: 40.0, h: 30.0 }, kind: Kind::Other, inside: vec![], blockers: vec![], rims: vec![], extra: 0.0 };
         let ib = Rect { x: 100.0, y: 200.0, w: 200.0, h: 100.0 };
         let ms = place_markers(ib, Rect { x: 0.0, y: 0.0, w: 500.0, h: 500.0 }, &[big], &[]);
         assert_eq!(ms.len(), 1);
@@ -3494,7 +3503,7 @@ mod tests {
         let ib = Rect { x: 150.0, y: 150.0, w: 200.0, h: 150.0 };
         let stage = Rect { x: 0.0, y: 0.0, w: 600.0, h: 500.0 };
         for kids in [kids.clone(), vec![Rect { x: 200.0, y: 200.0, w: 50.0, h: 50.0 }, Rect { x: 250.0, y: 200.0, w: 50.0, h: 50.0 }]] {
-            let item = Item { number: 8, root: false, layer: cont, kind: Kind::Other, inside: kids.clone(), blockers: vec![], rims: vec![] };
+            let item = Item { number: 8, root: false, layer: cont, kind: Kind::Other, inside: kids.clone(), blockers: vec![], rims: vec![], extra: 0.0 };
             let ms = place_markers(ib, stage, std::slice::from_ref(&item), &[]);
             assert_eq!(ms.len(), 1);
             let m = &ms[0];
@@ -3503,7 +3512,7 @@ mod tests {
             assert!(kids.iter().all(|k| !crosses(m.centre, m.tip, *k)), "the guide crosses a child");
         }
         // With no room between the children at all, the tip is on the container's border.
-        let item = Item { number: 8, root: false, layer: cont, kind: Kind::Other, inside: vec![Rect { x: 200.0, y: 200.0, w: 50.0, h: 50.0 }, Rect { x: 250.0, y: 200.0, w: 50.0, h: 50.0 }], blockers: vec![], rims: vec![] };
+        let item = Item { number: 8, root: false, layer: cont, kind: Kind::Other, inside: vec![Rect { x: 200.0, y: 200.0, w: 50.0, h: 50.0 }, Rect { x: 250.0, y: 200.0, w: 50.0, h: 50.0 }], blockers: vec![], rims: vec![], extra: 0.0 };
         let m = &place_markers(ib, stage, &[item], &[])[0];
         let on_border = (m.tip.0 - cont.x).abs() < 0.01 || (m.tip.0 - cont.right()).abs() < 0.01 || (m.tip.1 - cont.y).abs() < 0.01 || (m.tip.1 - cont.bottom()).abs() < 0.01;
         assert!(on_border, "{:?}", m.tip);
@@ -3568,7 +3577,7 @@ mod tests {
     fn two_markers_for_neighbours_are_at_least_12_px_apart() {
         let ib = Rect { x: 100.0, y: 100.0, w: 200.0, h: 100.0 };
         let stage = Rect { x: 0.0, y: 0.0, w: 600.0, h: 500.0 };
-        let item = |n, x: f64| Item { number: n, root: false, layer: Rect { x, y: 110.0, w: 14.0, h: 10.0 }, kind: Kind::Small, inside: vec![], blockers: vec![], rims: vec![] };
+        let item = |n, x: f64| Item { number: n, root: false, layer: Rect { x, y: 110.0, w: 14.0, h: 10.0 }, kind: Kind::Small, inside: vec![], blockers: vec![], rims: vec![], extra: 0.0 };
         let ms = place_markers(ib, stage, &[item(2, 150.0), item(3, 190.0), item(4, 230.0)], &[]);
         assert_eq!(ms.len(), 3);
         assert_clean(&ms, stage);
@@ -3617,7 +3626,7 @@ mod tests {
     }
 
     fn container(layer: Rect, kids: &[Rect]) -> Item {
-        Item { number: 8, root: false, layer, kind: Kind::Other, inside: kids.to_vec(), blockers: vec![], rims: vec![] }
+        Item { number: 8, root: false, layer, kind: Kind::Other, inside: kids.to_vec(), blockers: vec![], rims: vec![], extra: 0.0 }
     }
 
     #[test]
