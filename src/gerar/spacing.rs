@@ -430,7 +430,7 @@ pub(super) fn build_layouts(c: &Ctx, frame: u64) -> Result<usize> {
     for (k, gi) in outside.iter().enumerate() {
         let g = &groups[*gi];
         let Some(m) = markers.iter().find(|m| m.number == k + 1) else {
-            dropped.push(format!("{} px", g.label()));
+            dropped.push(if g.members.len() > 1 { format!("{} px (x{})", value_text(g.value), g.members.len()) } else { format!("{} px", value_text(g.value)) });
             continue;
         };
         let (fill, ink) = if g.gap { (col.gap, col.on_gap) } else { (col.padding, col.on_padding) };
