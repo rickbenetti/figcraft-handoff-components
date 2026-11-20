@@ -316,5 +316,8 @@
   "PanelWarnWide": "Wide component: every frame was made wider.",
   "PanelWarnReflow": "The set could not be arranged in lines: the Master was made as wide as it.",
   "PanelWarnApproval": "The approval pills have no Area property: the Cover was made without the areas.",
+  "PanelWarnMarkersOne": "{n} marker did not fit in the drawing; see the Note column.",
+  "PanelWarnMarkers": "{n} markers did not fit in the drawing; see the Note column.",
+  "AnatNoMarker": "No marker: it did not fit in the drawing.",
   "MasterOrganized": "The original set was arranged with auto layout and wrap."
 }

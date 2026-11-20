@@ -257,6 +257,9 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelWarnWide | Wide component: every frame was made wider. | Componente largo: todos os quadros foram alargados. |
 | PanelWarnReflow | The set could not be arranged in lines: the Master was made as wide as it. | Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele. |
 | PanelWarnApproval | The approval pills have no Area property: the Cover was made without the areas. | As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas. |
+| PanelWarnMarkersOne | {n} marker did not fit in the drawing; see the Note column. | {n} marcador não coube no desenho; veja a coluna Nota. |
+| PanelWarnMarkers | {n} markers did not fit in the drawing; see the Note column. | {n} marcadores não couberam no desenho; veja a coluna Nota. |
+| AnatNoMarker | No marker: it did not fit in the drawing. | Sem marcador: não coube no desenho. |
 | LayoutsOmittedOne | {n} layer without spacing was left out. | {n} camada sem espaçamento foi omitida. |
 | LayoutsOmitted | {n} layers without spacing were left out. | {n} camadas sem espaçamento foram omitidas. |
 | MasterOrganized | The original set was arranged with auto layout and wrap. | O conjunto original foi organizado com auto layout em quebra de linha. |

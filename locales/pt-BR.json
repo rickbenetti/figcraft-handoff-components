@@ -316,5 +316,8 @@
   "PanelWarnWide": "Componente largo: todos os quadros foram alargados.",
   "PanelWarnReflow": "Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele.",
   "PanelWarnApproval": "As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas.",
+  "PanelWarnMarkersOne": "{n} marcador não coube no desenho; veja a coluna Nota.",
+  "PanelWarnMarkers": "{n} marcadores não couberam no desenho; veja a coluna Nota.",
+  "AnatNoMarker": "Sem marcador: não coube no desenho.",
   "MasterOrganized": "O conjunto original foi organizado com auto layout em quebra de linha."
 }

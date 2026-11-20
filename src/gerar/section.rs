@@ -328,10 +328,12 @@ pub enum Warn {
     LegacyDoc,
     /// The set of approval pills of the file has no text property for the area: the Cover's pills were made with no area written.
     ApprovalProperty,
+    /// Markers of the Anatomy that did not fit in the drawing (how many numbers have none): the table says so in its Note column.
+    MarkersDropped(usize),
 }
 
 impl Warn {
-    pub const ALL: [Warn; 6] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty];
+    pub const ALL: [Warn; 7] = [Warn::Failed, Warn::NoStage, Warn::ReflowFailed, Warn::WideMaster, Warn::LegacyDoc, Warn::ApprovalProperty, Warn::MarkersDropped(0)];
 
     pub fn code(self) -> &'static str {
         match self {
@@ -341,6 +343,7 @@ impl Warn {
             Warn::WideMaster => "wide_master",
             Warn::LegacyDoc => "legacy_doc",
             Warn::ApprovalProperty => "approval_property_missing",
+            Warn::MarkersDropped(_) => "markers_dropped",
         }
     }
 
@@ -352,7 +355,16 @@ impl Warn {
             Warn::WideMaster => Key::PanelWarnWide,
             Warn::LegacyDoc => Key::PanelWarnLegacy,
             Warn::ApprovalProperty => Key::PanelWarnApproval,
+            Warn::MarkersDropped(_) => Key::PanelWarnMarkers,
         })
+    }
+
+    /// The warning as the panel says it: with its number filled in where it has one.
+    pub fn line(self, lang: Lang) -> String {
+        match self {
+            Warn::MarkersDropped(n) => tf(lang, plural(n, Key::PanelWarnMarkersOne, Key::PanelWarnMarkers), &[("n", &n.to_string())]),
+            w => w.text(lang).to_string(),
+        }
     }
 }
 
@@ -1291,9 +1303,12 @@ pub fn generate(input: Input) -> Result<Value> {
             // A table that cannot be made leaves its frame with the error in place of the content, and the run goes on.
             let drawn: Option<Result<()>> = match sec {
                 Sec::Properties => Some(tables::build_properties(&ctx, frame)),
-                Sec::Anatomy => Some(tables::build_anatomy(&ctx, frame).map(|no_stage| {
+                Sec::Anatomy => Some(tables::build_anatomy(&ctx, frame).map(|(no_stage, dropped)| {
                     if no_stage && !warnings.contains(&Warn::NoStage) {
                         warnings.push(Warn::NoStage);
+                    }
+                    if dropped > 0 {
+                        warnings.push(Warn::MarkersDropped(dropped));
                     }
                 })),
                 Sec::Variants => Some(tables::build_variants(&ctx, frame)),
@@ -1400,7 +1415,7 @@ pub fn generate(input: Input) -> Result<Value> {
     if !failed.is_empty() {
         warnings.push(Warn::Failed);
     }
-    warnings.sort_by_key(|w| Warn::ALL.iter().position(|x| x == w));
+    warnings.sort_by_key(|w| Warn::ALL.iter().position(|x| std::mem::discriminant(x) == std::mem::discriminant(w)));
     Ok(json!({
         "name": name, "frame": section, "section": section, "created": created, "rerun": !first_run, "new_section": beside, "update": update.key(), "x": sx, "y": sy,
         "frame_size": {"w": section_w}, "view_w": section_w, "tallest": tallest, "section_size": {"w": section_w, "h": section_h}, "frames": report, "master_moved": master_moved,
@@ -1776,6 +1791,25 @@ mod tests {
         assert!(frame_is_made(Sec::Layouts, false, true, Update::Tokens, false));
         assert!(frame_is_made(Sec::Master, true, false, Update::Layouts, true));
     }
+    #[test]
+    fn the_warning_for_markers_left_out_counts_them_and_is_short_in_both_languages() {
+        // One: singular; three: plural; the number is in the text.
+        assert_eq!(Warn::MarkersDropped(1).line(Lang::En), "1 marker did not fit in the drawing; see the Note column.");
+        assert_eq!(Warn::MarkersDropped(3).line(Lang::En), "3 markers did not fit in the drawing; see the Note column.");
+        assert_eq!(Warn::MarkersDropped(1).line(Lang::Pt), "1 marcador não coube no desenho; veja a coluna Nota.");
+        assert_eq!(Warn::MarkersDropped(3).line(Lang::Pt), "3 marcadores não couberam no desenho; veja a coluna Nota.");
+        for lang in [Lang::En, Lang::Pt] {
+            for n in [1, 2, 3, 12] {
+                let text = Warn::MarkersDropped(n).line(lang);
+                assert!(text.chars().count() <= 120 && !text.contains('{'), "{text}");
+            }
+            assert!(t(lang, Key::AnatNoMarker).chars().count() <= 60);
+        }
+        assert_eq!(Warn::MarkersDropped(2).code(), "markers_dropped");
+        // The code finds it among all the warnings whatever the count, and it sorts after the others.
+        assert!(Warn::ALL.iter().any(|w| w.code() == "markers_dropped"));
+    }
+
     #[test]
     fn the_approval_set_has_a_hidden_name_and_is_found_by_its_mark_not_by_name() {
         for lang in [Lang::En, Lang::Pt] {

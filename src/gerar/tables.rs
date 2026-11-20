@@ -523,7 +523,7 @@ pub fn anatomy_row(number: usize, kind: &str, name: &str, layers: usize, content
 
 /// The Anatomy frame: the stage with the component in the middle and a number on each part, and a table of the numbers. Returns
 /// whether the automatic stage left a layer under 3:1.
-pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
+pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<(bool, usize)> {
     let lang = c.lang;
     let target = c.target;
     header(c, frame, t(lang, Key::SecAnatomy))?;
@@ -597,6 +597,8 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
         let content = group_content(&walked, &b.nodes, name);
         // The line under the title of a part says "Instance of Icon"; one that only repeats the type says nothing new.
         let sub = b.sub.as_deref().filter(|s| *s != kind);
+        // A number whose marker did not fit in the drawing says so in the Note column.
+        let sub = if badges.dropped.contains(&n) { Some(t(lang, Key::AnatNoMarker)) } else { sub };
         table_rows.push(anatomy_row(n, &kind, name, b.nodes.len(), content.as_deref(), sub));
     }
     if table_rows.is_empty() {
@@ -608,7 +610,7 @@ pub(super) fn build_anatomy(c: &Ctx, frame: u64) -> Result<bool> {
     if unnumbered > 0 {
         muted_note(lang, frame, &tf(lang, plural(unnumbered, Key::UnnumberedOne, Key::Unnumbered), &[("n", &unnumbered.to_string())]))?;
     }
-    Ok(choice.too_low())
+    Ok((choice.too_low(), badges.dropped.len()))
 }
 
 #[cfg(test)]

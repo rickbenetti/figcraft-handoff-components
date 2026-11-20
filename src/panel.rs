@@ -229,7 +229,7 @@ pub fn message_text(lang: Lang, m: &Message) -> String {
         Message::WrongKind(kind) => marked(SYM_ERR, &tf(lang, Key::PanelWrongKind, &[("kind", kind)])),
         Message::Restored => t(lang, Key::PanelRestored).to_string(),
         Message::Warned(name, warns) => match warns.first() {
-            Some(w) => format!("{} {}", done(name), marked(SYM_INFO, w.text(lang))),
+            Some(w) => format!("{} {}", done(name), marked(SYM_INFO, &w.line(lang))),
             None => done(name),
         },
     }
@@ -401,7 +401,12 @@ fn generate_click(input: &Input, state: &mut State, stored: &Settings, page: u64
     };
     // f) The panel again.
     state.cleared.clear();
-    let warns: Vec<Warn> = out.get("warnings").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).filter_map(|c| Warn::ALL.into_iter().find(|w| w.code() == c)).collect()).unwrap_or_default();
+    let dropped = out.get("anatomy").and_then(|a| a.get("dropped")).and_then(Value::as_array).map_or(0, Vec::len);
+    let warns: Vec<Warn> = out
+        .get("warnings")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).filter_map(|c| Warn::ALL.into_iter().find(|w| w.code() == c)).map(|w| if matches!(w, Warn::MarkersDropped(_)) { Warn::MarkersDropped(dropped) } else { w }).collect())
+        .unwrap_or_default();
     state.message = if warns.is_empty() { Message::Done(name) } else { Message::Warned(name, warns) };
     draw(&form, &state.message)?;
     Ok(json!({
@@ -453,6 +458,7 @@ mod tests {
                         Message::Warned("Botão".into(), vec![Warn::NoStage, Warn::Failed, Warn::LegacyDoc]),
                         Message::Warned("y".repeat(2000), vec![Warn::Failed]),
                         Message::Warned("Botão".into(), vec![Warn::LegacyDoc]),
+                        Message::Warned("Botão".into(), vec![Warn::MarkersDropped(3)]),
                         Message::Warned("y".repeat(2000), vec![Warn::Failed, Warn::NoStage]),
                     ] {
                         out.push((form.clone(), m));
@@ -906,5 +912,14 @@ mod tests {
         assert_eq!(safe_text("  a\nb\tc  ", 80), "a b c");
         assert_eq!(safe_text(&"x".repeat(100), 10), format!("{}…", "x".repeat(9)));
         assert_eq!(safe_text("short", 10), "short");
+    }
+
+    #[test]
+    fn the_panel_says_how_many_markers_did_not_fit_and_nothing_when_none_did() {
+        let one = message_text(Lang::En, &Message::Warned("Button".into(), vec![Warn::MarkersDropped(1)]));
+        assert_eq!(one, "✔ Documentation generated: Button. ℹ 1 marker did not fit in the drawing; see the Note column.");
+        let three = message_text(Lang::Pt, &Message::Warned("Botão".into(), vec![Warn::MarkersDropped(3)]));
+        assert_eq!(three, "✔ Documentação gerada: Botão. ℹ 3 marcadores não couberam no desenho; veja a coluna Nota.");
+        assert_eq!(message_text(Lang::Pt, &Message::Done("Botão".into())), "✔ Documentação gerada: Botão.");
     }
 }

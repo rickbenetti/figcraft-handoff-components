@@ -422,6 +422,55 @@ fn sides_for(item: &Item, ib: Rect) -> [Side; 4] {
     sides.map(|(_, side)| side)
 }
 
+/// How near an edge of a container a layer inside it must come to take that part of the edge: a guide goes `GUIDE_INSET` in, so a
+/// layer within that much (and a hair more) of the edge is where the guide would end.
+const EDGE_REACH: f64 = GUIDE_INSET + 2.0;
+
+/// The shortest stretch of a container's edge that a guide can end in.
+const MIN_FREE: f64 = 4.0;
+
+/// The places along the edge of a container (a layer with layers inside it) that `side` faces where no layer inside it comes near: the
+/// centres of the free stretches of that edge, the longest stretch first; a stretch under `MIN_FREE` does not count. Empty when the
+/// layers inside take the whole edge.
+fn free_centres(item: &Item, side: Side) -> Vec<f64> {
+    let l = item.layer;
+    let horizontal = matches!(side, Side::Top | Side::Bottom);
+    let (lo, hi) = if horizontal { (l.x, l.right()) } else { (l.y, l.bottom()) };
+    let mut taken: Vec<(f64, f64)> = item
+        .inside
+        .iter()
+        .filter(|k| match side {
+            Side::Top => k.y - l.y <= EDGE_REACH,
+            Side::Bottom => l.bottom() - k.bottom() <= EDGE_REACH,
+            Side::Left => k.x - l.x <= EDGE_REACH,
+            Side::Right => l.right() - k.right() <= EDGE_REACH,
+        })
+        .map(|k| if horizontal { (k.x.max(lo), k.right().min(hi)) } else { (k.y.max(lo), k.bottom().min(hi)) })
+        .filter(|(a, b)| b > a)
+        .collect();
+    taken.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut free: Vec<(f64, f64)> = Vec::new();
+    let mut at = lo;
+    for (a, b) in taken {
+        if a - at >= MIN_FREE {
+            free.push((at, a));
+        }
+        at = at.max(b);
+    }
+    if hi - at >= MIN_FREE {
+        free.push((at, hi));
+    }
+    free.sort_by(|a, b| (b.1 - b.0).total_cmp(&(a.1 - a.0)));
+    // The centres first; then, in a stretch of 12 px or more, the points a fifth of the way in from each end (another guide may stand at
+    // the centre).
+    let mut out: Vec<f64> = free.iter().map(|(a, b)| (a + b) / 2.0).collect();
+    for (a, b) in free.iter().filter(|(a, b)| b - a >= 12.0) {
+        out.push(a + 0.2 * (b - a));
+        out.push(b - 0.2 * (b - a));
+    }
+    out
+}
+
 /// The positions along a layer's edge a guide is tried at, as a fraction of the edge: the middle first.
 const ALONG: [f64; 9] = [0.5, 0.25, 0.75, 0.125, 0.875, 0.375, 0.625, 0.05, 0.95];
 
@@ -495,7 +544,7 @@ fn strictly_in(p: (f64, f64), r: Rect) -> bool {
 ///
 /// The tip stops ON the edge of a text, and of a layer thinner than `SMALL_LAYER`; elsewhere `GUIDE_INSET` in. A container is reached
 /// at a point that no layer inside it covers.
-fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: &[usize], lenient: bool) -> Vec<Marker> {
+fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: &[usize], lenient: &[usize]) -> Vec<Marker> {
     let r = MARKER_D / 2.0;
     let off = MARKER_CLEAR + r;
     let inside_stage = |c: (f64, f64)| c.0 >= stage.x + MARKER_EDGE - 0.01 && c.0 <= stage.right() - MARKER_EDGE + 0.01 && c.1 >= stage.y + MARKER_EDGE - 0.01 && c.1 <= stage.bottom() - MARKER_EDGE + 0.01;
@@ -506,14 +555,18 @@ fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: 
     let mut out: Vec<Marker> = Vec::new();
     for &idx in order {
         let Some(item) = items.get(idx) else { continue };
+        let lenient = lenient.contains(&idx);
         let l = item.layer;
         let base_inset = if item.kind == Kind::Other { GUIDE_INSET } else { 0.0 };
         'item: for side in sides_for(item, ib) {
             let horizontal = matches!(side, Side::Top | Side::Bottom);
             let (lo, len) = if horizontal { (l.x, l.w) } else { (l.y, l.h) };
             let mut tried: Vec<f64> = Vec::new();
-            for f in ALONG {
-                let p = lo + len * f;
+            // A container is reached where nothing inside it is near its edge (the centres of the free stretches, the longest first);
+            // only when no side has such a stretch (the second try) at the usual places along the edge, on the border.
+            let container = !item.inside.is_empty();
+            let positions: Vec<f64> = if container && !lenient { free_centres(item, side) } else { ALONG.iter().map(|f| lo + len * f).collect() };
+            for p in positions {
                 // Positions under 3 px from one already tried make the same guide: not tried again (a small layer has few).
                 if tried.iter().any(|t| (t - p).abs() < 3.0) {
                     continue;
@@ -555,7 +608,7 @@ fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: 
                     if !clear(&out, c) {
                         continue;
                     }
-                    let m = Marker { item: idx, number: item.number, centre: c, end: anchor, tip, way: if item.root { Way::Root } else { Way::Straight }, side, layer: l };
+                    let m = Marker { item: idx, number: item.number, centre: c, end: anchor, tip, way: if item.root { Way::Root } else { Way::Straight }, side, layer: l, shared_edge: lenient && container };
                     if out.iter().any(|k| tangled_with(&m, k)) {
                         continue;
                     }
@@ -572,19 +625,32 @@ fn place_in_order(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], order: 
 /// an earlier one took its only straight way: the guide of one runs where the other's would), up to three more times; the try that keeps
 /// the most markers is the one used.
 fn place_markers(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect]) -> Vec<Marker> {
-    // First with the tip off every layer inside the layer it points at, the edges of those layers included (the seam between two
-    // children is covered); a layer that then has no place at all is tried again with the tip allowed on such an edge (a container
-    // that its children cover completely is reached on its border).
-    let strict = place_with_retries(ib, stage, items, avoid, false);
-    // Only a layer with something inside it can gain from the second try.
-    if !items.iter().enumerate().any(|(i, it)| !it.inside.is_empty() && !strict.iter().any(|m| m.item == i)) {
-        return strict;
+    // How good a placement is: how many numbers have a marker, then how many markers there are.
+    let score = |ms: &[Marker]| (ms.iter().map(|m| m.number).collect::<std::collections::BTreeSet<_>>().len(), ms.len());
+    let missing = |ms: &[Marker]| -> Vec<usize> { (0..items.len()).filter(|i| !items[*i].inside.is_empty() && !ms.iter().any(|m| m.item == *i)).collect() };
+    // First every container is reached in a free stretch of its edge; a container that then has no place at all (its layers inside take
+    // every edge, or the stretches are in the way) is tried again on its border, the others staying where they were found.
+    let mut best = place_with_retries(ib, stage, items, avoid, &[]);
+    let left = missing(&best);
+    if left.is_empty() {
+        return best;
     }
-    let lenient = place_with_retries(ib, stage, items, avoid, true);
-    if lenient.len() > strict.len() { lenient } else { strict }
+    let second = place_with_retries(ib, stage, items, avoid, &left);
+    if score(&second) > score(&best) {
+        best = second;
+    }
+    // Still a container with no marker: every container on its border (the way it was before the free stretches), if that keeps more numbers.
+    if !missing(&best).is_empty() {
+        let all: Vec<usize> = (0..items.len()).filter(|i| !items[*i].inside.is_empty()).collect();
+        let third = place_with_retries(ib, stage, items, avoid, &all);
+        if score(&third) > score(&best) {
+            best = third;
+        }
+    }
+    best
 }
 
-fn place_with_retries(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], lenient: bool) -> Vec<Marker> {
+fn place_with_retries(ib: Rect, stage: Rect, items: &[Item], avoid: &[Rect], lenient: &[usize]) -> Vec<Marker> {
     // The component's own marker first, then the texts and small layers (they have the fewest ways in), then the containers (a long edge
     // has many); each group in the order of the numbers.
     let mut order: Vec<usize> = (0..items.len()).filter(|i| items[*i].root).chain((0..items.len()).filter(|i| !items[*i].root && items[*i].kind != Kind::Other)).chain((0..items.len()).filter(|i| !items[*i].root && items[*i].kind == Kind::Other)).collect();
@@ -623,6 +689,9 @@ struct Marker {
     side: Side,
     /// The layer's own rectangle (for the answer).
     layer: Rect,
+    /// The guide of a container that its layers inside cover to the edge: it ends on the border, where the guides of the layers inside
+    /// may end too (no free stretch of the edge exists; said in the answer).
+    shared_edge: bool
 }
 
 /// Whether the segments `a`-`b` and `c`-`d` cross (touching at a shared end doesn't count).
@@ -1740,7 +1809,7 @@ fn draw_badges(lang: Lang, stage: u64, sb: Rect, ib: Rect, tree: &Tree, numbered
         text(lang, stage, &digits, m.centre.0 - tw / 2.0 - origin.0, m.centre.1 - MARKER_LABEL_H / 2.0 - origin.1, MARKER_FONT, on_accent(&red.accent), None, &name)?;
         ids.push(id_of(lang, &c, "shape.ellipse")?);
     }
-    let info: Vec<Value> = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1], "tip": [m.tip.0, m.tip.1], "way": format!("{:?}", m.way), "side": format!("{:?}", m.side), "layer": [m.layer.x, m.layer.y, m.layer.w, m.layer.h]})).collect();
+    let info: Vec<Value> = markers.iter().map(|m| json!({"n": m.number, "centre": [m.centre.0, m.centre.1], "end": [m.end.0, m.end.1], "tip": [m.tip.0, m.tip.1], "way": format!("{:?}", m.way), "side": format!("{:?}", m.side), "shared_edge": m.shared_edge, "layer": [m.layer.x, m.layer.y, m.layer.w, m.layer.h]})).collect();
     Ok(Badges { ids, info, dropped, rounds })
 }
 
@@ -3544,5 +3613,69 @@ mod tests {
         assert_eq!(ms.len(), 1);
         let (a, b) = guide_of(&ms[0]);
         assert!(!runs_along(a, b, Rect { x: 100.0, y: 110.0, w: 200.0, h: 90.0 }) && !runs_along(a, b, ib));
+    }
+
+    fn container(layer: Rect, kids: &[Rect]) -> Item {
+        Item { number: 8, root: false, layer, kind: Kind::Other, inside: kids.to_vec(), blockers: vec![], rims: vec![] }
+    }
+
+    #[test]
+    fn a_container_is_reached_in_the_free_stretch_of_its_edge_never_over_a_child() {
+        let ib = Rect { x: 0.0, y: 0.0, w: 400.0, h: 200.0 };
+        let stage = Rect { x: -300.0, y: -200.0, w: 1000.0, h: 700.0 };
+        // (a) 320 x 46, two children to the right and room on the left: the tip is in the free stretch on the left.
+        let footer = Rect { x: 20.0, y: 140.0, w: 320.0, h: 46.0 };
+        let kids = [Rect { x: 130.0, y: 142.0, w: 100.0, h: 42.0 }, Rect { x: 238.0, y: 140.0, w: 102.0, h: 46.0 }];
+        assert_eq!(free_centres(&container(footer, &kids), Side::Bottom)[..2], [(20.0 + 130.0) / 2.0, 234.0]);
+        let m = place_markers(ib, stage, &[container(footer, &kids)], &[]);
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].side, Side::Bottom);
+        assert!(m[0].tip.0 > 20.0 && m[0].tip.0 < 130.0, "the tip {:?} is in the room to the left of the first child", m[0].tip);
+        assert!(!m[0].shared_edge);
+        // (b) children 8 px apart and none of the room at the edges: the gap is used.
+        let kids = [Rect { x: 20.0, y: 140.0, w: 156.0, h: 46.0 }, Rect { x: 184.0, y: 140.0, w: 156.0, h: 46.0 }];
+        assert_eq!(free_centres(&container(footer, &kids), Side::Bottom), vec![180.0], "a stretch of 8 px has its centre only");
+        let m = place_markers(ib, stage, &[container(footer, &kids)], &[]);
+        assert_eq!(m.len(), 1);
+        assert!((m[0].tip.0 - 180.0).abs() < 0.01 && !m[0].shared_edge, "the gap: {:?}", m[0].tip);
+        // (c) covered to the edge: no free stretch, the tip falls on the border (and the answer says so).
+        let kids = [Rect { x: 20.0, y: 140.0, w: 160.0, h: 46.0 }, Rect { x: 180.0, y: 140.0, w: 160.0, h: 46.0 }];
+        assert!(free_centres(&container(footer, &kids), Side::Bottom).is_empty());
+        let m = place_markers(ib, stage, &[container(footer, &kids)], &[]);
+        assert_eq!(m.len(), 1);
+        let t = m[0].tip;
+        assert!((t.1 - footer.bottom()).abs() < 0.01 || (t.1 - footer.y).abs() < 0.01 || (t.0 - footer.x).abs() < 0.01 || (t.0 - footer.right()).abs() < 0.01, "{t:?}");
+        assert!(m[0].shared_edge);
+        // A stretch under 4 px is no stretch.
+        let kids = [Rect { x: 20.0, y: 140.0, w: 158.0, h: 46.0 }, Rect { x: 181.0, y: 140.0, w: 159.0, h: 46.0 }];
+        assert!(free_centres(&container(footer, &kids), Side::Bottom).is_empty());
+        // A child far from the edge (padding of 16) does not take it.
+        let kids = [Rect { x: 36.0, y: 156.0, w: 100.0, h: 14.0 }];
+        assert_eq!(free_centres(&container(footer, &kids), Side::Bottom)[0], 180.0);
+    }
+
+    #[test]
+    fn the_footer_its_button_and_the_buttons_text_end_at_three_different_places() {
+        let (ib, stage, items) = card_items();
+        let ms = place_markers(ib, stage, &items, &[]);
+        assert_clean(&ms, stage);
+        let tip = |n: usize| ms.iter().filter(|m| m.number == n).map(|m| m.tip).collect::<Vec<_>>();
+        let footer = ms.iter().find(|m| m.number == 8).unwrap();
+        let kids = &items[footer.item].inside;
+        assert!(kids.iter().all(|k| !touches(footer.tip, *k)), "the footer's tip {:?} is on or inside a button", footer.tip);
+        assert!(!footer.shared_edge);
+        // No two of the guides of 8, 9 and 10 share a vertical or a horizontal line.
+        let mut ends: Vec<(usize, (f64, f64))> = vec![];
+        for n in [8, 9, 10] {
+            for t in tip(n) {
+                ends.push((n, t));
+            }
+        }
+        for (i, a) in ends.iter().enumerate() {
+            for b in &ends[i + 1..] {
+                assert!((a.1 .0 - b.1 .0).abs() >= 8.0 || (a.1 .1 - b.1 .1).abs() >= 8.0, "{} and {} end together at {:?} / {:?}", a.0, b.0, a.1, b.1);
+                assert!((a.1 .0 - b.1 .0).abs() > 1.0, "{} and {} share the vertical x = {}", a.0, b.0, a.1 .0);
+            }
+        }
     }
 }
