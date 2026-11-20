@@ -84,14 +84,14 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 89770968,
+    "fuel": 89904687,
     "calls": 1119
   },
   "copia-2 / id 3 (Toast variant)": {
     "markers": {
       "count": 7,
       "edge_ok": true,
-      "min_gap": 40.6,
+      "min_gap": 25.0,
       "root_straight": true,
       "dropped": 0,
       "oblique": 0,
@@ -172,7 +172,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 119939455,
+    "fuel": 119948271,
     "calls": 1380
   },
   "carga-v2 / id 3 (Toast variant)": {
@@ -264,14 +264,14 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 269155161,
+    "fuel": 269240055,
     "calls": 1467
   },
   "carga-v2 / id 194 (Card de carga)": {
     "markers": {
       "count": 12,
       "edge_ok": true,
-      "min_gap": 16.0,
+      "min_gap": 12.2,
       "root_straight": true,
       "dropped": 0,
       "oblique": 0,
@@ -352,7 +352,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 807873295,
+    "fuel": 818829176,
     "calls": 4881
   },
   "ds-base-demo / Button": {
@@ -458,14 +458,14 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 404849310,
+    "fuel": 405395083,
     "calls": 4515
   },
   "ds-base-demo / Card": {
     "markers": {
       "count": 16,
       "edge_ok": true,
-      "min_gap": 16.0,
+      "min_gap": 13.0,
       "root_straight": true,
       "dropped": 0,
       "oblique": 0,
@@ -495,36 +495,36 @@
         "anatomy",
         64.0,
         2583.0,
-        1634.0
+        1502.0
       ],
       [
         "variants",
         64.0,
-        4281.0,
+        4149.0,
         653.0
       ],
       [
         "layouts",
         64.0,
-        4998.0,
+        4866.0,
         931.0
       ],
       [
         "tokens",
         64.0,
-        5993.0,
+        5861.0,
         2131.0
       ],
       [
         "changelog",
         64.0,
-        8188.0,
+        8056.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      8531.0
+      8399.0
     ],
     "tables": [
       [
@@ -554,8 +554,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 392701559,
-    "calls": 3831
+    "fuel": 391438564,
+    "calls": 3825
   },
   "ds-base-demo / Accordion": {
     "markers": {
@@ -650,7 +650,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 163475144,
+    "fuel": 164329847,
     "calls": 1833
   },
   "ds-base-demo / Code": {
@@ -738,14 +738,14 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 98375607,
+    "fuel": 98526156,
     "calls": 1110
   },
   "ds-base-demo / Icon": {
     "markers": {
       "count": 2,
       "edge_ok": true,
-      "min_gap": 64.0,
+      "min_gap": 64.2,
       "root_straight": true,
       "dropped": 0,
       "oblique": 0,
@@ -838,7 +838,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 196240650,
+    "fuel": 197342450,
     "calls": 2502
   },
   "pt-BR / copia-2 / id 32": {
@@ -926,7 +926,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 90380566,
+    "fuel": 90512847,
     "calls": 1128
   },
   "pt-BR / carga-v2 / id 3 (Toast variant)": {
@@ -1018,7 +1018,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 270098535,
+    "fuel": 270100935,
     "calls": 1476
   },
   "pt-BR / ds-base-demo / Button": {
@@ -1124,14 +1124,14 @@
       "no_stage"
     ],
     "failed": [],
-    "fuel": 406612713,
+    "fuel": 405191065,
     "calls": 4524
   },
   "pt-BR / ds-base-demo / Card": {
     "markers": {
       "count": 16,
       "edge_ok": true,
-      "min_gap": 16.0,
+      "min_gap": 13.0,
       "root_straight": true,
       "dropped": 0,
       "oblique": 0,
@@ -1161,36 +1161,36 @@
         "anatomy",
         64.0,
         2583.0,
-        1634.0
+        1502.0
       ],
       [
         "variants",
         64.0,
-        4281.0,
+        4149.0,
         653.0
       ],
       [
         "layouts",
         64.0,
-        4998.0,
+        4866.0,
         1057.0
       ],
       [
         "tokens",
         64.0,
-        6119.0,
+        5987.0,
         2149.0
       ],
       [
         "changelog",
         64.0,
-        8332.0,
+        8200.0,
         279.0
       ]
     ],
     "section": [
       1308.0,
-      8675.0
+      8543.0
     ],
     "tables": [
       [
@@ -1220,8 +1220,8 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 394968106,
-    "calls": 3840
+    "fuel": 393638399,
+    "calls": 3834
   },
   "pt-BR / ds-base-demo / Accordion": {
     "markers": {
@@ -1316,7 +1316,7 @@
     ],
     "warnings": [],
     "failed": [],
-    "fuel": 164846624,
+    "fuel": 165628996,
     "calls": 1842
   },
   "cover editada / pills before": {
