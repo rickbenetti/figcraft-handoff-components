@@ -55,7 +55,7 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
   a Section goes to the right of everything on the page (256 px) and holds the frames above.
 - **A shorter panel** (11 controls): language, stage, Update, and the buttons **Generate**, **New Section**, **Restore defaults** and
   **Close**. The **Version** and **Status** fields and the **On rerun** setting are gone; you type version and status on the Cover.
-  **Restore defaults** now puts back language and stage.
+  **Restore defaults** puts Language, Stage and Update in the panel back to their defaults; Language and Stage are then saved with the next documentation, and Update is never saved (it is All each time the panel opens).
 - **Anatomy** is the stage plus a table of the numbers (No., Type, Layer, Note) instead of the legend.
 - **The stage** can now also be **mid-grey** (`#777777`): Auto chooses among light, mid-grey and dark, and for the Component Master it
   judges every variant of the set (a sample in a big set), where 0.10.0 judged each picture alone. The Stage control still offers
