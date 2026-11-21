@@ -24,8 +24,8 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 - **Component Master.** The original component or set moves into this frame, so the instances elsewhere in your file stay
   linked to it. A set wider than the frame is arranged with **auto layout and wrap**, only when it does not fit; a set that fits is
   left as you made it. The Master is made again on every run.
-- **Properties** (name, type, default, options) and **Tokens** (tokens by layer, and resolved colors in Dark and Light)
-  as tables.
+- **Properties** and **Tokens** are frames of their own: Properties (name, type, default, options), and Tokens (tokens by
+  layer, and resolved colors in Dark and Light).
 - **Anatomy** shows the instance with numbered markers on straight guides only (horizontal or vertical). Guides never
   cross a text, markers keep their distance from each other, and a number that has no room is said in the table's Note column.
 - **States and Variants** is a gallery: one tile with a real instance for each option of each variant axis, with its
@@ -40,8 +40,6 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 - **Selecting a variant** documents the whole set, as if you had selected the set.
 - **A frame you deleted by hand** comes back, in its place, when Update names it. When Update does not name it, the panel
   says it was not made.
-- **A stage of three colors.** The stage behind the instances can be light, mid-grey or dark; Auto picks the one with the
-  best contrast over all the variants.
 - **Warnings.** A run can now tell you, with a short message in the panel: `table_failed` (a frame could not be made),
   `no_stage` (no stage suits every variant), `reflow_failed` (the set could not be arranged in lines),
   `wide_master` (a very wide component: every frame was made wider), `legacy_doc` (a 0.10.0 documentation was found and left as it
@@ -58,6 +56,10 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 - **A shorter panel** (11 controls): language, stage, Update, and the buttons **Generate**, **New Section**, **Restore defaults** and
   **Close**. The **Version** and **Status** fields and the **On rerun** setting are gone; you type version and status on the Cover.
   **Restore defaults** now puts back language and stage.
+- **Anatomy** is the stage plus a table of the numbers (No., Type, Layer, Note) instead of the legend.
+- **The stage** can now also be **mid-grey** (`#777777`): Auto chooses among light, mid-grey and dark, and for the Component Master it
+  judges every variant of the set (a sample in a big set), where 0.10.0 judged each picture alone. The Stage control still offers
+  Auto, Light and Dark; mid-grey comes only from Auto.
 - The panel shows **one** warning at a time; one that says something was not made comes before advice.
 - **Permissions.** The manifest asks for seven more host commands: `node.create`, `component.create`,
   `component.combineVariants`, `instance.create`, `component.addProperty`, `component.bindProperty` and `instance.setProperties`
@@ -66,7 +68,8 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 ### Removed
 
 - The **variant matrix** (one row of blocks for each axis) and the stacked format of the changes: States and Variants is a gallery now.
-- The **numbered legend** of the anatomy and the 0.10.0 measure rectangles of the spacing (`measure.padding`).
+- The **legend of each numbered layer's properties and tokens** beside the Anatomy (the tokens and values of each layer are in
+  the Tokens frame now), and the 0.10.0 measure rectangles of the spacing (`measure.padding`).
 - The header with **Version** and **Status** and the **On rerun** control. A script can still pass `on_rerun`, `version` and `status`
   to a direct run; they are accepted and **ignored**.
 
@@ -78,8 +81,7 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
 - **Small instances stay small.** The host cannot scale an instance whole, so the drawings are at 1x.
 - The panel shows **one warning at a time**, even when a run has several.
 - `on_rerun`, `version` and `status` are **accepted and ignored** in a direct run.
-- A few spacing bands between two texts that cover the height have no path for a line and are listed in a note
-  ("No marker: …") instead of being drawn.
+- Spacing bands that do not fit the drawing are not drawn; the note under the drawing says how many.
 - **How it was tested.** The measurements and the fuel in this repository come from `figcraft-cli 0.18.1` without a window
   (synthetic).
 
