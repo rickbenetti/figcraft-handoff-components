@@ -4,7 +4,7 @@ All notable changes to Handoff Components. The format follows [Keep a Changelog]
 Version 0.x: expect rough edges. The data the plugin reads and writes is described in
 [`docs/data-contract.md`](docs/data-contract.md).
 
-## [0.11.0] - unreleased
+## [0.11.0] - 2026-11-21
 
 ### Requirements
 
@@ -35,7 +35,8 @@ Version 0.x: expect rough edges. The data the plugin reads and writes is describ
   drawing for each level of nesting** (up to 4), with the value as a number. Equal bands share one number tied to them by a
   vertical line and short traces, on each side of the instance; a number never covers text, vectors or icons.
 - **Update.** The panel's new **Update** choice (all sections, tables only, tokens only, properties only, anatomy only,
-  states and variants only, layouts only) says which frames a rerun replaces. The first run always makes all eight.
+  states and variants only, layouts only) says which frames a rerun replaces. "Tables only" replaces Properties, Anatomy, States and Variants and Layouts; Tokens has
+  an option of its own. The first run always makes all eight.
 - **New Section** makes another Section for the same component beside the first (without a Master).
 - **Selecting a variant** documents the whole set, as if you had selected the set.
 - **A frame you deleted by hand** comes back, in its place, when Update names it. When Update does not name it, the panel

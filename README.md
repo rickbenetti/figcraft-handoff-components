@@ -77,6 +77,17 @@ Run **Plugins ▸ Handoff Components ▸ Generate documentation…**. It opens a
 
 - **THIS PAGE**, saved on the current page: **Language** (English or Português (Brasil)) and **Stage** (Auto, Light or Dark; Auto is the default). Mid-grey is reached only by Auto.
 - **UPDATE**, with the note "Applies to a Section that already exists; the first time, every frame is made. The Master is always remade.": the **Update** choice says which frames a rerun replaces. It has seven options: **All sections**, **Tables only**, **Tokens only**, **Properties only**, **Anatomy only**, **States and variants only** and **Layouts only**. It is not remembered: it is All each time the panel opens.
+
+  | Update option | Frames it replaces (the Component Master is always made again; Cover and Changelog never) |
+  |---|---|
+  | **All sections** | Properties, Anatomy, States and Variants, Layouts, Tokens |
+  | **Tables only** | Properties, Anatomy, States and Variants, Layouts (not Tokens) |
+  | **Tokens only** | Tokens |
+  | **Properties only** | Properties |
+  | **Anatomy only** | Anatomy |
+  | **States and variants only** | States and Variants |
+  | **Layouts only** | Layouts |
+
 - Four buttons: **Generate**, **New Section**, **Restore defaults** and **Close**, and below them a message about what happened the last time. The buttons come after the fields, on purpose: the app hands a panel's events to the plugin in the order of its controls.
 
 **Generate** works on whatever is selected **at the moment of the click**: a component, a component set, a variant, or an instance. It refuses, with a note and without touching the file, when nothing is selected or the first selected layer is not a component, a set, a variant or an instance. Otherwise it saves the page's settings that you changed, makes or updates the documentation, takes the screen to the start of the Section and selects the component (it lives in the Component Master now). If something fails on the way, the app puts everything back as it was and shows the error. **Restore defaults** puts Language, Stage and Update in the panel back to their defaults; Language and Stage are then saved with the next documentation, and Update is never saved (it is All each time the panel opens); **Close** closes the panel. The panel is in the page's language and redraws at once when you change it.
