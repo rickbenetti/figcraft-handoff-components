@@ -472,10 +472,10 @@ pub(super) fn place_group(ib: Rect, stage: Rect, g: &SpineGroup, board: &mut Boa
         trace_ys(*b).iter().any(|y| content_only.free(((x, *y), (tip, *y)), CONTENT_CLEAR, Some(*b)))
     };
     let mut lost: Vec<usize> = Vec::new();
-    for i in 0..g.bands.len() {
-        if !reach(&g.bands[i], sides[i]) {
-            if reach(&g.bands[i], !sides[i]) {
-                sides[i] = !sides[i];
+    for (i, (band, side)) in g.bands.iter().zip(sides.iter_mut()).enumerate() {
+        if !reach(band, *side) {
+            if reach(band, !*side) {
+                *side = !*side;
             } else {
                 lost.push(i);
             }
@@ -520,11 +520,10 @@ pub(super) fn place_group(ib: Rect, stage: Rect, g: &SpineGroup, board: &mut Boa
     }
     // A band the spines of both sides cannot reach (a spine across it would have to cross another) gets a spine of its own, on its side or
     // the other: one trace and a number of the same value.
-    for i in 0..g.bands.len() {
+    for (i, &own) in sides.iter().enumerate().take(g.bands.len()) {
         if lost.contains(&i) || placed.iter().any(|p| p.ids.contains(&i)) {
             continue;
         }
-        let own = sides[i];
         if let Some(p) = place(&[i], own, board).or_else(|| place(&[i], !own, board)) {
             placed.push(p);
         }
