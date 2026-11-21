@@ -205,7 +205,7 @@ When several layers are selected only the first is used (`generate` reads `selec
   (`find_support` looks at every page, at most 500 pages, and at each page's top-level layers: a Support frame, a set standing alone with the mark,
   or the `kit` frame inside a Section). It goes at the page's Section origin (`section_origin`: right of everything, `y = 256`) **before** the
   Section, so the Section stands 256 to its right. A **rerun makes one only when the Cover is made again** (it was deleted by hand) and no set exists: the Support frame is then made the way the
-  first generation makes it, to the right of everything, and the Cover has its pills. If that fails the Cover is made without pills and the run raises **`support_missing`**. A rerun
+  first generation makes it, 256 px to the **left** of the Section at the Section's `y` (to the right of everything only when something stands there), and the Cover has its pills. If that fails the Cover is made without pills and the run raises **`support_missing`**. A rerun
   that does not make the Cover never makes a Support frame.
 * **Which set.** When there are several, the **oldest** (lowest id) is used, so the choice is the same on every run. `support.sets_found` says
   how many there were.
@@ -403,7 +403,7 @@ Translucent bands over a coloured component change its colour (a green band over
 ## 10. Warnings (`warnings`)
 
 `section.rs` `Warn` (`Warn::ALL`, `code`, `text`, `line`). The answer's `warnings` is a list of **codes**, at most one of each, in the order of this table (`Warn::ALL`). A run with none returns `[]`.
-The panel shows the **first** one only (`Message::Warned`) and, for the two counted ones, the count from `anatomy.dropped` / `spacing.outside_dropped`. Texts are the dictionary's (`PanelWarn*`).
+The panel shows **one** only (`Message::Warned`): `table_failed`, `frame_missing` or `support_missing` when present (something was not made), else the first and, for the two counted ones, the count from `anatomy.dropped` / `spacing.outside_dropped`. Texts are the dictionary's (`PanelWarn*`).
 
 | Code | Raised when | Where it shows besides the panel | Text (en) |
 |---|---|---|---|
