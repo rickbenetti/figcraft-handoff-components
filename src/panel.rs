@@ -228,7 +228,7 @@ pub fn message_text(lang: Lang, m: &Message) -> String {
         Message::NothingSelected => marked(SYM_ERR, t(lang, Key::PanelNothingSelected)),
         Message::WrongKind(kind) => marked(SYM_ERR, &tf(lang, Key::PanelWrongKind, &[("kind", kind)])),
         Message::Restored => t(lang, Key::PanelRestored).to_string(),
-        Message::Warned(name, warns) => match warns.first() {
+        Message::Warned(name, warns) => match warns.iter().find(|w| w.first_in_panel()).or(warns.first()) {
             Some(w) => format!("{} {}", done(name), marked(SYM_INFO, &w.line(lang))),
             None => done(name),
         },
@@ -685,6 +685,14 @@ mod tests {
             let n = t(lang, Key::PanelUpdateNote).chars().count();
             assert!(n <= 3 * 39, "{n} characters: {}", t(lang, Key::PanelUpdateNote));
         }
+    }
+
+    #[test]
+    fn a_frame_that_was_not_made_is_what_the_message_says_even_after_the_advice_about_the_stage() {
+        let warns = vec![Warn::NoStage, Warn::FrameMissing(1 << section::Sec::Properties.index())];
+        let text = message_text(Lang::Pt, &Message::Warned("Botão".into(), warns));
+        assert!(text.contains("Propriedades") && !text.contains("palco"), "{text}");
+        assert!(text.chars().count() <= 120, "{text}");
     }
 
     #[test]

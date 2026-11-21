@@ -1698,5 +1698,18 @@
     ],
     "approval_sets_in_the_file": 1,
     "failures": 0
+  },
+  "correções / app / vãos e apoio": {
+    "cover_master_gap": 64.0,
+    "violations": [],
+    "support_left_of_the_section": true,
+    "support_y_is_the_sections": true
+  },
+  "correções / app / aviso no painel": {
+    "warnings": [
+      "no_stage",
+      "frame_missing"
+    ],
+    "message_says_properties": true
   }
 }

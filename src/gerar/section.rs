@@ -372,6 +372,12 @@ impl Warn {
         })
     }
 
+    /// Whether the panel puts it before the others: something that was not made, which the person has to do something about, must not hide
+    /// behind advice (the panel shows one warning).
+    pub fn first_in_panel(self) -> bool {
+        matches!(self, Warn::Failed | Warn::FrameMissing(_) | Warn::SupportMissing)
+    }
+
     /// The warning as the panel says it: with its number filled in where it has one.
     pub fn line(self, lang: Lang) -> String {
         match self {

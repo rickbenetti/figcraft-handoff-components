@@ -514,6 +514,22 @@ def fixes_case(tmp):
             newcover = next(f for f in oc["frames"] if f["key"] == "cover")
             pills = go([step("node.find", {"root": newcover["id"], "type": "instance", "limit": 20})], os.path.join(tmp, "fx_f.figcraft"), os.path.join(tmp, "fx_t.figcraft"))[0]["result"]["ids"]
             out["correções / apoio"] = {"support_made": oc["support"]["made"] is not None, "pills": len(pills), "warnings": oc["warnings"], "frame_violations": frame_invariants(os.path.join(tmp, "fx_f.figcraft"), oc, tmp, 953)}
+    # What the app found (Prompt 65): Cover, Properties and the support frame all deleted by hand, then "All sections"; the support frame made again
+    # stands to the LEFT of the Section (256 from it) and every gap is 64; and the panel's message shows that a frame was not made.
+    if "error" not in o1:
+        ids = [next(f["id"] for f in o1["frames"] if f["key"] == k) for k in ("cover", "properties")] + [o1["support"]["made"]["frame"]]
+        go([step("edit.delete", {"ids": ids})], a, os.path.join(tmp, "fx_g.figcraft"))
+        og = run(btn, os.path.join(tmp, "fx_g.figcraft"), os.path.join(tmp, "fx_h.figcraft"))
+        if "error" in og:
+            out["correções / app / vãos e apoio"] = {"error": og["error"]}
+        else:
+            made = og["support"]["made"]
+            out["correções / app / vãos e apoio"] = {"cover_master_gap": next(f["y"] for f in og["frames"] if f["key"] == "master") - 64 - 705, "violations": frame_invariants(os.path.join(tmp, "fx_h.figcraft"), og, tmp, 954),
+                                                     "support_left_of_the_section": bool(made) and abs(made["x"] + made["w"] + 256 - og["x"]) < 0.5, "support_y_is_the_sections": bool(made) and abs(made["y"] - og["y"]) < 0.5}
+        go([step("edit.delete", {"ids": [ids[1]]})], a, os.path.join(tmp, "fx_i.figcraft"))
+        r = go([step("plugin.import", {"path": DIST}), step("plugin.run", {"id": PID, "command": "generate", "params": {}}), step("select.set", {"ids": [btn]}), step("plugin.event", {"id": PID, "control": "update", "value": "Tokens only"}), step("plugin.event", {"id": PID, "control": "generate"})], os.path.join(tmp, "fx_i.figcraft"), os.path.join(tmp, "fx_j.figcraft"))
+        res = (r[-1].get("result") or {}).get("output") or {} if r else {}
+        out["correções / app / aviso no painel"] = {"warnings": res.get("warnings"), "message_says_properties": "Properties" in (res.get("message") or "")}
     # A "New Section" on the stage the page asks for.
     for label, stage in (("escuro", "dark"), ("claro", "light"), ("automático", "auto")):
         first = run(btn, DEMO, os.path.join(tmp, f"fx_n{stage}.figcraft"), {"stage": stage})
