@@ -1314,6 +1314,16 @@ pub fn generate(input: Input) -> Result<Value> {
         let (x, y) = section_origin(&boxes, None);
         match build_support(&ctx, x, y) {
             Ok((frame, set, w, h)) => {
+                // Where the first generation puts it: to the LEFT of the Section, 256 from it, at the Section's y; when something stands there it
+                // stays where it was made, to the right of everything.
+                let (lx, ly) = (sx - SECTION_RIGHT_GAP - w, sy);
+                let free = !boxes.iter().any(|(bx, by, bw, bh)| lx < bx + bw && *bx < lx + w && ly < by + bh && *by < ly + h);
+                let (x, y) = if free {
+                    host(lang, "node.set", &json!({"ids": [frame], "props": {"x": lx, "y": ly}}))?;
+                    (lx, ly)
+                } else {
+                    (x, y)
+                };
                 boxes.push((x, y, w, h));
                 ctx.pills = Some(set);
                 support_made = Some(json!({"frame": frame, "set": set, "x": x, "y": y, "w": w, "h": h}));
