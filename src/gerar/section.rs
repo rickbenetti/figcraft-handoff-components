@@ -1442,16 +1442,20 @@ pub fn generate(input: Input) -> Result<Value> {
             }
         }
     } else {
-        for sec in Sec::ALL.into_iter().filter(|s| fresh.contains(s)) {
+        // The frames still to be placed have only a provisional place (the top of the Section): they are not "the frame right under" anything.
+        let mut pending: Vec<Sec> = Sec::ALL.into_iter().filter(|s| fresh.contains(s)).collect();
+        for sec in pending.clone() {
+            pending.retain(|s| *s != sec);
             let Some(me) = placed.iter().find(|p| p.sec == sec).cloned() else { continue };
             let above = Sec::ALL.iter().take(sec.index()).rev().find_map(|s| placed.iter().find(|p| p.sec == *s));
             let y = above.map_or(SECTION_PAD, |a| a.bottom() + FRAME_GAP);
             // Room for it: what stood at or under that line moves so that the frame right under starts one gap below this one (a hole the
             // deleted frame left is closed, and a frame of another height is made room for), the others by the same amount.
-            let first = placed.iter().filter(|p| p.sec != sec && p.y >= y - 0.5).map(|p| p.y).fold(f64::INFINITY, f64::min);
+            let under = |p: &Placed| p.sec != sec && !pending.contains(&p.sec) && p.y >= y - 0.5;
+            let first = placed.iter().filter(|p| under(p)).map(|p| p.y).fold(f64::INFINITY, f64::min);
             if first.is_finite() {
                 let delta = y + me.h + FRAME_GAP - first;
-                for p in placed.iter_mut().filter(|p| p.sec != sec && p.y >= y - 0.5) {
+                for p in placed.iter_mut().filter(|p| under(p)) {
                     p.y += delta;
                 }
             }
