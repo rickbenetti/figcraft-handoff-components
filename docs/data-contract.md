@@ -3,7 +3,7 @@
 What Handoff Components stores in the file, what it accepts as parameters, what it draws, and what the generate command returns.
 Every row names the file and function it comes from. Source files are in `src/`; `scripts/regress.py` is the check that holds the
 numbers of sections 12 and 13. This document describes the code of the branch `feat/0.11-section-base`. The manifest
-and `Cargo.toml` still say `0.10.0` (the version is not raised until the release). `api` is still 2, but the **permissions grew** since 0.10.0: seven more host
+and `Cargo.toml` say `0.11.0`. `api` is still 2, but the **permissions grew** since 0.10.0: seven more host
 commands (`node.create`, `component.create`, `component.combineVariants`, `instance.create`, `component.addProperty`, `component.bindProperty`,
 `instance.setProperties`), 28 in all. Every host command the code calls is in `figcraft-plugin.json`, and every command in it is called.
 
