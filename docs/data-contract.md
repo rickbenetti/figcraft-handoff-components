@@ -222,7 +222,7 @@ When several layers are selected only the first is used (`generate` reads `selec
 
 ### 5.1 Content
 
-A header (the label with the component's name, and the title "Base component", pt-BR "Componente base"), a description, the fixed warning
+A header (the label with the component's name, and the title "Component Master", pt-BR "Componente base"), a description, the fixed warning
 ("Do not delete this frame or the Section: they hold the original component."), when the set carries `handoff-organized` the line "The original set was arranged
 with auto layout and wrap.", and a **stage** frame (padding 48, corner radius 12, 1 px border `#D4D4D8`, fill the stage's colour) with the component or set in it.
 
@@ -855,10 +855,9 @@ Facts of the code that this document does not change. (Four found in the first v
 
 1. **`on_rerun`, `version` and `status`** are accepted by a direct run (and `on_rerun` is stored) and have no effect (2, 11). `direct.rs`'s module doc still says `version` and `status` go to the header.
 2. **The panel shows only the first warning** when there are several (10).
-3. **Names**: the Master frame is named "Component Master" but its title inside is "Base component" (`SecMaster` and `MasterTitle` in `locales/en.json`; in pt-BR both are "Componente base").
-4. **Constants of the old drawing**: `gerar.rs` keeps the 0.10.0 constants (`FRAME_PAD` 64, `MIN_FRAME_W` 1280, `SECTION_GAP` 56) next to `section.rs`'s (48, …); they are used only by the 0.10.0 `generate`, which nothing calls.
-5. **Two `plugin.run` calls in one CLI script** do not see the Section the first one made: the second run made a second Section (`created: true`, `rerun: false`). `scripts/regress.py` runs each generation in its own invocation (the script is "one all-or-nothing undo step"); the cause is not confirmed.
-6. **`component` in the answer is the key**, not the default variant of a set (it was the default variant in 0.10.0).
+3. **Constants of the old drawing**: `gerar.rs` keeps the 0.10.0 constants (`FRAME_PAD` 64, `MIN_FRAME_W` 1280, `SECTION_GAP` 56) next to `section.rs`'s (48, …); they are used only by the 0.10.0 `generate`, which nothing calls.
+4. **Two `plugin.run` calls in one CLI script** do not see the Section the first one made: the second run made a second Section (`created: true`, `rerun: false`). `scripts/regress.py` runs each generation in its own invocation (the script is "one all-or-nothing undo step"); the cause is not confirmed.
+5. **`component` in the answer is the key**, not the default variant of a set (it was the default variant in 0.10.0).
 
 **Not confirmed with a source or a run** (each is said where it appears): the host's own fuel limit and the difference between `calls` and `host_calls` (14); the text widths and the final heights in the app (14); the exact unit of `rounds` (what a "round" is beyond "an attempt of the placer") (12.3); that the panel's message fits in three lines in the
 app (`panel.rs` tests check it on the host); the failure path of `support_missing` (it needs a host that refuses the Support frame; it is not run).

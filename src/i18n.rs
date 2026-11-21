@@ -305,6 +305,14 @@ mod tests {
     }
 
     #[test]
+    fn the_master_frame_and_the_title_inside_it_have_the_same_name_in_every_language() {
+        for lang in [Lang::En, Lang::Pt] {
+            assert_eq!(t(lang, Key::SecMaster), t(lang, Key::MasterTitle), "{lang:?}");
+        }
+        assert_eq!(t(Lang::En, Key::MasterTitle), "Component Master");
+    }
+
+    #[test]
     fn pt_br_misses_no_key() {
         // The English keys that pt-BR lacks: this list must stay empty.
         let missing: Vec<&str> = Key::ALL.iter().map(|k| k.name()).filter(|n| !table(Lang::Pt).contains_key(*n)).collect();

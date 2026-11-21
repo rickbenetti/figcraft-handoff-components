@@ -310,7 +310,7 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | CoverGuideVersion | v0.0.0 | v0.0.0 |
 | CoverGuideStatus | status: to be defined | status: a definir |
 | CoverGuideNameDate | name · date | nome · data |
-| MasterTitle | Base component | Componente base |
+| MasterTitle | Component Master | Componente base |
 | ApprPropArea | Area | Área |
 | ApprPropName | Name · date | Nome · data |
 | TblProperty | Property | Propriedade |
