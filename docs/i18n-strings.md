@@ -210,20 +210,137 @@ Generated from `locales/*.json` (the test `i18n::tests::strings_doc_is_current` 
 | PanelStageLight | Light | Claro |
 | PanelStageDark | Dark | Escuro |
 | PanelStageAuto | Auto | Automático |
-| PanelRerun | On rerun | Ao gerar de novo |
-| PanelRerunReplace | Replace | Substituir a anterior |
-| PanelRerunNew | New | Criar outra |
-| PanelVersion | Version | Versão |
-| PanelStatus | Status | Status |
-| PanelRestored | Stage and “on rerun” are back to the defaults; the language was kept. The restored settings will be saved with the next documentation. | Palco e “ao gerar de novo” voltaram aos padrões; o idioma foi mantido. As configurações restauradas serão gravadas na próxima documentação gerada. |
-| PanelTitleMessages | MESSAGES | MENSAGENS |
+| PanelRestored | Language, Stage and Update are back to the defaults. | Idioma, Palco e Atualizar voltaram ao padrão. |
 | VersionStatusLine | Version: {version} · Status: {status} | Versão: {version} · Status: {status} |
 | ToBeDefined | to be defined | a definir |
-| PanelTitleDocumentation | DOCUMENTATION | DOCUMENTAÇÃO |
-| PanelBlankHint | Left blank, the documentation shows “to be defined”. | Em branco, a documentação mostra “a definir”. |
-| PanelIdle | Select a component, a component set or a variant and press Generate documentation. | Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação. |
+| PanelIdle | Select a component, set or variant and press Generate. | Selecione um componente, conjunto ou variante e clique em Gerar. |
 | PanelGenerated | Documentation generated: {name}. | Documentação gerada: {name}. |
-| PanelNothingSelected | Nothing is selected. Select a component, a component set or a variant and press Generate documentation. | Nada selecionado. Selecione um componente, um conjunto ou uma variante e clique em Gerar documentação. |
-| PanelWrongKind | The selection is of type {kind}, not a component, a component set or a variant. Select one of them and press Generate documentation. | A seleção é do tipo {kind}, não um componente, conjunto ou variante. Selecione um deles e clique em Gerar documentação. |
-| PanelFreezeNote | The screen freezes while the documentation is generated. | A tela fica travada enquanto a documentação é gerada. |
-| PanelGenerate | Generate documentation | Gerar documentação |
+| PanelNothingSelected | Nothing is selected. Select a component, set or variant and press Generate. | Nada selecionado. Selecione um componente, conjunto ou variante e clique em Gerar. |
+| PanelWrongKind | The selection is a {kind}. Select a component, set or variant. | A seleção é do tipo {kind}. Selecione um componente, conjunto ou variante. |
+| PanelGenerate | Generate | Gerar |
+| SectionName | Handoff · {name} | Handoff · {name} |
+| SectionFrameName | {title} · {name} | {title} · {name} |
+| SecCover | Cover | Visão geral |
+| SecMaster | Component Master | Componente base |
+| SecProperties | Properties | Propriedades |
+| SecAnatomy | Anatomy | Anatomia |
+| SecVariants | States and Variants | Estados e variações |
+| SecLayouts | Layouts | Layouts (espaçamento) |
+| SecTokens | Tokens | Tokens |
+| SecChangelog | Changelog | Changelog |
+| CoverDescription | Description | Descrição |
+| CoverLastDesigner | Last designer | Último designer |
+| CoverUpdatedOn | Updated on | Atualizado em |
+| CoverGuideDescription | Write a short description here that product owners and managers can read. | Escreva aqui uma descrição curta que PO e PM consigam ler. |
+| CoverGuideDesigner | Name of the last designer | Nome de quem desenhou por último |
+| CoverGuideUpdated | Date, typed by hand | Data, digitada à mão |
+| CoverApprovals | Approvals | Aprovações |
+| RoleDesigner | Designer | Designer |
+| RoleEngineering | Engineering | Engenharia |
+| RoleQa | QA | QA |
+| RoleWriters | Writers | Writers |
+| RolePo | PO | PO |
+| RolePm | PM | PM |
+| MasterFrameName | Component Master · {name} | Componente base · {name} |
+| MasterDescription | The original component lives here; the instances in this file stay linked to it. | O componente original mora aqui; as instâncias neste arquivo continuam ligadas a ele. |
+| MasterNote | Do not delete this frame or the Section: they hold the original component. | Não apague este quadro nem a Section: eles guardam o componente original. |
+| ChangelogVersion | Version | Versão |
+| ChangelogDate | Date | Data |
+| ChangelogChange | Change | Mudança |
+| ChangelogGuideVersion | x.y.z | x.y.z |
+| ChangelogGuideDate | Date, typed by hand | Data, digitada à mão |
+| ChangelogGuideChange | What changed in this version. | O que mudou nesta versão. |
+| PanelWarnLegacy | A 0.10.0 documentation was found and left as it was. | Documentação da 0.10.0 encontrada e mantida como estava. |
+| ErrMainGone | The original component of this selection no longer exists in the file (was its Section or Component Master frame deleted?). | O componente original desta seleção não existe mais no arquivo (a Section ou o quadro do Component Master foi apagado?). |
+| ErrSupportComponent | This is a support component of the documentation (the approval pill). Select the component you want to document. | Este é um componente de apoio da documentação (a pílula de aprovação). Selecione o componente que você quer documentar. |
+| SupportTitle | Handoff · Support | Handoff · Apoio |
+| PanelWarnWide | Wide component: every frame was made wider. | Componente largo: todos os quadros foram alargados. |
+| PanelWarnReflow | The set could not be arranged in lines: the Master was made as wide as it. | Não foi possível organizar o conjunto em linhas: o Master ficou do tamanho dele. |
+| PanelWarnApproval | The approval pills have no Area property: the Cover was made without the areas. | As pílulas de aprovação não têm a propriedade de área: a Capa ficou sem as áreas. |
+| PanelWarnSupport | The support frame could not be made: the Cover was made without approval pills. | Não foi possível criar o quadro de apoio: a Capa ficou sem pílulas de aprovação. |
+| PanelWarnMissingOne | Not made, because it is missing and Update does not name it: {names}. | Não foi feito, porque falta e Atualizar não o nomeia: {names}. |
+| PanelWarnMissing | Not made, because they are missing and Update does not name them: {names}. | Não foram feitos, porque faltam e Atualizar não os nomeia: {names}. |
+| PanelWarnMarkersOne | {n} marker did not fit in the drawing; see the Note column. | {n} marcador não coube no desenho; veja a coluna Nota. |
+| PanelWarnMarkers | {n} markers did not fit in the drawing; see the Note column. | {n} marcadores não couberam no desenho; veja a coluna Nota. |
+| PanelWarnSpacingOne | {n} spacing band did not fit in the Layouts drawing; see the note in that frame. | {n} faixa de espaçamento não coube no desenho do Layouts; veja a nota nesse quadro. |
+| PanelWarnSpacing | {n} spacing bands did not fit in the Layouts drawing; see the note in that frame. | {n} faixas de espaçamento não couberam no desenho do Layouts; veja a nota nesse quadro. |
+| LayoutsNoMarkerOne | No marker: 1 band of {value} px did not fit in the drawing. | Sem marcador: 1 faixa de {value} px não coube no desenho. |
+| LayoutsNoMarker | No marker: {n} bands of {value} px did not fit in the drawing. | Sem marcador: {n} faixas de {value} px não couberam no desenho. |
+| LayoutsLevel | Level {n} · {names} | Nível {n} · {names} |
+| LayoutsDeeper | Deeper levels not shown. | Níveis mais fundos não mostrados. |
+| AnatNoMarker | No marker: it did not fit in the drawing. | Sem marcador: não coube no desenho. |
+| GroupBorder | Border | Borda |
+| GroupSpacing | Spacing | Espaçamento |
+| GroupEffect | Effect | Efeito |
+| GroupSize | Size | Tamanho |
+| GalleryChanges | changes: {list} | muda: {list} |
+| GalleryDefault | default | padrão |
+| GalleryLabelOnly | label only | só o rótulo |
+| GalleryNearest | closest combination | combinação mais próxima |
+| GalleryWide | wider than the frame | mais larga que o quadro |
+| GalleryLeftOutOne | {n} option left out | Ficou de fora {n} opção |
+| GalleryLeftOut | {n} options left out | Ficaram de fora {n} opções |
+| LayerGallery | Gallery: {name} | Galeria: {name} |
+| LayerTile | Tile: {name} | Azulejo: {name} |
+| LayoutsLegendPadding | Padding | Espaçamento interno |
+| LayoutsLegendGap | Gap | Espaço entre itens |
+| LayoutsLeftOutOne | {n} layer left out | Ficou de fora {n} camada |
+| LayoutsLeftOut | {n} layers left out | Ficaram de fora {n} camadas |
+| MasterOrganized | The original set was arranged with auto layout and wrap. | O conjunto original foi organizado com auto layout em quebra de linha. |
+| PanelUpdate | Update | Atualizar |
+| PanelTitleUpdate | UPDATE | ATUALIZAR |
+| UpdAll | All sections | Todas as seções |
+| UpdTables | Tables only | Só tabelas |
+| UpdTokens | Tokens only | Só Tokens |
+| UpdProperties | Properties only | Só Propriedades |
+| UpdAnatomy | Anatomy only | Só Anatomia |
+| UpdVariants | States and variants only | Só Estados e variações |
+| UpdLayouts | Layouts only | Só Layouts |
+| PanelUpdateNote | Applies to a Section that already exists; the first time, every frame is made. The Master is always remade. | Vale para uma Section que já existe; na primeira vez todos os quadros são criados. O Master é sempre refeito. |
+| PanelNewSection | New Section | Nova Section |
+| PanelWarnNoStage | No stage suits every variant: change it in Stage. | Nenhum palco serve a todas as variantes: troque em Palco. |
+| SecKit | Support components | Componentes de apoio |
+| KitNote | Do not delete: the approval pills on the Covers are instances of the component that lives here. | Não apague: as pílulas das Capas são instâncias do componente que vive aqui. |
+| KitSetName | .Handoff · Approval | .Handoff · Aprovação |
+| StatePending | Pending | Pendente |
+| StateApproved | Approved | Aprovado |
+| StateConditional | With reservations | Com ressalvas |
+| StateRejected | Rejected | Reprovado |
+| CoverOverview | Overview | Visão geral |
+| CoverGuideVersion | v0.0.0 | v0.0.0 |
+| CoverGuideStatus | status: to be defined | status: a definir |
+| CoverGuideNameDate | name · date | nome · data |
+| MasterTitle | Component Master | Componente base |
+| ApprPropArea | Area | Área |
+| ApprPropName | Name · date | Nome · data |
+| TblProperty | Property | Propriedade |
+| TblType | Type | Tipo |
+| TblOptions | Options | Opções |
+| TblNumber | No. | Nº |
+| TblLayer | Layer | Camada |
+| TblNote | Note | Nota |
+| TblToken | Token | Token |
+| PropVisibility | Visibility | Visibilidade |
+| MatrixLeftOut | {n} rows were left out | Ficaram de fora {n} linhas |
+| MatrixLeftOutOne | {n} row was left out | Ficou de fora {n} linha |
+| PropsNone | This component has no properties. | Este componente não tem propriedades. |
+| LayoutsNone | This component does not use auto layout spacing. | Este componente não usa espaçamento automático. |
+| VariantsNone | This component has no variants. | Este componente não tem variantes. |
+| TableFailed | This section could not be made: {reason} | Esta seção não pôde ser feita: {reason} |
+| PanelWarnFailed | A section could not be made: see its frame. | Uma seção não pôde ser feita: veja o quadro dela. |
+| TblColours | Colors | Cores |
+| TblMeasures | Measures | Medidas |
+| TblStyles | Styles | Estilos |
+| TblDark | Dark | Dark |
+| TblLight | Light | Light |
+| TokTableLayers | Tokens by layer | Tokens por camada |
+| TokTableColours | Resolved colors | Cores resolvidas |
+| TokNone | no tokens | sem tokens |
+| TokNoColours | No layer has a color. | Nenhuma camada tem cor. |
+| TokLoose | loose value | valor solto |
+| TokOneMode | one mode only | um modo só |
+| TokTargetModes | target has {n} modes: used {mode} | alvo com {n} modos: usado {mode} |
+| TokNoValue | alias with no value | alias sem valor |
+| TokBroken | Aliases with no value: {n}. A loop, a chain of more than 8 hops or a missing target. | Aliases sem valor: {n}. Um ciclo, uma cadeia de mais de 8 saltos ou um alvo que não existe. |
+| TokNotRead | {n} variants were not read: their colors may be missing. | Não foram lidas {n} variantes: podem faltar cores. |
+| TokNotReadOne | {n} variant was not read: its colors may be missing. | Não foi lida {n} variante: podem faltar cores. |

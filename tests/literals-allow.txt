@@ -15,3 +15,4 @@ audit.rs | Auto | the host's `lineHeight` text, matched here and worded through 
 gerar.rs | spread | the host's field name of an effect (`spread`), read to work out how far a shadow reaches
 gerar.rs | Light | the font style passed to the host for the hex of a colour (where the font has no light face the host draws it regular)
 gerar.rs | auto | the host's size of a grid column (`columnTracks`: a column as wide as its content), not text
+gerar.rs | effect | the key of a layer's effect style in the host's `styles` field, not text

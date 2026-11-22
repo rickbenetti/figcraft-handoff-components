@@ -156,12 +156,11 @@ keys! {
     PanelDefaults, PanelClose, PanelTitlePage,
     PanelLang, PanelLangEn, PanelLangPt,
     PanelStage, PanelStageLight, PanelStageDark, PanelStageAuto,
-    PanelRerun, PanelRerunReplace, PanelRerunNew,
-    PanelVersion,
-    PanelStatus,
-    PanelRestored, PanelTitleMessages,
-    VersionStatusLine, ToBeDefined,
-    PanelTitleDocumentation, PanelBlankHint, PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelFreezeNote, PanelGenerate,
+    PanelRestored, VersionStatusLine, ToBeDefined,
+    PanelIdle, PanelGenerated, PanelNothingSelected, PanelWrongKind, PanelGenerate,
+    SectionName, SectionFrameName,
+    SecCover, SecMaster, SecProperties, SecAnatomy, SecVariants, SecLayouts, SecTokens, SecChangelog, CoverDescription, CoverLastDesigner, CoverUpdatedOn, CoverGuideDescription, CoverGuideDesigner, CoverGuideUpdated, CoverApprovals, RoleDesigner, RoleEngineering, RoleQa, RoleWriters, RolePo, RolePm, MasterFrameName, MasterDescription, MasterNote, ChangelogVersion, ChangelogDate, ChangelogChange, ChangelogGuideVersion, ChangelogGuideDate, ChangelogGuideChange, PanelWarnLegacy, ErrMainGone, ErrSupportComponent, SupportTitle, PanelWarnWide, PanelWarnReflow, PanelWarnApproval, PanelWarnSupport, PanelWarnMissingOne, PanelWarnMissing, PanelWarnMarkersOne, PanelWarnMarkers, PanelWarnSpacingOne, PanelWarnSpacing, LayoutsNoMarkerOne, LayoutsNoMarker, LayoutsLevel, LayoutsDeeper, AnatNoMarker, GroupBorder, GroupSpacing, GroupEffect, GroupSize, GalleryChanges, GalleryDefault, GalleryLabelOnly, GalleryNearest, GalleryWide, GalleryLeftOutOne, GalleryLeftOut, LayerGallery, LayerTile, LayoutsLegendPadding, LayoutsLegendGap, LayoutsLeftOutOne, LayoutsLeftOut, MasterOrganized,
+    PanelUpdate, PanelTitleUpdate, UpdAll, UpdTables, UpdTokens, UpdProperties, UpdAnatomy, UpdVariants, UpdLayouts, PanelUpdateNote, PanelNewSection, PanelWarnNoStage, SecKit, KitNote, KitSetName, StatePending, StateApproved, StateConditional, StateRejected, CoverOverview, CoverGuideVersion, CoverGuideStatus, CoverGuideNameDate, MasterTitle, ApprPropArea, ApprPropName, TblProperty, TblType, TblOptions, TblNumber, TblLayer, TblNote, TblToken, PropVisibility, MatrixLeftOut, MatrixLeftOutOne, PropsNone, LayoutsNone, VariantsNone, TableFailed, PanelWarnFailed, TblColours, TblMeasures, TblStyles, TblDark, TblLight, TokTableLayers, TokTableColours, TokNone, TokNoColours, TokLoose, TokOneMode, TokTargetModes, TokNoValue, TokBroken, TokNotRead, TokNotReadOne,
 }
 
 /// The text of `key` in `lang` (English when the language has none).
@@ -243,7 +242,7 @@ mod tests {
 
     /// The keys whose text is the same in both languages by nature (a word that is the same, or a
     /// technical form): not a gap.
-    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "PanelStatus"];
+    const SAME_BY_NATURE: &[&str] = &["DirHorizontal", "DirVertical", "ErrCall", "LayerDeltaHex", "LayerDeltaToken", "LayerDeltaTokens", "LegendToken", "PanelLangEn", "PanelLangPt", "ChangelogGuideVersion", "CoverGuideVersion", "TblToken", "TblDark", "TblLight", "RoleDesigner", "RolePm", "RolePo", "RoleQa", "RoleWriters", "SecChangelog", "SecTokens", "SectionFrameName", "SectionName"];
 
     fn names(s: &str) -> Vec<String> {
         let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(ToString::to_string).collect();
@@ -303,6 +302,14 @@ mod tests {
                 assert_eq!(names(t(Lang::En, *key)), names(text), "{} placeholders differ in {}", key.name(), l.code());
             }
         }
+    }
+
+    #[test]
+    fn the_master_frame_and_the_title_inside_it_have_the_same_name_in_every_language() {
+        for lang in [Lang::En, Lang::Pt] {
+            assert_eq!(t(lang, Key::SecMaster), t(lang, Key::MasterTitle), "{lang:?}");
+        }
+        assert_eq!(t(Lang::En, Key::MasterTitle), "Component Master");
     }
 
     #[test]

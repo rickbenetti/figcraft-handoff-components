@@ -1,6 +1,6 @@
 [package]
 name = "handoff-components"
-version = "0.10.0"
+version = "0.11.0"
 description = "FigCraft plugin that generates handoff documentation for a component: anatomy, properties and tokens, spacing and variant differences."
 license = "MIT"
 edition = "2024"
@@ -13,6 +13,11 @@ crate-type = ["cdylib"]
 [dependencies]
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 figcraft-plugin-sdk = { git = "https://github.com/storytold/figcraft", tag = "v0.14.0" }
+
+# Only for tests: `--features test-hooks` lets a run force a content frame to fail (parameter `fail_table`), to exercise the path where
+# a table cannot be made. Never in dist/.
+[features]
+test-hooks = []
 
 [lints.clippy]
 unwrap_used = "deny"

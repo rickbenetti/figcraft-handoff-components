@@ -1,1269 +1,1715 @@
 {
   "copia-2 / id 32": {
-    "summary": "8 design values · 6 bound · 2 no token · 0 missing · 0 suspect",
-    "lines": 8,
-    "sections": 2,
-    "instances": 2,
-    "fuel": 28265246,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Botão de teste",
-          1
-        ],
-        [
-          "Salvar",
-          2
-        ]
+    "markers": {
+      "count": 2,
+      "edge_ok": true,
+      "min_gap": 60.7,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 2,
+      "inside": 0,
+      "outside": 0,
+      "spines": 4,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 12.5
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
+      [
+        "master",
+        64.0,
+        833.0,
+        424.0
+      ],
+      [
+        "properties",
+        64.0,
+        1321.0,
+        211.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        1596.0,
+        594.0
+      ],
+      [
+        "variants",
+        64.0,
+        2254.0,
+        211.0
+      ],
+      [
+        "layouts",
+        64.0,
+        2529.0,
+        482.0
+      ],
+      [
+        "tokens",
+        64.0,
+        3075.0,
+        736.0
+      ],
+      [
+        "changelog",
+        64.0,
+        3875.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      4218.0
+    ],
+    "tables": [
+      [
+        "Anatomy",
         2
       ],
-      "multiples": {},
-      "unnumbered": 0
-    }
+      [
+        "Tokens by layer",
+        2
+      ],
+      [
+        "Resolved colors",
+        3
+      ]
+    ],
+    "warnings": [],
+    "failed": [],
+    "fuel": 86599406,
+    "calls": 1053
   },
   "copia-2 / id 3 (Toast variant)": {
-    "summary": "17 design values · 0 bound · 6 no token · 9 missing · 2 suspect",
-    "lines": 17,
-    "sections": 4,
-    "instances": 2,
-    "fuel": 59581614,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Toast",
-          1
-        ],
-        [
-          "Icone",
-          2
-        ],
-        [
-          "Glifo \"!\"",
-          3
-        ],
-        [
-          "Texto",
-          4
-        ],
-        [
-          "Titulo \"Mensagem não enviada\"",
-          5
-        ],
-        [
-          "Mensagem \"Erro de conexão. Tente d…\"",
-          6
-        ],
-        [
-          "Fechar \"×\"",
-          7
-        ]
+    "markers": {
+      "count": 7,
+      "edge_ok": true,
+      "min_gap": 25.0,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 2,
+      "drawings": 2,
+      "deeper": false,
+      "groups": 3,
+      "inside": 0,
+      "outside": 1,
+      "spines": 3,
+      "dropped": 1,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 15.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
+      [
+        "master",
+        64.0,
+        833.0,
+        825.0
+      ],
+      [
+        "properties",
+        64.0,
+        1722.0,
+        322.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2108.0,
+        870.0
+      ],
+      [
+        "variants",
+        64.0,
+        3042.0,
+        725.0
+      ],
+      [
+        "layouts",
+        64.0,
+        3831.0,
+        998.0
+      ],
+      [
+        "tokens",
+        64.0,
+        4893.0,
+        770.0
+      ],
+      [
+        "changelog",
+        64.0,
+        5727.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      6070.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        2
+      ],
+      [
+        "Anatomy",
         7
       ],
-      "multiples": {},
-      "unnumbered": 0
-    }
+      [
+        "Resolved colors",
+        8
+      ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 159834013,
+    "calls": 1653
   },
   "carga-v2 / id 3 (Toast variant)": {
-    "summary": "17 design values · 4 bound (4 to check) · 6 no token · 0 missing · 7 suspect",
-    "lines": 17,
-    "sections": 4,
-    "instances": 2,
-    "fuel": 163679917,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Toast",
-          1
-        ],
-        [
-          "Icone",
-          2
-        ],
-        [
-          "Glifo \"!\"",
-          3
-        ],
-        [
-          "Texto",
-          4
-        ],
-        [
-          "Titulo \"Mensagem não enviada\"",
-          5
-        ],
-        [
-          "Mensagem \"Erro de conexão. Tente d…\"",
-          6
-        ],
-        [
-          "Fechar \"×\"",
-          7
-        ]
+    "markers": {
+      "count": 7,
+      "edge_ok": true,
+      "min_gap": 40.6,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 2,
+      "drawings": 2,
+      "deeper": false,
+      "groups": 3,
+      "inside": 0,
+      "outside": 1,
+      "spines": 3,
+      "dropped": 1,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 15.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
+      [
+        "master",
+        64.0,
+        833.0,
+        825.0
+      ],
+      [
+        "properties",
+        64.0,
+        1722.0,
+        322.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2108.0,
+        946.0
+      ],
+      [
+        "variants",
+        64.0,
+        3118.0,
+        877.0
+      ],
+      [
+        "layouts",
+        64.0,
+        4059.0,
+        1150.0
+      ],
+      [
+        "tokens",
+        64.0,
+        5273.0,
+        978.0
+      ],
+      [
+        "changelog",
+        64.0,
+        6315.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      6658.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        2
+      ],
+      [
+        "Anatomy",
         7
       ],
-      "multiples": {},
-      "unnumbered": 0
-    }
+      [
+        "Tokens by layer",
+        1
+      ],
+      [
+        "Resolved colors",
+        8
+      ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 310439955,
+    "calls": 1740
   },
   "carga-v2 / id 194 (Card de carga)": {
-    "summary": "466 design values · 77 bound · 389 no token · 0 missing · 0 suspect",
-    "lines": 466,
-    "sections": 2,
-    "instances": 2,
-    "fuel": 641395576,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Card de carga",
-          1
-        ],
-        [
-          "Seção 1",
-          2
-        ],
-        [
-          "Título 1 \"Seção 1\"",
-          3
-        ],
-        [
-          "Linha 1.1",
-          4
-        ],
-        [
-          "Texto 1.1 \"Item 1.1\"",
-          5
-        ],
-        [
-          "Linha 1.2",
-          6
-        ],
-        [
-          "Texto 1.2 \"Item 1.2\"",
-          7
-        ],
-        [
-          "Linha 1.3",
-          8
-        ],
-        [
-          "Texto 1.3 \"Item 1.3\"",
-          9
-        ],
-        [
-          "Linha 1.4",
-          10
-        ],
-        [
-          "Texto 1.4 \"Item 1.4\"",
-          11
-        ],
-        [
-          "Linha 1.5",
-          12
-        ],
-        [
-          "Texto 1.5 \"Item 1.5\"",
-          null
-        ],
-        [
-          "Linha 1.6",
-          null
-        ],
-        [
-          "Texto 1.6 \"Item 1.6\"",
-          null
-        ],
-        [
-          "Seção 2",
-          null
-        ],
-        [
-          "Título 2 \"Seção 2\"",
-          null
-        ],
-        [
-          "Linha 2.1",
-          null
-        ],
-        [
-          "Texto 2.1 \"Item 2.1\"",
-          null
-        ],
-        [
-          "Linha 2.2",
-          null
-        ],
-        [
-          "Texto 2.2 \"Item 2.2\"",
-          null
-        ],
-        [
-          "Linha 2.3",
-          null
-        ],
-        [
-          "Texto 2.3 \"Item 2.3\"",
-          null
-        ],
-        [
-          "Linha 2.4",
-          null
-        ],
-        [
-          "Texto 2.4 \"Item 2.4\"",
-          null
-        ],
-        [
-          "Linha 2.5",
-          null
-        ],
-        [
-          "Texto 2.5 \"Item 2.5\"",
-          null
-        ],
-        [
-          "Linha 2.6",
-          null
-        ],
-        [
-          "Texto 2.6 \"Item 2.6\"",
-          null
-        ],
-        [
-          "Seção 3",
-          null
-        ],
-        [
-          "Título 3 \"Seção 3\"",
-          null
-        ],
-        [
-          "Linha 3.1",
-          null
-        ],
-        [
-          "Texto 3.1 \"Item 3.1\"",
-          null
-        ],
-        [
-          "Linha 3.2",
-          null
-        ],
-        [
-          "Texto 3.2 \"Item 3.2\"",
-          null
-        ],
-        [
-          "Linha 3.3",
-          null
-        ],
-        [
-          "Texto 3.3 \"Item 3.3\"",
-          null
-        ],
-        [
-          "Linha 3.4",
-          null
-        ],
-        [
-          "Texto 3.4 \"Item 3.4\"",
-          null
-        ],
-        [
-          "Linha 3.5",
-          null
-        ],
-        [
-          "Texto 3.5 \"Item 3.5\"",
-          null
-        ],
-        [
-          "Linha 3.6",
-          null
-        ],
-        [
-          "Texto 3.6 \"Item 3.6\"",
-          null
-        ],
-        [
-          "Seção 4",
-          null
-        ],
-        [
-          "Título 4 \"Seção 4\"",
-          null
-        ],
-        [
-          "Linha 4.1",
-          null
-        ],
-        [
-          "Texto 4.1 \"Item 4.1\"",
-          null
-        ],
-        [
-          "Linha 4.2",
-          null
-        ],
-        [
-          "Texto 4.2 \"Item 4.2\"",
-          null
-        ],
-        [
-          "Linha 4.3",
-          null
-        ],
-        [
-          "Texto 4.3 \"Item 4.3\"",
-          null
-        ],
-        [
-          "Linha 4.4",
-          null
-        ],
-        [
-          "Texto 4.4 \"Item 4.4\"",
-          null
-        ],
-        [
-          "Linha 4.5",
-          null
-        ],
-        [
-          "Texto 4.5 \"Item 4.5\"",
-          null
-        ],
-        [
-          "Linha 4.6",
-          null
-        ],
-        [
-          "Texto 4.6 \"Item 4.6\"",
-          null
-        ],
-        [
-          "Seção 5",
-          null
-        ],
-        [
-          "Título 5 \"Seção 5\"",
-          null
-        ],
-        [
-          "Linha 5.1",
-          null
-        ],
-        [
-          "Texto 5.1 \"Item 5.1\"",
-          null
-        ],
-        [
-          "Linha 5.2",
-          null
-        ],
-        [
-          "Texto 5.2 \"Item 5.2\"",
-          null
-        ],
-        [
-          "Linha 5.3",
-          null
-        ],
-        [
-          "Texto 5.3 \"Item 5.3\"",
-          null
-        ],
-        [
-          "Linha 5.4",
-          null
-        ],
-        [
-          "Texto 5.4 \"Item 5.4\"",
-          null
-        ],
-        [
-          "Linha 5.5",
-          null
-        ],
-        [
-          "Texto 5.5 \"Item 5.5\"",
-          null
-        ],
-        [
-          "Linha 5.6",
-          null
-        ],
-        [
-          "Texto 5.6 \"Item 5.6\"",
-          null
-        ],
-        [
-          "Seção 6",
-          null
-        ],
-        [
-          "Título 6 \"Seção 6\"",
-          null
-        ],
-        [
-          "Linha 6.1",
-          null
-        ],
-        [
-          "Texto 6.1 \"Item 6.1\"",
-          null
-        ],
-        [
-          "Linha 6.2",
-          null
-        ],
-        [
-          "Texto 6.2 \"Item 6.2\"",
-          null
-        ],
-        [
-          "Linha 6.3",
-          null
-        ],
-        [
-          "Texto 6.3 \"Item 6.3\"",
-          null
-        ],
-        [
-          "Linha 6.4",
-          null
-        ],
-        [
-          "Texto 6.4 \"Item 6.4\"",
-          null
-        ],
-        [
-          "Linha 6.5",
-          null
-        ],
-        [
-          "Texto 6.5 \"Item 6.5\"",
-          null
-        ],
-        [
-          "Linha 6.6",
-          null
-        ],
-        [
-          "Texto 6.6 \"Item 6.6\"",
-          null
-        ],
-        [
-          "Seção 7",
-          null
-        ],
-        [
-          "Título 7 \"Seção 7\"",
-          null
-        ],
-        [
-          "Linha 7.1",
-          null
-        ],
-        [
-          "Texto 7.1 \"Item 7.1\"",
-          null
-        ],
-        [
-          "Linha 7.2",
-          null
-        ],
-        [
-          "Texto 7.2 \"Item 7.2\"",
-          null
-        ],
-        [
-          "Linha 7.3",
-          null
-        ],
-        [
-          "Texto 7.3 \"Item 7.3\"",
-          null
-        ],
-        [
-          "Linha 7.4",
-          null
-        ],
-        [
-          "Texto 7.4 \"Item 7.4\"",
-          null
-        ],
-        [
-          "Linha 7.5",
-          null
-        ],
-        [
-          "Texto 7.5 \"Item 7.5\"",
-          null
-        ],
-        [
-          "Linha 7.6",
-          null
-        ],
-        [
-          "Texto 7.6 \"Item 7.6\"",
-          null
-        ],
-        [
-          "Seção 8",
-          null
-        ],
-        [
-          "Seção 9",
-          null
-        ],
-        [
-          "Seção 10",
-          null
-        ],
-        [
-          "Seção 11",
-          null
-        ]
+    "markers": {
+      "count": 12,
+      "edge_ok": true,
+      "min_gap": 12.2,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 3,
+      "drawings": 3,
+      "deeper": false,
+      "groups": 17,
+      "inside": 0,
+      "outside": 0,
+      "spines": 15,
+      "dropped": 26,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 12.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        10,
-        11
+      [
+        "master",
+        64.0,
+        833.0,
+        2568.0
       ],
-      "multiples": {},
-      "unnumbered": 91
-    }
+      [
+        "properties",
+        64.0,
+        3465.0,
+        211.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        3740.0,
+        3203.0
+      ],
+      [
+        "variants",
+        64.0,
+        7007.0,
+        211.0
+      ],
+      [
+        "layouts",
+        64.0,
+        7282.0,
+        7675.0
+      ],
+      [
+        "tokens",
+        64.0,
+        15021.0,
+        2764.0
+      ],
+      [
+        "changelog",
+        64.0,
+        17849.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      18192.0
+    ],
+    "tables": [
+      [
+        "Anatomy",
+        12
+      ],
+      [
+        "Tokens by layer",
+        19
+      ],
+      [
+        "Resolved colors",
+        18
+      ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 820784566,
+    "calls": 4347
   },
   "ds-base-demo / Button": {
-    "summary": "8 design values · 8 bound (7 variables, 1 style) · 0 no token · 0 missing · 0 suspect",
-    "lines": 8,
-    "sections": 7,
-    "instances": 14,
-    "fuel": 221464249,
-    "deltas": {
-      "Type=Primary, Size=Medium, State=Enabled": [],
-      "Type=Secondary, Size=Medium, State=Enabled": [
-        "Fill: Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
-        "↳ Leading icon / plus · Label / Text",
-        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
-      ],
-      "Type=Outline, Size=Medium, State=Enabled": [
-        "Fill: Colors/color/primary (#C6005C) → none",
-        "Stroke: none → Colors/color/border (#E3E7E8)",
-        "Stroke weight: 0 → 1",
-        "↳ Leading icon / plus · Label / Text",
-        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
-      ],
-      "Type=Destructive, Size=Medium, State=Enabled": [
-        "Fill: Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
-        "↳ Leading icon / plus · Label / Text",
-        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
-      ],
-      "Type=Primary, Size=Small, State=Enabled": [
-        "Radius: Radius/radius/default (10) → 8",
-        "Gap: Spacing/space/8 (8) → 6",
-        "Horizontal padding: Spacing/space/16 (16) → Spacing/space/12 (12)",
-        "Vertical padding: Spacing/space/8 (8) → 4",
-        "↳ Label / Text",
-        "Typography: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
-      ],
-      "Type=Primary, Size=Large, State=Enabled": [
-        "Horizontal padding: Spacing/space/16 (16) → Spacing/space/24 (24)",
-        "Vertical padding: Spacing/space/8 (8) → Spacing/space/12 (12)",
-        "↳ Leading icon / plus",
-        "Fill: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
-        "↳ Label / Text",
-        "Typography: text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
-      ],
-      "Type=Primary, Size=Medium, State=Hover": [
-        "Fill: Colors/color/primary (#C6005C) → Colors/color/primary-hover (#B10652)",
-        "Effects: none → shadow/sm (Drop shadow 0 1 blur 2 #000000 at 5%)"
-      ],
-      "Type=Primary, Size=Medium, State=Pressed": [
-        "Fill: Colors/color/primary (#C6005C) → Colors/color/primary-pressed (#9E0749)"
-      ],
-      "Type=Primary, Size=Medium, State=Disabled": [
-        "Opacity: 100% → 50%"
-      ],
-      "Type=Primary, Size=Medium, State=Focus": [
-        "Stroke: none → Colors/color/ring (#9CA8AB)",
-        "Stroke weight: 0 → 2"
-      ]
+    "markers": {
+      "count": 5,
+      "edge_ok": true,
+      "min_gap": 16.3,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
-    "anatomy": {
-      "blocks": [
-        [
-          "Button",
-          1
-        ],
-        [
-          "Leading icon",
-          2
-        ],
-        [
-          "plus",
-          3
-        ],
-        [
-          "Label",
-          4
-        ],
-        [
-          "Text \"Button\"",
-          5
-        ]
-      ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "multiples": {},
-      "unnumbered": 0
-    }
-  },
-  "ds-base-demo / Card": {
-    "summary": "45 design values · 43 bound (35 variables, 8 styles) · 2 no token · 0 missing · 0 suspect",
-    "lines": 45,
-    "sections": 5,
-    "instances": 5,
-    "fuel": 237637260,
-    "deltas": {
-      "Size=Compact": [
-        "Horizontal padding: Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Vertical padding: Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Width: 384 → 320",
-        "↳ Header / Title row / Title",
-        "Typography: text/h3 (Inter 24/32 SemiBold, letter spacing -1%) → Inter 24/32 SemiBold, letter spacing -1%",
-        "↳ Content / Paragraph",
-        "Text: \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
-        "↳ Content / Features: hidden"
-      ],
-      "Size=Default": [],
-      "Size=Wide": [
-        "Width: 384 → 448"
-      ]
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 3,
+      "inside": 0,
+      "outside": 1,
+      "spines": 4,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 14.0
     },
-    "anatomy": {
-      "blocks": [
-        [
-          "Card",
-          1
-        ],
-        [
-          "Header",
-          2
-        ],
-        [
-          "Title \"Project overview\"",
-          3
-        ],
-        [
-          "info",
-          4
-        ],
-        [
-          "Description \"A short line that says w…\"",
-          5
-        ],
-        [
-          "Content",
-          6
-        ],
-        [
-          "Paragraph \"Design systems earn thei…\"",
-          7
-        ],
-        [
-          "check ×3",
-          8
-        ],
-        [
-          "Text ×3 \"Reads every colour from …\"",
-          9
-        ],
-        [
-          "Footer actions",
-          10
-        ],
-        [
-          "Button",
-          11
-        ],
-        [
-          "plus",
-          12
-        ],
-        [
-          "Text \"Button\"",
-          null
-        ],
-        [
-          "Button",
-          null
-        ],
-        [
-          "plus",
-          null
-        ],
-        [
-          "Text \"Button\"",
-          null
-        ]
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        8,
-        8,
-        9,
-        9,
-        9,
-        10,
-        11,
-        12
+      [
+        "master",
+        64.0,
+        833.0,
+        1363.0
       ],
-      "multiples": {
-        "check ×3": 3,
-        "Text ×3 \"Reads every colour from …\"": 3
-      },
-      "unnumbered": 4
-    }
-  },
-  "ds-base-demo / Accordion": {
-    "summary": "11 design values · 10 bound (8 variables, 2 styles) · 1 no token · 0 missing · 0 suspect",
-    "lines": 11,
-    "sections": 4,
-    "instances": 4,
-    "fuel": 69520523,
-    "deltas": {
-      "State=Collapsed": [
-        "↳ Trigger / Chevron: Name: caret-up → caret-down",
-        "↳ Answer: hidden"
+      [
+        "properties",
+        64.0,
+        2260.0,
+        573.0
       ],
-      "State=Expanded": [],
-      "State=Locked": [
-        "Opacity: 100% → 50%",
-        "↳ Trigger / Chevron: Name: caret-up → caret-down",
-        "↳ Answer: hidden"
+      [
+        "anatomy",
+        64.0,
+        2897.0,
+        771.0
+      ],
+      [
+        "variants",
+        64.0,
+        3732.0,
+        873.0
+      ],
+      [
+        "layouts",
+        64.0,
+        4669.0,
+        482.0
+      ],
+      [
+        "tokens",
+        64.0,
+        5215.0,
+        1441.0
+      ],
+      [
+        "changelog",
+        64.0,
+        6720.0,
+        279.0
       ]
-    },
-    "anatomy": {
-      "blocks": [
-        [
-          "Accordion",
-          1
-        ],
-        [
-          "Trigger",
-          2
-        ],
-        [
-          "Question \"Is it built with tokens?\"",
-          3
-        ],
-        [
-          "caret-up",
-          4
-        ],
-        [
-          "Answer",
-          5
-        ],
-        [
-          "Text \"A short answer that open…\"",
-          6
-        ]
-      ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ],
-      "multiples": {},
-      "unnumbered": 0
-    }
-  },
-  "ds-base-demo / Code": {
-    "summary": "11 design values · 9 bound (6 variables, 3 styles) · 2 no token · 0 missing · 0 suspect",
-    "lines": 11,
-    "sections": 2,
-    "instances": 2,
-    "fuel": 35797696,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Code",
-          1
-        ],
-        [
-          "Line ×3",
-          2
-        ]
-      ],
-      "badges": [
-        1,
-        2,
-        2,
-        2
-      ],
-      "multiples": {
-        "Line ×3": 3
-      },
-      "unnumbered": 0
-    }
-  },
-  "ds-base-demo / Icon": {
-    "summary": "1 design value · 1 bound · 0 no token · 0 missing · 0 suspect",
-    "lines": 1,
-    "sections": 5,
-    "instances": 14,
-    "fuel": 65847683,
-    "deltas": {
-      "Name=caret-down, Size=16": [],
-      "Name=caret-up, Size=16": [
-        "↳ caret-up: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=caret-right, Size=16": [
-        "↳ caret-right: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=plus, Size=16": [
-        "↳ plus: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=minus, Size=16": [
-        "↳ minus: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=x, Size=16": [
-        "↳ x: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=check, Size=16": [
-        "↳ check: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=arrow-right, Size=16": [
-        "↳ arrow-right: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=info, Size=16": [
-        "↳ info: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=warning, Size=16": [
-        "↳ warning: visible",
-        "↳ caret-down: hidden"
-      ],
-      "Name=caret-down, Size=20": [
-        "Width: 16 → 20",
-        "Height: 16 → 20"
-      ],
-      "Name=caret-down, Size=24": [
-        "Width: 16 → 24",
-        "Height: 16 → 24"
-      ]
-    },
-    "anatomy": {
-      "blocks": [
-        [
-          "Icon",
-          1
-        ],
-        [
-          "caret-down",
-          2
-        ]
-      ],
-      "badges": [
-        1,
-        2
-      ],
-      "multiples": {},
-      "unnumbered": 0
-    }
-  },
-  "pt-BR / copia-2 / id 32": {
-    "summary": "8 valores · 6 vinculados · 2 sem token · 0 ausentes · 0 suspeitos",
-    "lines": 8,
-    "sections": 0,
-    "instances": 2,
-    "fuel": 32463977,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Botão de teste",
-          1
-        ],
-        [
-          "Salvar",
-          2
-        ]
-      ],
-      "badges": [
-        1,
-        2
-      ],
-      "multiples": {},
-      "unnumbered": 0
-    }
-  },
-  "pt-BR / carga-v2 / id 3 (Toast variant)": {
-    "summary": "17 valores · 4 vinculados (4 a verificar) · 6 sem token · 0 ausentes · 7 suspeitos",
-    "lines": 17,
-    "sections": 0,
-    "instances": 2,
-    "fuel": 168157124,
-    "deltas": {},
-    "anatomy": {
-      "blocks": [
-        [
-          "Toast",
-          1
-        ],
-        [
-          "Icone",
-          2
-        ],
-        [
-          "Glifo \"!\"",
-          3
-        ],
-        [
-          "Texto",
-          4
-        ],
-        [
-          "Titulo \"Mensagem não enviada\"",
-          5
-        ],
-        [
-          "Mensagem \"Erro de conexão. Tente d…\"",
-          6
-        ],
-        [
-          "Fechar \"×\"",
-          7
-        ]
-      ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
+    ],
+    "section": [
+      1308.0,
+      7063.0
+    ],
+    "tables": [
+      [
+        "Properties",
         7
       ],
-      "multiples": {},
-      "unnumbered": 0
-    }
-  },
-  "pt-BR / ds-base-demo / Button": {
-    "summary": "8 valores · 8 vinculados (7 variáveis, 1 estilo) · 0 sem token · 0 ausentes · 0 suspeitos",
-    "lines": 8,
-    "sections": 0,
-    "instances": 14,
-    "fuel": 224943450,
-    "deltas": {
-      "Type=Primary, Size=Medium, State=Enabled": [],
-      "Type=Secondary, Size=Medium, State=Enabled": [
-        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/secondary (#F4F4F5)",
-        "↳ Leading icon / plus, Label / Text",
-        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/secondary-foreground (#18181B)"
-      ],
-      "Type=Outline, Size=Medium, State=Enabled": [
-        "Preenchimento: Colors/color/primary (#C6005C) → nenhum",
-        "Traço: nenhum → Colors/color/border (#E3E7E8)",
-        "Espessura do traço: 0 → 1",
-        "↳ Leading icon / plus, Label / Text",
-        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)"
-      ],
-      "Type=Destructive, Size=Medium, State=Enabled": [
-        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/destructive (#E7000B)",
-        "↳ Leading icon / plus, Label / Text",
-        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/background (#FFFFFF)"
-      ],
-      "Type=Primary, Size=Small, State=Enabled": [
-        "Raio: Radius/radius/default (10) → 8",
-        "Espaço entre itens: Spacing/space/8 (8) → 6",
-        "Espaçamento interno horizontal: Spacing/space/16 (16) → Spacing/space/12 (12)",
-        "Espaçamento interno vertical: Spacing/space/8 (8) → 4",
-        "↳ Label / Text",
-        "Tipografia: text/label-m (Inter 14/20 Medium) → Inter 12/16 Medium"
-      ],
-      "Type=Primary, Size=Large, State=Enabled": [
-        "Espaçamento interno horizontal: Spacing/space/16 (16) → Spacing/space/24 (24)",
-        "Espaçamento interno vertical: Spacing/space/8 (8) → Spacing/space/12 (12)",
-        "↳ Leading icon / plus",
-        "Preenchimento: Colors/color/primary-foreground (#FDF2F8) → Colors/color/foreground (#090B0C)",
-        "↳ Label / Text",
-        "Tipografia: text/label-m (Inter 14/20 Medium) → text/label-l (Inter 16/24 Medium)"
-      ],
-      "Type=Primary, Size=Medium, State=Hover": [
-        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/primary-hover (#B10652)",
-        "Efeitos: nenhum → shadow/sm (Sombra projetada 0 1 desfoque 2 #000000 a 5%)"
-      ],
-      "Type=Primary, Size=Medium, State=Pressed": [
-        "Preenchimento: Colors/color/primary (#C6005C) → Colors/color/primary-pressed (#9E0749)"
-      ],
-      "Type=Primary, Size=Medium, State=Disabled": [
-        "Opacidade: 100% → 50%"
-      ],
-      "Type=Primary, Size=Medium, State=Focus": [
-        "Traço: nenhum → Colors/color/ring (#9CA8AB)",
-        "Espessura do traço: 0 → 2"
-      ]
-    },
-    "anatomy": {
-      "blocks": [
-        [
-          "Button",
-          1
-        ],
-        [
-          "Leading icon",
-          2
-        ],
-        [
-          "plus",
-          3
-        ],
-        [
-          "Label",
-          4
-        ],
-        [
-          "Text \"Button\"",
-          5
-        ]
-      ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
+      [
+        "Anatomy",
         5
       ],
-      "multiples": {},
-      "unnumbered": 0
-    }
-  },
-  "pt-BR / ds-base-demo / Card": {
-    "summary": "45 valores · 43 vinculados (35 variáveis, 8 estilos) · 2 sem token · 0 ausentes · 0 suspeitos",
-    "lines": 45,
-    "sections": 0,
-    "instances": 5,
-    "fuel": 241365795,
-    "deltas": {
-      "Size=Compact": [
-        "Espaçamento interno horizontal: Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Espaçamento interno vertical: Spacing/space/24 (24) → Spacing/space/16 (16)",
-        "Largura: 384 → 320",
-        "↳ Header / Title row / Title",
-        "Tipografia: text/h3 (Inter 24/32 SemiBold, espaçamento entre letras -1%) → Inter 24/32 SemiBold, espaçamento entre letras -1%",
-        "↳ Content / Paragraph",
-        "Texto: \"[…] reads, how much room it keeps around its content, and what changes […]\" → \"[…] reads, how m…\"",
-        "↳ Content / Features: oculto"
+      [
+        "Tokens by layer",
+        3
       ],
-      "Size=Default": [],
-      "Size=Wide": [
-        "Largura: 384 → 448"
+      [
+        "Resolved colors",
+        17
       ]
+    ],
+    "warnings": [
+      "no_stage"
+    ],
+    "failed": [],
+    "fuel": 358774215,
+    "calls": 3696
+  },
+  "ds-base-demo / Card": {
+    "markers": {
+      "count": 16,
+      "edge_ok": true,
+      "min_gap": 13.0,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
-    "anatomy": {
-      "blocks": [
-        [
-          "Card",
-          1
-        ],
-        [
-          "Header",
-          2
-        ],
-        [
-          "Title \"Project overview\"",
-          3
-        ],
-        [
-          "info",
-          4
-        ],
-        [
-          "Description \"A short line that says w…\"",
-          5
-        ],
-        [
-          "Content",
-          6
-        ],
-        [
-          "Paragraph \"Design systems earn thei…\"",
-          7
-        ],
-        [
-          "check ×3",
-          8
-        ],
-        [
-          "Text ×3 \"Reads every colour from …\"",
-          9
-        ],
-        [
-          "Footer actions",
-          10
-        ],
-        [
-          "Button",
-          11
-        ],
-        [
-          "plus",
-          12
-        ],
-        [
-          "Text \"Button\"",
-          null
-        ],
-        [
-          "Button",
-          null
-        ],
-        [
-          "plus",
-          null
-        ],
-        [
-          "Text \"Button\"",
-          null
-        ]
+    "spacing": {
+      "levels": 4,
+      "drawings": 4,
+      "deeper": false,
+      "groups": 10,
+      "inside": 0,
+      "outside": 3,
+      "spines": 7,
+      "dropped": 10,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 36.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        8,
-        8,
-        9,
-        9,
-        9,
-        10,
-        11,
+      [
+        "master",
+        64.0,
+        833.0,
+        1343.0
+      ],
+      [
+        "properties",
+        64.0,
+        2240.0,
+        279.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2583.0,
+        1502.0
+      ],
+      [
+        "variants",
+        64.0,
+        4149.0,
+        1310.0
+      ],
+      [
+        "layouts",
+        64.0,
+        5523.0,
+        3110.0
+      ],
+      [
+        "tokens",
+        64.0,
+        8697.0,
+        2131.0
+      ],
+      [
+        "changelog",
+        64.0,
+        10892.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      11235.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        1
+      ],
+      [
+        "Anatomy",
         12
       ],
-      "multiples": {
-        "check ×3": 3,
-        "Text ×3 \"Reads every colour from …\"": 3
-      },
-      "unnumbered": 4
-    }
-  },
-  "pt-BR / ds-base-demo / Accordion": {
-    "summary": "11 valores · 10 vinculados (8 variáveis, 2 estilos) · 1 sem token · 0 ausentes · 0 suspeitos",
-    "lines": 11,
-    "sections": 0,
-    "instances": 4,
-    "fuel": 73078698,
-    "deltas": {
-      "State=Collapsed": [
-        "↳ Trigger / Chevron: Name: caret-up → caret-down",
-        "↳ Answer: oculto"
+      [
+        "Tokens by layer",
+        16
       ],
-      "State=Expanded": [],
-      "State=Locked": [
-        "Opacidade: 100% → 50%",
-        "↳ Trigger / Chevron: Name: caret-up → caret-down",
-        "↳ Answer: oculto"
+      [
+        "Resolved colors",
+        8
       ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 396771793,
+    "calls": 3576
+  },
+  "ds-base-demo / Accordion": {
+    "markers": {
+      "count": 6,
+      "edge_ok": true,
+      "min_gap": 20.5,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
     },
-    "anatomy": {
-      "blocks": [
-        [
-          "Accordion",
-          1
-        ],
-        [
-          "Trigger",
-          2
-        ],
-        [
-          "Question \"Is it built with tokens?\"",
-          3
-        ],
-        [
-          "caret-up",
-          4
-        ],
-        [
-          "Answer",
-          5
-        ],
-        [
-          "Text \"A short answer that open…\"",
-          6
-        ]
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 2,
+      "inside": 0,
+      "outside": 0,
+      "spines": 4,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 20.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
       ],
-      "badges": [
-        1,
-        2,
-        3,
-        4,
-        5,
+      [
+        "master",
+        64.0,
+        833.0,
+        723.0
+      ],
+      [
+        "properties",
+        64.0,
+        1620.0,
+        279.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        1963.0,
+        848.0
+      ],
+      [
+        "variants",
+        64.0,
+        2875.0,
+        690.0
+      ],
+      [
+        "layouts",
+        64.0,
+        3629.0,
+        564.0
+      ],
+      [
+        "tokens",
+        64.0,
+        4257.0,
+        948.0
+      ],
+      [
+        "changelog",
+        64.0,
+        5269.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      5612.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        1
+      ],
+      [
+        "Anatomy",
         6
       ],
-      "multiples": {},
-      "unnumbered": 0
+      [
+        "Tokens by layer",
+        6
+      ],
+      [
+        "Resolved colors",
+        3
+      ]
+    ],
+    "warnings": [],
+    "failed": [],
+    "fuel": 154067108,
+    "calls": 1659
+  },
+  "ds-base-demo / Code": {
+    "markers": {
+      "count": 4,
+      "edge_ok": true,
+      "min_gap": 72.8,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 3,
+      "inside": 0,
+      "outside": 0,
+      "spines": 3,
+      "dropped": 1,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 15.5
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        491.0
+      ],
+      [
+        "properties",
+        64.0,
+        1388.0,
+        211.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        1663.0,
+        706.0
+      ],
+      [
+        "variants",
+        64.0,
+        2433.0,
+        211.0
+      ],
+      [
+        "layouts",
+        64.0,
+        2708.0,
+        584.0
+      ],
+      [
+        "tokens",
+        64.0,
+        3356.0,
+        671.0
+      ],
+      [
+        "changelog",
+        64.0,
+        4091.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      4434.0
+    ],
+    "tables": [
+      [
+        "Anatomy",
+        2
+      ],
+      [
+        "Tokens by layer",
+        2
+      ],
+      [
+        "Resolved colors",
+        2
+      ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 97999158,
+    "calls": 1050
+  },
+  "ds-base-demo / Icon": {
+    "markers": {
+      "count": 2,
+      "edge_ok": true,
+      "min_gap": 64.2,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": null,
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        815.0
+      ],
+      [
+        "properties",
+        64.0,
+        1712.0,
+        358.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2134.0,
+        594.0
+      ],
+      [
+        "variants",
+        64.0,
+        2792.0,
+        753.0
+      ],
+      [
+        "layouts",
+        64.0,
+        3609.0,
+        211.0
+      ],
+      [
+        "tokens",
+        64.0,
+        3884.0,
+        507.0
+      ],
+      [
+        "changelog",
+        64.0,
+        4455.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      4798.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        2
+      ],
+      [
+        "Anatomy",
+        2
+      ],
+      [
+        "Tokens by layer",
+        1
+      ],
+      [
+        "Resolved colors",
+        1
+      ]
+    ],
+    "warnings": [],
+    "failed": [],
+    "fuel": 128531698,
+    "calls": 1551
+  },
+  "pt-BR / copia-2 / id 32": {
+    "markers": {
+      "count": 2,
+      "edge_ok": true,
+      "min_gap": 60.7,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 2,
+      "inside": 0,
+      "outside": 0,
+      "spines": 4,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 12.5
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        424.0
+      ],
+      [
+        "properties",
+        64.0,
+        1321.0,
+        211.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        1596.0,
+        594.0
+      ],
+      [
+        "variants",
+        64.0,
+        2254.0,
+        211.0
+      ],
+      [
+        "layouts",
+        64.0,
+        2529.0,
+        482.0
+      ],
+      [
+        "tokens",
+        64.0,
+        3075.0,
+        736.0
+      ],
+      [
+        "changelog",
+        64.0,
+        3875.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      4218.0
+    ],
+    "tables": [
+      [
+        "Anatomy",
+        2
+      ],
+      [
+        "Tokens por camada",
+        2
+      ],
+      [
+        "Cores resolvidas",
+        3
+      ]
+    ],
+    "warnings": [],
+    "failed": [],
+    "fuel": 87232776,
+    "calls": 1062
+  },
+  "pt-BR / carga-v2 / id 3 (Toast variant)": {
+    "markers": {
+      "count": 7,
+      "edge_ok": true,
+      "min_gap": 40.6,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 2,
+      "drawings": 2,
+      "deeper": false,
+      "groups": 3,
+      "inside": 0,
+      "outside": 1,
+      "spines": 3,
+      "dropped": 1,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 15.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        825.0
+      ],
+      [
+        "properties",
+        64.0,
+        1722.0,
+        322.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2108.0,
+        946.0
+      ],
+      [
+        "variants",
+        64.0,
+        3118.0,
+        877.0
+      ],
+      [
+        "layouts",
+        64.0,
+        4059.0,
+        1150.0
+      ],
+      [
+        "tokens",
+        64.0,
+        5273.0,
+        978.0
+      ],
+      [
+        "changelog",
+        64.0,
+        6315.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      6658.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        2
+      ],
+      [
+        "Anatomy",
+        7
+      ],
+      [
+        "Tokens por camada",
+        1
+      ],
+      [
+        "Cores resolvidas",
+        8
+      ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 311217795,
+    "calls": 1749
+  },
+  "pt-BR / ds-base-demo / Button": {
+    "markers": {
+      "count": 5,
+      "edge_ok": true,
+      "min_gap": 16.3,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 3,
+      "inside": 0,
+      "outside": 1,
+      "spines": 4,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 14.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        1363.0
+      ],
+      [
+        "properties",
+        64.0,
+        2260.0,
+        573.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2897.0,
+        771.0
+      ],
+      [
+        "variants",
+        64.0,
+        3732.0,
+        907.0
+      ],
+      [
+        "layouts",
+        64.0,
+        4703.0,
+        482.0
+      ],
+      [
+        "tokens",
+        64.0,
+        5249.0,
+        1441.0
+      ],
+      [
+        "changelog",
+        64.0,
+        6754.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      7097.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        7
+      ],
+      [
+        "Anatomy",
+        5
+      ],
+      [
+        "Tokens por camada",
+        3
+      ],
+      [
+        "Cores resolvidas",
+        17
+      ]
+    ],
+    "warnings": [
+      "no_stage"
+    ],
+    "failed": [],
+    "fuel": 360772682,
+    "calls": 3705
+  },
+  "pt-BR / ds-base-demo / Card": {
+    "markers": {
+      "count": 16,
+      "edge_ok": true,
+      "min_gap": 13.0,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 4,
+      "drawings": 4,
+      "deeper": false,
+      "groups": 10,
+      "inside": 0,
+      "outside": 3,
+      "spines": 7,
+      "dropped": 10,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 36.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        1343.0
+      ],
+      [
+        "properties",
+        64.0,
+        2240.0,
+        279.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        2583.0,
+        1502.0
+      ],
+      [
+        "variants",
+        64.0,
+        4149.0,
+        1310.0
+      ],
+      [
+        "layouts",
+        64.0,
+        5523.0,
+        3110.0
+      ],
+      [
+        "tokens",
+        64.0,
+        8697.0,
+        2149.0
+      ],
+      [
+        "changelog",
+        64.0,
+        10910.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      11253.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        1
+      ],
+      [
+        "Anatomy",
+        12
+      ],
+      [
+        "Tokens por camada",
+        16
+      ],
+      [
+        "Cores resolvidas",
+        8
+      ]
+    ],
+    "warnings": [
+      "spacing_dropped"
+    ],
+    "failed": [],
+    "fuel": 397765843,
+    "calls": 3585
+  },
+  "pt-BR / ds-base-demo / Accordion": {
+    "markers": {
+      "count": 6,
+      "edge_ok": true,
+      "min_gap": 20.5,
+      "root_straight": true,
+      "dropped": 0,
+      "oblique": 0,
+      "tip_in_text": 0,
+      "cross": 0
+    },
+    "spacing": {
+      "levels": 1,
+      "drawings": 1,
+      "deeper": false,
+      "groups": 2,
+      "inside": 0,
+      "outside": 0,
+      "spines": 4,
+      "dropped": 0,
+      "badge_over_content": 0,
+      "guide_over_content": 0,
+      "cross": 0,
+      "oblique": 0,
+      "stack_overlap": 0,
+      "spine_cross": 0,
+      "min_gap": 20.0
+    },
+    "frames": [
+      [
+        "cover",
+        64.0,
+        64.0,
+        705.0
+      ],
+      [
+        "master",
+        64.0,
+        833.0,
+        723.0
+      ],
+      [
+        "properties",
+        64.0,
+        1620.0,
+        279.0
+      ],
+      [
+        "anatomy",
+        64.0,
+        1963.0,
+        848.0
+      ],
+      [
+        "variants",
+        64.0,
+        2875.0,
+        690.0
+      ],
+      [
+        "layouts",
+        64.0,
+        3629.0,
+        564.0
+      ],
+      [
+        "tokens",
+        64.0,
+        4257.0,
+        948.0
+      ],
+      [
+        "changelog",
+        64.0,
+        5269.0,
+        279.0
+      ]
+    ],
+    "section": [
+      1308.0,
+      5612.0
+    ],
+    "tables": [
+      [
+        "Properties",
+        1
+      ],
+      [
+        "Anatomy",
+        6
+      ],
+      [
+        "Tokens por camada",
+        6
+      ],
+      [
+        "Cores resolvidas",
+        3
+      ]
+    ],
+    "warnings": [],
+    "failed": [],
+    "fuel": 155641404,
+    "calls": 1668
+  },
+  "cover editada / pills before": {
+    "nodes": 74,
+    "pills": 6
+  },
+  "cover editada / all": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / tables": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / tokens": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / properties": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / anatomy": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / variants": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / layouts": {
+    "cover_id_same": true,
+    "action": "kept",
+    "nodes_same": true,
+    "pills_same": true,
+    "pills": 6
+  },
+  "cover editada / a pill selected": {
+    "refused": true,
+    "mentions_support": true
+  },
+  "cover editada / support set": {
+    "new_section_name_has_dot": true,
+    "old_name_kept": true,
+    "pills_of_the_old_set": 6
+  },
+  "apoio compartilhado": {
+    "one_set": true,
+    "second_cover_pills_of_the_same_set": true,
+    "card_support_made": false,
+    "frames_of_the_card_section": [
+      "cover",
+      "master",
+      "properties",
+      "anatomy",
+      "variants",
+      "layouts",
+      "tokens",
+      "changelog"
+    ],
+    "support_right_of_everything_before_the_sections": true
+  },
+  "master / card": {
+    "plan": "organize",
+    "organized": true,
+    "per_row": [
+      2,
+      1
+    ],
+    "frame_widths": [
+      1180.0
+    ],
+    "set": {
+      "mode": "horizontal",
+      "wrap": true,
+      "sizing": {
+        "horizontal": "fixed",
+        "vertical": "hug"
+      },
+      "w": 988.0,
+      "padding": [
+        24.0,
+        24.0,
+        24.0,
+        24.0
+      ],
+      "gap": 48.0,
+      "cross_gap": 48.0
+    },
+    "variants_inside_the_set": true,
+    "second_run_plan": "keep",
+    "second_run_organized": false,
+    "second_run_set_unchanged": true
+  },
+  "master / wide": {
+    "plan": "wide",
+    "frame_widths": [
+      1292.0
+    ],
+    "warnings": [
+      "wide_master"
+    ],
+    "section_w": 1420.0
+  },
+  "correções / variante": {
+    "component_is_holder": true,
+    "gallery": true,
+    "master_plan": "keep",
+    "variants": 4,
+    "migrated_from": null
+  },
+  "correções / migração": {
+    "created": false,
+    "rerun": true,
+    "same_section": true,
+    "migrated_from": 3,
+    "section_mark_is_the_set": true,
+    "frame_mark_is_the_set": true
+  },
+  "correções / quadro apagado": {
+    "named": {
+      "keys": [
+        "cover",
+        "master",
+        "properties",
+        "anatomy",
+        "variants",
+        "layouts",
+        "tokens",
+        "changelog"
+      ],
+      "actions": {
+        "properties": "created",
+        "anatomy": "kept"
+      },
+      "invariants": [],
+      "warnings": [
+        "no_stage"
+      ],
+      "missing": []
+    },
+    "not_named": {
+      "keys": [
+        "cover",
+        "master",
+        "anatomy",
+        "variants",
+        "layouts",
+        "tokens",
+        "changelog"
+      ],
+      "warnings": [
+        "no_stage",
+        "frame_missing"
+      ],
+      "missing": [
+        "properties"
+      ]
     }
+  },
+  "correções / apoio": {
+    "support_made": true,
+    "pills": 6,
+    "warnings": [
+      "no_stage"
+    ],
+    "frame_violations": []
+  },
+  "correções / nova section / escuro": {
+    "stage": "dark",
+    "auto": false,
+    "same_as_the_first": true,
+    "warnings": []
+  },
+  "correções / nova section / claro": {
+    "stage": "light",
+    "auto": false,
+    "same_as_the_first": true,
+    "warnings": []
+  },
+  "correções / nova section / automático": {
+    "stage": "dark",
+    "auto": true,
+    "same_as_the_first": true,
+    "warnings": [
+      "no_stage"
+    ]
+  },
+  "2º componente / ds-base-demo": {
+    "runs": [
+      {
+        "lang": "en",
+        "new_section": false,
+        "failed": [],
+        "warnings": [
+          "spacing_dropped"
+        ],
+        "sets_found": 0,
+        "area_retries": 0
+      },
+      {
+        "lang": "pt-BR",
+        "new_section": false,
+        "failed": [],
+        "warnings": [
+          "no_stage"
+        ],
+        "sets_found": 1,
+        "area_retries": 0
+      },
+      {
+        "lang": "pt-BR",
+        "new_section": false,
+        "failed": [],
+        "warnings": [],
+        "sets_found": 1,
+        "area_retries": 0
+      },
+      {
+        "lang": "pt-BR",
+        "new_section": true,
+        "failed": [],
+        "warnings": [
+          "no_stage"
+        ],
+        "sets_found": 1,
+        "area_retries": 0
+      }
+    ],
+    "approval_sets_in_the_file": 1,
+    "failures": 0
+  },
+  "correções / app / vãos e apoio": {
+    "cover_master_gap": 64.0,
+    "violations": [],
+    "support_left_of_the_section": true,
+    "support_y_is_the_sections": true
+  },
+  "correções / app / aviso no painel": {
+    "warnings": [
+      "no_stage",
+      "frame_missing"
+    ],
+    "message_says_properties": true
   }
 }

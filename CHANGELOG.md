@@ -4,6 +4,88 @@ All notable changes to Handoff Components. The format follows [Keep a Changelog]
 Version 0.x: expect rough edges. The data the plugin reads and writes is described in
 [`docs/data-contract.md`](docs/data-contract.md).
 
+## [0.11.0] - 2026-11-21
+
+### Requirements
+
+- Same as 0.10.0: FigCraft **plugin API 2**, tested with **figcraft-cli 0.18.1**. The plugin now asks for seven more
+  permissions (see Changed).
+
+### Added
+
+- **The documentation is a Section.** Each component gets one Section on the page with **eight frames in one column**:
+  Cover, Component Master, Properties, Anatomy, States and Variants, Layouts, Tokens and Changelog (1180 px wide, 64 px
+  apart). Heights are read back from what the host laid out, so the gap between frames is 64 px.
+- **Cover.** Name, version and status guides you type over, last designer, date, description, and six **approval pills**
+  (Designer, Engineering, QA, Writers, PO, PM) with a legend of the four states. It is made once; a rerun never changes it.
+- **Support frame.** One frame for the whole file holds the **set of approval pills** (`.Handoff · Approval`) the Covers
+  use. It stands to the left of the first Section. The pills are written with the property names of the set that is in the file,
+  whatever language made it. Do not delete it; if you do, a Cover that is made again makes it again.
+- **Component Master.** The original component or set moves into this frame, so the instances elsewhere in your file stay
+  linked to it. A set wider than the frame is arranged with **auto layout and wrap**, only when it does not fit; a set that fits is
+  left as you made it. The Master is made again on every run.
+- **Properties** and **Tokens** are frames of their own: Properties (name, type, default, options), and Tokens (tokens by
+  layer, and resolved colors in Dark and Light).
+- **Anatomy** shows the instance with numbered markers on straight guides only (horizontal or vertical). Guides never
+  cross a text, markers keep their distance from each other, and a number that has no room is said in the table's Note column.
+- **States and Variants** is a gallery: one tile with a real instance for each option of each variant axis, with its
+  name and a line that says `default` or `changes: Fill, Border, …` (names only, never values). The default option is always
+  there; a budget limits how many tiles are drawn and the rest is counted.
+- **Layouts** draws the padding and the gap as **translucent bands** over the instance (padding green, gap violet), **one
+  drawing for each level of nesting** (up to 4), with the value as a number. Equal bands share one number tied to them by a
+  vertical line and short traces, on each side of the instance; a number never covers text, vectors or icons.
+- **Update.** The panel's new **Update** choice (all sections, tables only, tokens only, properties only, anatomy only,
+  states and variants only, layouts only) says which frames a rerun replaces. "Tables only" replaces Properties, Anatomy, States and Variants and Layouts; Tokens has
+  an option of its own. The first run always makes all eight.
+- **New Section** makes another Section for the same component beside the first (without a Master).
+- **Selecting a variant** documents the whole set, as if you had selected the set.
+- **A frame you deleted by hand** comes back, in its place, when Update names it. When Update does not name it, the panel
+  says it was not made.
+- **Warnings.** A run can now tell you, with a short message in the panel: `table_failed` (a frame could not be made),
+  `no_stage` (no stage suits every variant), `reflow_failed` (the set could not be arranged in lines),
+  `wide_master` (a very wide component: every frame was made wider), `legacy_doc` (a 0.10.0 documentation was found and left as it
+  was), `approval_property_missing` (the approval pills have no Area property), `support_missing` (the support frame could not be
+  made again), `frame_missing` (a frame is missing and Update does not name it), `markers_dropped` (markers that did not fit the
+  Anatomy) and `spacing_dropped` (spacing bands that did not fit the Layouts drawing).
+- The answer of a run has new fields (`section`, `frames`, `master`, `anatomy`, `gallery`, `spacing`, `tokens`, `support`,
+  `warnings`, `missing`, `migrated_from`, …); see the data contract.
+
+### Changed
+
+- **One Section instead of one frame.** The documentation is no longer one frame placed 512 px to the right of everything:
+  a Section goes to the right of everything on the page (256 px) and holds the frames above.
+- **A shorter panel** (11 controls): language, stage, Update, and the buttons **Generate**, **New Section**, **Restore defaults** and
+  **Close**. The **Version** and **Status** fields and the **On rerun** setting are gone; you type version and status on the Cover.
+  **Restore defaults** puts Language, Stage and Update in the panel back to their defaults; Language and Stage are then saved with the next documentation, and Update is never saved (it is All each time the panel opens).
+- **Anatomy** is the stage plus a table of the numbers (No., Type, Layer, Note) instead of the legend.
+- **The stage** can now also be **mid-grey** (`#777777`): Auto chooses among light, mid-grey and dark, and for the Component Master it
+  judges every variant of the set (a sample in a big set), where 0.10.0 judged each picture alone. The Stage control still offers
+  Auto, Light and Dark; mid-grey comes only from Auto.
+- The panel shows **one** warning at a time; one that says something was not made comes before advice.
+- **Permissions.** The manifest asks for seven more host commands: `node.create`, `component.create`,
+  `component.combineVariants`, `instance.create`, `component.addProperty`, `component.bindProperty` and `instance.setProperties`
+  (the Section, and the approval pills as a real component).
+
+### Removed
+
+- The **variant matrix** (one row of blocks for each axis) and the stacked format of the changes: States and Variants is a gallery now.
+- The **legend of each numbered layer's properties and tokens** beside the Anatomy (the tokens and values of each layer are in
+  the Tokens frame now), and the 0.10.0 measure rectangles of the spacing (`measure.padding`).
+- The header with **Version** and **Status** and the **On rerun** control. A script can still pass `on_rerun`, `version` and `status`
+  to a direct run; they are accepted and **ignored**.
+
+### Known limitations
+
+- **Translucent bands over colored components.** The Layouts bands are translucent, so over a colored component (a blue
+  button, say) they change its color; the numbers stay readable, the colors do not.
+- The **Layouts frame is tall** when the instance is tall (one drawing for each level of nesting).
+- **Small instances stay small.** The host cannot scale an instance whole, so the drawings are at 1x.
+- The panel shows **one warning at a time**, even when a run has several.
+- `on_rerun`, `version` and `status` are **accepted and ignored** in a direct run.
+- Spacing bands that do not fit the drawing are not drawn; the note under the drawing says how many.
+- **How it was tested.** The measurements and the fuel in this repository come from `figcraft-cli 0.18.1` without a window
+  (synthetic).
+
 ## [0.10.0] - 2026-11-14
 
 ### Requirements
